@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:forca_de_vendas/backend/ftp/ftp_transport.dart';
+import 'package:forca_de_vendas/services/carga_registry_service.dart';
 import 'package:forca_de_vendas/services/ftp_path_builder.dart';
 import 'package:forca_de_vendas/services/ftp_upload_service.dart';
 import 'package:forca_de_vendas/services/status_envio_db.dart';
@@ -55,15 +56,18 @@ class _FakeStatusDb extends StatusEnvioDb {
 }
 
 void main() {
-  final List<Directory> tempDirs = [];  tearDown(() {
+  final List<Directory> tempDirs = [];
+  tearDown(() {
     for (final d in tempDirs) {
       if (d.existsSync()) d.deleteSync(recursive: true);
     }
     tempDirs.clear();
   });
 
-  (Directory, FtpUploadService, _FakeFtp, _FakeStatusDb) setup(
-      {required List<String> arquivos}) {
+  (Directory, FtpUploadService, _FakeFtp, _FakeStatusDb) setup({
+    required List<String> arquivos,
+    List<CargaRegistro>? registros,
+  }) {
     final tempDir = Directory.systemTemp.createTempSync('ftp_upload_test_');
     tempDirs.add(tempDir);
     for (final nome in arquivos) {
@@ -75,15 +79,18 @@ void main() {
       connectFtp: () async => fake,
       getTemporaryDirectoryFn: () async => tempDir,
       statusDb: statusDb,
+      registry: CargaRegistryService(
+        manifestPath: p.join(tempDir.path, 'carga_manifest.json'),
+      ),
     );
     return (tempDir, service, fake, statusDb);
   }
 
   group('FtpUploadService.classificarTipoArquivo', () {
     test('classifies by legacy naming', () {
-      expect(FtpUploadService.classificarTipoArquivo('p71-1007'),
+      expect(FtpUploadService.classificarTipoArquivo('p71-1682930.pac'),
           TipoCarga.pedido);
-      expect(FtpUploadService.classificarTipoArquivo('c71-36109'),
+      expect(FtpUploadService.classificarTipoArquivo('c71-36109.xml'),
           TipoCarga.cliente);
       expect(FtpUploadService.classificarTipoArquivo('cli_020754'),
           TipoCarga.cliente);
@@ -95,17 +102,28 @@ void main() {
   });
 
   group('FtpUploadService.enviarArquivosPendentes', () {
-    test('uploads a pedido to /{empresa}/{equipe}/Externo/ and marks status',
+    test('uploads a pedido .pac, marks status by registry id and deletes file',
         () async {
-      final (tempDir, service, fake, statusDb) = setup(arquivos: ['p71-1007']);
+      final registros = [
+        CargaRegistro(
+          arquivo: 'p7-1682930.pac',
+          tipo: TipoCarga.pedido,
+          id: 1007,
+        ),
+      ];
+      final (tempDir, service, fake, statusDb) = setup(
+        arquivos: ['p7-1682930.pac'],
+        registros: registros,
+      );
 
       final result = await service.enviarArquivosPendentes(
         empresa: 'DINIZ',
         codigoEquipe: 7,
+        registros: registros,
       );
 
       expect(result.success, isTrue);
-      expect(fake.storNames, ['p71-1007']);
+      expect(fake.storNames, ['p7-1682930.pac']);
       expect(fake.cwdCalls, contains('/'));
       expect(fake.cwdCalls, contains('diniz'));
       expect(fake.cwdCalls, contains('07'));
@@ -114,63 +132,99 @@ void main() {
       expect(statusDb.pedidosMarcados, [1007]);
       expect(statusDb.clientesMarcados, isEmpty);
 
-      expect(File(p.join(tempDir.path, 'p71-1007')).existsSync(), isFalse);
-      expect(
-          File(p.join(tempDir.path, 'enviados', 'p71-1007')).existsSync(),
-          isTrue);
+      expect(File(p.join(tempDir.path, 'p7-1682930.pac')).existsSync(), isFalse);
     });
 
-    test('uploads a cliente to /{empresa}/{equipe}/Customer/ and marks status',
-        () async {
-      final (_, service, fake, statusDb) = setup(arquivos: ['cli_020754']);
+    test('uploads a cliente .xml and marks status by registry id', () async {
+      final registros = [
+        CargaRegistro(
+          arquivo: 'c7-54321.xml',
+          tipo: TipoCarga.cliente,
+          id: 20754,
+        ),
+      ];
+      final (tempDir, service, fake, statusDb) = setup(
+        arquivos: ['c7-54321.xml'],
+        registros: registros,
+      );
 
       final result = await service.enviarArquivosPendentes(
         empresa: 'diniz',
         codigoEquipe: 71,
+        registros: registros,
       );
 
       expect(result.success, isTrue);
-      expect(fake.storNames, ['cli_020754']);
+      expect(fake.storNames, ['c7-54321.xml']);
       expect(fake.cwdCalls, contains('Customer'));
       expect(statusDb.clientesMarcados, [20754]);
       expect(statusDb.pedidosMarcados, isEmpty);
+
+      expect(File(p.join(tempDir.path, 'c7-54321.xml')).existsSync(), isFalse);
     });
 
-    test('keeps file pending (retry) when SIZE diverges', () async {
-      final (tempDir, service, fake, _) = setup(arquivos: ['p71-1007']);
+    test('keeps file pending (retry) when SIZE diverges and does not mark',
+        () async {
+      final registros = [
+        CargaRegistro(
+          arquivo: 'p7-1682930.pac',
+          tipo: TipoCarga.pedido,
+          id: 1007,
+        ),
+      ];
+      final (tempDir, service, fake, statusDb) = setup(
+        arquivos: ['p7-1682930.pac'],
+        registros: registros,
+      );
 
-      // Simula servidor recebendo tamanho divergente
-      fake.sizeOverride['p71-1007'] = 123456;
+      fake.sizeOverride['p7-1682930.pac'] = 123456;
 
       final result = await service.enviarArquivosPendentes(
         empresa: 'diniz',
         codigoEquipe: 7,
+        registros: registros,
       );
 
       expect(result.success, isFalse);
       expect(result.enviados.single.sucesso, isFalse);
       expect(fake.quitCalled, isTrue);
-      expect(File(p.join(tempDir.path, 'p71-1007')).existsSync(), isTrue);
-      expect(
-          File(p.join(tempDir.path, 'enviados', 'p71-1007')).existsSync(),
-          isFalse);
+      expect(statusDb.pedidosMarcados, isEmpty);
+      expect(File(p.join(tempDir.path, 'p7-1682930.pac')).existsSync(), isTrue);
     });
 
     test('respects enviarPedidos/enviarClientes filters', () async {
-      final (_, service, fake, statusDb) =
-          setup(arquivos: ['p71-1007', 'cli_020754']);
+      final registros = [
+        CargaRegistro(
+          arquivo: 'p7-1682930.pac',
+          tipo: TipoCarga.pedido,
+          id: 1007,
+        ),
+        CargaRegistro(
+          arquivo: 'c7-54321.xml',
+          tipo: TipoCarga.cliente,
+          id: 20754,
+        ),
+      ];
+      final (tempDir, service, fake, statusDb) = setup(
+        arquivos: ['p7-1682930.pac', 'c7-54321.xml'],
+        registros: registros,
+      );
 
       final result = await service.enviarArquivosPendentes(
         empresa: 'diniz',
         codigoEquipe: 7,
         enviarPedidos: false,
         enviarClientes: true,
+        registros: registros,
       );
 
       expect(result.success, isTrue);
-      expect(fake.storNames, ['cli_020754']);
+      expect(fake.storNames, ['c7-54321.xml']);
       expect(statusDb.clientesMarcados, [20754]);
       expect(statusDb.pedidosMarcados, isEmpty);
+
+      expect(File(p.join(tempDir.path, 'p7-1682930.pac')).existsSync(), isTrue);
+      expect(File(p.join(tempDir.path, 'c7-54321.xml')).existsSync(), isFalse);
     });
 
     test('returns empty-success when no files pending', () async {

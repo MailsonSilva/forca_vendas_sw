@@ -4,36 +4,46 @@ import 'package:path_provider/path_provider.dart';
 import '../backend/ftp/ftp_client.dart';
 import '../backend/ftp/ftp_transport.dart';
 import '../backend/schema/structs/index.dart';
+import 'carga_registry_service.dart';
 import 'ftp_path_builder.dart';
 import 'status_envio_db.dart';
 
 /// Orquestração do upload em lote de cargas FTP (pedidos PAC, clientes CAD e
 /// arquivos genéricos), equivalente ao `ftpUploadService` do spec.
 ///
-/// Responsabilidades:
+/// Responsabilidades (conforme o guia `docs/Guia_Upload_FTP_Flutter.md`):
 ///   1. Listar os arquivos pendentes em `getTemporaryDirectory()`.
 ///   2. Abrir UMA única conexão FTP (via [FtpTransport]).
 ///   3. Navegar para o caminho dinâmico (`FtpPathBuilder.getRemotePath`).
 ///   4. Enviar (PUT) com confirmação de tamanho via `SIZE`.
-///   5. Em sucesso: atualizar status no SQLite (`StatusEnvioDb`, lifecycle
-///      NEnviado → JEnviado) e mover o arquivo para `enviados/`.
+///   5. Em sucesso: **autorizar** o repositório (`StatusEnvioDb`) a marcar as
+///      flags como JEnviado usando a lista em memória (`CargaRegistro`), depois
+///      **deletar** o arquivo temporário e remover do manifesto.
 ///   6. Em falha: manter o arquivo na fila (retry na próxima sincronização).
 ///
-/// As dependências (conexão, diretório temporário e banco) são injetáveis para
-/// permitir testes sem rede.
+/// A responsabilidade de saber O QUE está sendo enviado (arquivo → id) fica na
+/// camada de geração, que popula o manifesto [CargaRegistryService]. A camada
+/// de FTP apenas transporta e, mediante sucesso (sem exceção), autoriza a
+/// atualização das flags no banco.
+///
+/// As dependências (conexão, diretório temporário, banco e manifesto) são
+/// injetáveis para permitir testes sem rede.
 class FtpUploadService {
   FtpUploadService({
     Future<FtpTransport> Function()? connectFtp,
     Future<Directory> Function()? getTemporaryDirectoryFn,
     StatusEnvioDb? statusDb,
+    CargaRegistryService? registry,
   })  : _connectFtp = connectFtp ?? (() => FtpClient.connect()),
         _getTemporaryDirectoryFn =
             getTemporaryDirectoryFn ?? getTemporaryDirectory,
-        _statusDb = statusDb ?? StatusEnvioDb();
+        _statusDb = statusDb ?? StatusEnvioDb(),
+        _registry = registry ?? CargaRegistryService();
 
   final Future<FtpTransport> Function() _connectFtp;
   final Future<Directory> Function() _getTemporaryDirectoryFn;
   final StatusEnvioDb _statusDb;
+  final CargaRegistryService _registry;
 
   /// Classifica o arquivo pelo nome conforme a nomenclatura do protocolo:
   ///   - `cli_...` ou `c...`  → [TipoCarga.cliente]  (Customer/)
@@ -53,6 +63,8 @@ class FtpUploadService {
   /// Envia todos os arquivos pendentes ao FTP.
   ///
   /// [enviarClientes]/[enviarPedidos] controlam quais tipos entram na fila.
+  /// [registros] é a lista em memória (manifesto) que associa cada arquivo ao
+  /// seu id; usada para autorizar a marcação de JEnviado após o transporte.
   /// [onProgress] é disparado a cada avanço de um arquivo com o nome, posição
   /// (1-based), total e progresso (0.0–1.0) da transferência atual.
   Future<UploadPendenteResultStruct> enviarArquivosPendentes({
@@ -60,6 +72,7 @@ class FtpUploadService {
     required int codigoEquipe,
     bool enviarClientes = true,
     bool enviarPedidos = true,
+    List<CargaRegistro>? registros,
     void Function(String nome, int index, int total, double arquivoProgress)?
         onProgress,
   }) async {
@@ -88,6 +101,10 @@ class FtpUploadService {
           enviados: [],
         );
       }
+
+      final registrosMap = <String, CargaRegistro>{
+        for (final r in (registros ?? await _registry.listar())) r.arquivo: r,
+      };
 
       for (final f in arquivos) {
         itens.add(ItemUploadStruct(
@@ -148,7 +165,16 @@ class FtpUploadService {
               );
             }
 
-            await _registrarEnvio(nome);
+            // Transporte confirmado (sem exceção) → autoriza o repositório a
+            // marcar JEnviado usando a lista em memória.
+            final registro = registrosMap[nome];
+            if (registro != null) {
+              if (registro.tipo == TipoCarga.pedido) {
+                await _statusDb.marcarPedidoEnviado(registro.id);
+              } else if (registro.tipo == TipoCarga.cliente) {
+                await _statusDb.marcarClienteEnviado(registro.id);
+              }
+            }
 
             itens[i] = ItemUploadStruct(
               nome: nome,
@@ -159,7 +185,7 @@ class FtpUploadService {
             );
             sucessoContagem++;
 
-            await _moverParaEnviados(tempDir, arquivo, nome);
+            await _deletarAposEnvio(tempDir, arquivo, nome, registro);
           } catch (e) {
             itens[i] = ItemUploadStruct(
               nome: nome,
@@ -188,27 +214,6 @@ class FtpUploadService {
     }
   }
 
-  /// Atualiza o lifecycle local conforme o tipo do arquivo:
-  ///   - pedido `p<rep>-<codMov>`  → `pckvendig000` (JEnviado = 1)
-  ///   - cliente `cli_<id>`/`c<rep>-<id>` → `cadcli00` (JEnviado = 1)
-  ///
-  /// Nomes que não carregam identificador (ex.: inclusão `cli_novo_<cpf>`,
-  /// arquivos genéricos) são ignorados — no-op seguro.
-  Future<void> _registrarEnvio(String nome) async {
-    final tipo = classificarTipoArquivo(nome);
-    if (tipo == TipoCarga.pedido) {
-      final codMov = int.tryParse(nome.split('-').last);
-      if (codMov != null) await _statusDb.marcarPedidoEnviado(codMov);
-    } else if (tipo == TipoCarga.cliente) {
-      final id = nome
-          .replaceFirst(RegExp(r'^cli_', caseSensitive: false), '')
-          .split('-')
-          .last;
-      final codCli = int.tryParse(id);
-      if (codCli != null) await _statusDb.marcarClienteEnviado(codCli);
-    }
-  }
-
   Future<void> _navegarFtpPasta(FtpTransport ftp, String pasta) async {
     await ftp.cwd('/');
     final segmentos = pasta.split('/').where((s) => s.trim().isNotEmpty);
@@ -225,24 +230,24 @@ class FtpUploadService {
     }
   }
 
-  Future<void> _moverParaEnviados(
+  /// Deleta o arquivo temporário após upload bem-sucedido (guia: passo 6
+  /// "Limpeza"). Se houver registro no manifesto, remove a entrada para que a
+  /// marcação JEnviado não seja reaplicada em sincronizações futuras.
+  Future<void> _deletarAposEnvio(
     Directory tempDir,
     File arquivo,
     String nome,
+    CargaRegistro? registro,
   ) async {
-    final Directory enviadosDir = Directory(p.join(tempDir.path, 'enviados'));
-    if (!await enviadosDir.exists()) {
-      await enviadosDir.create(recursive: true);
-    }
-    final File destino = File(p.join(enviadosDir.path, nome));
-    if (await destino.exists()) {
-      await destino.delete();
-    }
     try {
-      await arquivo.rename(destino.path);
-    } on FileSystemException {
-      await arquivo.copy(destino.path);
-      await arquivo.delete();
+      if (await arquivo.exists()) {
+        await arquivo.delete();
+      }
+      if (registro != null) {
+        await _registry.remover(registro.arquivo);
+      }
+    } catch (e) {
+      // Falha na limpeza não deve reprovar o upload já confirmado.
     }
   }
 }
