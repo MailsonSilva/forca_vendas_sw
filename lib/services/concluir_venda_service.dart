@@ -1,5 +1,4 @@
 // ignore_for_file: avoid_print
-import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -7,6 +6,7 @@ import 'package:sqflite/sqflite.dart';
 import '../backend/ftp/ftp_client.dart';
 import '../domain/models/pedido_venda.dart';
 import '../data/services/pac_xml_generator_service.dart';
+import 'carga_registry_service.dart';
 import 'ftp_path_builder.dart';
 import 'status_envio_db.dart';
 
@@ -95,24 +95,35 @@ class ConcluirVendaService {
     // 3. Atualiza estatísticas locais (ESTFATCVD00, FINCAICVD00, ESTPRO00)
     await pedido.doUpdateStatistics();
 
-    // 4. Monta o conteúdo XML da carga (PAC)
+    // 4. Monta o conteúdo XML da carga (PAC) e compacta em ZIP (.pac)
     final String xmlContent = PacXmlGeneratorService.generate(pedido);
+    final pacBytes = PacXmlGeneratorService.compressXmlToPac(xmlContent);
 
-    // 5. Define nome do arquivo sem extensão .xml (protocolo legado Delphi)
-    //    Formato: p{codRep}-{codMov}  ex: p71-1007
+    // 5. Define nome do arquivo conforme protocolo legado do guia:
+    //    p{codRep}-{millisecondsSinceEpoch}.pac  ex: p71-1682930.pac
     final String fileName = FtpPathBuilder.getFileNamePedido(
       pedido.codRep,
-      pedido.codMov,
+      DateTime.now().millisecondsSinceEpoch,
     );
 
     // 6. Grava localmente: temp/ (fila de upload) e documents/ (backup)
     final tempDir = await getTemporaryDirectory();
     final localFile = File(p.join(tempDir.path, fileName));
-    await localFile.writeAsString(xmlContent, flush: true);
+    await localFile.writeAsBytes(pacBytes, flush: true);
 
     final docsDir = await getApplicationDocumentsDirectory();
     final docsFile = File(p.join(docsDir.path, fileName));
-    await docsFile.writeAsString(xmlContent, flush: true);
+    await docsFile.writeAsBytes(pacBytes, flush: true);
+
+    // 7. Registra no manifesto a associação arquivo → id do pedido (em memória).
+    //    A camada de FTP só transporta; quem sabe o que está sendo enviado é
+    //    esta camada de geração, e o repositório usa esta lista para marcar
+    //    JEnviado após o transporte bem-sucedido.
+    await CargaRegistryService().registrar(CargaRegistro(
+      arquivo: fileName,
+      tipo: TipoCarga.pedido,
+      id: pedido.codMov,
+    ));
 
     print('[ConcluirVendaService] Pedido #${pedido.codMov} salvo em: ${localFile.path}');
     print('[ConcluirVendaService] FTP pendente — use Ferramentas → Dados → Subir Carga.');
@@ -139,9 +150,10 @@ class ConcluirVendaService {
     required int codigoEquipe,
   }) async {
     final String xmlContent = PacXmlGeneratorService.generate(pedido);
+    final pacBytes = PacXmlGeneratorService.compressXmlToPac(xmlContent);
     final String fileName = FtpPathBuilder.getFileNamePedido(
       pedido.codRep,
-      pedido.codMov,
+      DateTime.now().millisecondsSinceEpoch,
     );
 
     final String remotePath = FtpPathBuilder.getRemotePath(
@@ -168,7 +180,7 @@ class ConcluirVendaService {
             } catch (_) {}
           }
         }
-        await ftp.stor(fileName, utf8.encode(xmlContent));
+        await ftp.stor(fileName, pacBytes);
         uploadSuccess = true;
         print('[ConcluirVendaService] Upload FTP OK: $remotePath$fileName');
       } finally {
@@ -183,32 +195,31 @@ class ConcluirVendaService {
       // Atualiza status do pedido no SQLite para JEnviado (1)
       await StatusEnvioDb().marcarPedidoEnviado(pedido.codMov);
 
-      // Move arquivo de temp/ para enviados/ (auditoria + evita reenvio)
-      try {
-        final tempDir = await getTemporaryDirectory();
-        final localFile = File(p.join(tempDir.path, fileName));
-        final Directory enviadosDir =
-            Directory(p.join(tempDir.path, 'enviados'));
-        if (!await enviadosDir.exists()) {
-          await enviadosDir.create(recursive: true);
-        }
-        final File destFile = File(p.join(enviadosDir.path, fileName));
-        if (await destFile.exists()) {
-          await destFile.delete();
-        }
-        if (await localFile.exists()) {
-          try {
-            await localFile.rename(destFile.path);
-          } on FileSystemException {
-            await localFile.copy(destFile.path);
-            await localFile.delete();
-          }
-        }
-      } catch (e) {
-        print('Aviso ao mover arquivo temporário para enviados: $e');
-      }
+      // Deleta o arquivo temporário do pedido e remove do manifesto (auditoria
+      // desnecessária — o guia manda deletar após upload bem-sucedido).
+      await _limparTemporarioDoPedido(pedido.codMov);
     }
 
     return uploadSuccess;
+  }
+
+  /// Deleta os arquivos temporários registrados no manifesto para o pedido
+  /// [codMov] e remove suas entradas, evitando reenvio duplicado.
+  Future<void> _limparTemporarioDoPedido(int codMov) async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final registry = CargaRegistryService();
+      final registros = await registry.listar();
+      for (final reg in registros
+          .where((r) => r.tipo == TipoCarga.pedido && r.id == codMov)) {
+        final localFile = File(p.join(tempDir.path, reg.arquivo));
+        if (await localFile.exists()) {
+          await localFile.delete();
+        }
+        await registry.remover(reg.arquivo);
+      }
+    } catch (e) {
+      print('Aviso ao limpar arquivos temporários do pedido: $e');
+    }
   }
 }
