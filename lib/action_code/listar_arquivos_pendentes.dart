@@ -26,15 +26,15 @@ import 'package:path_provider/path_provider.dart';
 
 /// Lista arquivos de sincronizacao no diretorio temporario.
 ///
-/// Quando [prefixo] esta vazio ou `*`, lista todos os arquivos em espera. Os
-/// arquivos ja enviados sao lidos de `getTemporaryDirectory()/enviados/` para
-/// alimentar o filtro de status da UI.
+/// Quando [prefixo] esta vazio ou `*`, lista todos os arquivos em espera.
+/// Arquivos ja enviados sao **deletados** apos o upload (guia de FTP), entao
+/// o filtro "Enviados" da UI usa o resultado em memoria (`item.sucesso`) do
+/// último envio, nao uma pasta de auditoria no disco.
 Future<List<ItemUploadStruct>> listarArquivosPendentes(
   String prefixo,
 ) async {
   try {
     final Directory tempDir = await getTemporaryDirectory();
-    final Directory enviadosDir = Directory(p.join(tempDir.path, 'enviados'));
     final prefix = prefixo.trim();
     final listarTodos = prefix.isEmpty || prefix == '*';
 
@@ -58,20 +58,6 @@ Future<List<ItemUploadStruct>> listarArquivosPendentes(
               bytesEnviados: 0,
               caminhoLocal: f.path,
             )));
-
-    if (await enviadosDir.exists()) {
-      itens.addAll(enviadosDir
-          .listSync()
-          .whereType<File>()
-          .where(matches)
-          .map((f) => ItemUploadStruct(
-                nome: p.basename(f.path),
-                sucesso: true,
-                mensagem: 'Enviado com sucesso.',
-                bytesEnviados: f.lengthSync(),
-                caminhoLocal: f.path,
-              )));
-    }
 
     itens.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
     return itens;

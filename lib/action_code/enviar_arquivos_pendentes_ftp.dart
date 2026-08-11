@@ -10,17 +10,19 @@ import 'package:flutter/material.dart';
 // Begin custom action code
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
+import '../services/carga_registry_service.dart';
 import '../services/ftp_upload_service.dart';
 
 /// Envia todos os arquivos em espera no `getTemporaryDirectory()` ao FTP.
 ///
 /// Wrapper fino sobre [FtpUploadService]: a orquestração (conexão única,
-/// navegação CWD/MKD, PUT, confirmação por SIZE, atualização do status no
-/// SQLite para `JEnviado` e movimentação para `enviados/`) vive no serviço.
+/// navegação CWD/MKD, PUT, confirmação por SIZE, autorização de JEnviado no
+/// SQLite e **deleção** do arquivo temporário após sucesso) vive no serviço.
 ///
-/// Aqui apenas os parâmetros globais da sessão são lidos de `AppState()` e o
-/// progresso é espelhado em `dbSyncStatus`/`dbSyncProgress`/`dbSyncText` para
-/// a UI reagir em tempo real.
+/// Aqui apenas os parâmetros globais da sessão são lidos de `AppState()`, a
+/// lista em memória (manifesto) é carregada via [CargaRegistryService] para o
+/// repositório marcar as flags corretas, e o progresso é espelhado em
+/// `dbSyncStatus`/`dbSyncProgress`/`dbSyncText` para a UI reagir em tempo real.
 ///
 /// Retorna `UploadPendenteResultStruct` com a lista de `ItemUploadStruct`
 /// por arquivo (nome, sucesso, mensagem, bytesEnviados) para a UI detalhar.
@@ -38,11 +40,16 @@ Future<UploadPendenteResultStruct> enviarArquivosPendentesFtp({bool enviarClient
       AppState().dbSyncText = 'Conectando ao servidor...';
     });
 
+    // Lista em memória do que está sendo enviado (arquivo → id). A camada de
+    // geração a registrou; aqui apenas transportamos e autorizamos o repositório.
+    final registros = await CargaRegistryService().listar();
+
     final result = await FtpUploadService().enviarArquivosPendentes(
       empresa: empresa,
       codigoEquipe: codigoEquipe,
       enviarClientes: enviarClientes,
       enviarPedidos: enviarPedidos,
+      registros: registros,
       onProgress: (nome, index, total, arquivoProgress) {
         AppState().update(() {
           AppState().dbSyncProgress =
@@ -80,8 +87,10 @@ Future<UploadPendenteResultStruct> enviarArquivosPendentesFtp({bool enviarClient
 
 String _descricaoEnvio(String nome) {
   final lower = nome.toLowerCase();
-  if (lower.startsWith('cli_')) return 'Subindo cadastro $nome';
-  if (lower.startsWith('ped') || lower.startsWith('pedido')) {
+  if (lower.startsWith('cli_') || lower.startsWith('c')) {
+    return 'Subindo cadastro $nome';
+  }
+  if (lower.startsWith('p')) {
     return 'Subindo pedido $nome';
   }
   if (lower.contains('cliente')) return 'Subindo alteracao de cliente $nome';
