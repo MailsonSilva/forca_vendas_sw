@@ -16,9 +16,13 @@ class LoginResultStruct extends BaseStruct {
 
     /// LoginResult.vendedor_nome
     String? vendedorNome,
+
+    /// LoginResult.vendedor_equipe (ven00_codeqp)
+    int? vendedorEquipe,
   })  : _success = success,
         _vendedorCodigo = vendedorCodigo,
-        _vendedorNome = vendedorNome;
+        _vendedorNome = vendedorNome,
+        _vendedorEquipe = vendedorEquipe;
 
   // "success" field.
   bool? _success;
@@ -44,11 +48,19 @@ class LoginResultStruct extends BaseStruct {
 
   bool hasVendedorNome() => _vendedorNome != null;
 
+  // "vendedor_equipe" field.
+  int? _vendedorEquipe;
+  int get vendedorEquipe => _vendedorEquipe ?? 0;
+  set vendedorEquipe(int? val) => _vendedorEquipe = val;
+
+  bool hasVendedorEquipe() => _vendedorEquipe != null;
+
   static LoginResultStruct fromMap(Map<String, dynamic> data) =>
       LoginResultStruct(
         success: data['success'] as bool?,
         vendedorCodigo: castToType<int>(data['vendedor_codigo']),
         vendedorNome: data['vendedor_nome'] as String?,
+        vendedorEquipe: castToType<int>(data['vendedor_equipe']),
       );
 
   static LoginResultStruct? maybeFromMap(dynamic data) => data is Map
@@ -59,6 +71,7 @@ class LoginResultStruct extends BaseStruct {
         'success': _success,
         'vendedor_codigo': _vendedorCodigo,
         'vendedor_nome': _vendedorNome,
+        'vendedor_equipe': _vendedorEquipe,
       }.withoutNulls;
 
   @override
@@ -74,6 +87,10 @@ class LoginResultStruct extends BaseStruct {
         'vendedor_nome': serializeParam(
           _vendedorNome,
           ParamType.String,
+        ),
+        'vendedor_equipe': serializeParam(
+          _vendedorEquipe,
+          ParamType.int,
         ),
       }.withoutNulls;
 
@@ -94,6 +111,11 @@ class LoginResultStruct extends BaseStruct {
           ParamType.String,
           false,
         ),
+        vendedorEquipe: deserializeParam(
+          data['vendedor_equipe'],
+          ParamType.int,
+          false,
+        ),
       );
 
   @override
@@ -104,21 +126,24 @@ class LoginResultStruct extends BaseStruct {
     return other is LoginResultStruct &&
         success == other.success &&
         vendedorCodigo == other.vendedorCodigo &&
-        vendedorNome == other.vendedorNome;
+        vendedorNome == other.vendedorNome &&
+        vendedorEquipe == other.vendedorEquipe;
   }
 
   @override
   int get hashCode =>
-      const ListEquality().hash([success, vendedorCodigo, vendedorNome]);
+      const ListEquality().hash([success, vendedorCodigo, vendedorNome, vendedorEquipe]);
 }
 
 LoginResultStruct createLoginResultStruct({
   bool? success,
   int? vendedorCodigo,
   String? vendedorNome,
+  int? vendedorEquipe,
 }) =>
     LoginResultStruct(
       success: success,
       vendedorCodigo: vendedorCodigo,
       vendedorNome: vendedorNome,
+      vendedorEquipe: vendedorEquipe,
     );

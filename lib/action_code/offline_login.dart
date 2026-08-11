@@ -38,7 +38,7 @@ Future<LoginResultStruct> offlineLogin(String vendedorCodigo) async {
       readOnly: true,
     );
     final rows = await db.rawQuery(
-      'SELECT ven00_codigo, ven00_descri FROM cadrep00 WHERE ven00_codigo = ?',
+      'SELECT ven00_codigo, ven00_descri, ven00_codeqp FROM cadrep00 WHERE ven00_codigo = ?',
       [codigo],
     );
     await db.close();
@@ -56,6 +56,7 @@ Future<LoginResultStruct> offlineLogin(String vendedorCodigo) async {
       'success': true,
       'vendedor_codigo': (row['ven00_codigo'] as num?)?.toInt() ?? codigo,
       'vendedor_nome': row['ven00_descri']?.toString() ?? '',
+      'vendedor_equipe': (row['ven00_codeqp'] as num?)?.toInt() ?? 0,
     });
   } catch (e) {
     return LoginResultStruct.fromMap({

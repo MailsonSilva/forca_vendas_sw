@@ -82,6 +82,13 @@ class AppState extends ChangeNotifier {
     _vendedor_nome = value;
   }
 
+  /// DSL app state vendedor_equipe (ven00_codeqp)
+  int _vendedor_equipe = 0;
+  int get vendedor_equipe => _vendedor_equipe;
+  set vendedor_equipe(int value) {
+    _vendedor_equipe = value;
+  }
+
   /// DSL app state empresa_codigo
   String _empresa_codigo = '';
   String get empresa_codigo => _empresa_codigo;

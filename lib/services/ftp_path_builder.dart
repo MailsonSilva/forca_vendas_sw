@@ -6,10 +6,10 @@
 //               Preenchido no login (first_access_login.dart / offline_login.dart).
 //               Fallback: 'diniz' quando vazio.
 //
-//   • codReg   → AppState().vendedor_codigo  (int, ex: 71)
-//               Persistido em SharedPreferences (chave: 'app_vendedor_codigo').
+//   • codReg   → AppState().vendedor_equipe  (int, ex: 7)
+//               Origem ven00_codeqp, persistido em SharedPreferences.
 //               Representa o CÓDIGO DA EQUIPE / vendedor logado.
-//               Formatado com 2 dígitos (ex: 71 → '71', 7 → '07').
+//               Formatado com 2 dígitos (ex: 7 → '07', 71 → '71').
 //
 // FORMATO DO PATH RESULTANTE (exemplos):
 //   Pedido  → /diniz/71/Externo/

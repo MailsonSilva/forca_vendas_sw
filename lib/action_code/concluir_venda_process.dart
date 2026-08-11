@@ -23,6 +23,7 @@ Future<bool> concluirVendaProcess({
     final String datSys = DateFormat('yyyy-MM-dd').format(DateTime.now());
     final int codRep = AppState().vendedor_codigo;
     final int codFil = resolverCodFilial(AppState().empresa_codigo) ?? 1;
+    final int codEqp = AppState().vendedor_equipe;
 
     // 2. Mapeamento para os modelos de domínio
     final List<ItemPedidoVenda> itemsVenda = [];
@@ -84,7 +85,7 @@ Future<bool> concluirVendaProcess({
     await concluirService.gerarESalvarPedidoLocal(
       pedido: pedido,
       empresa: empresa,
-      codigoEquipe: codRep,
+      codigoEquipe: codEqp,
     );
 
     return true;

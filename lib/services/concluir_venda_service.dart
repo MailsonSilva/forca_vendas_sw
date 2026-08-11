@@ -8,6 +8,7 @@ import '../backend/ftp/ftp_client.dart';
 import '../domain/models/pedido_venda.dart';
 import '../data/services/pac_xml_generator_service.dart';
 import 'ftp_path_builder.dart';
+import 'status_envio_db.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ConcluirVendaService — separação de responsabilidades:
@@ -179,39 +180,8 @@ class ConcluirVendaService {
     }
 
     if (uploadSuccess) {
-      // Atualiza status do pedido no SQLite
-      final dbPath = p.join(await getDatabasesPath(), 'dbforcacad001.db');
-      if (await File(dbPath).exists()) {
-        final db = await openDatabase(dbPath);
-        try {
-          final List<Map<String, dynamic>> columns =
-              await db.rawQuery('PRAGMA table_info(pckvendig000)');
-          final colNames =
-              columns.map((r) => r['name']?.toString().toLowerCase()).toSet();
-
-          String? statusCol;
-          if (colNames.contains('ped00_status')) {
-            statusCol = 'ped00_status';
-          } else if (colNames.contains('ped00_sitped')) {
-            statusCol = 'ped00_sitped';
-          } else if (colNames.contains('ped00_situac')) {
-            statusCol = 'ped00_situac';
-          } else if (colNames.contains('ped00_enviado')) {
-            statusCol = 'ped00_enviado';
-          }
-
-          if (statusCol != null) {
-            await db.rawUpdate(
-              'UPDATE pckvendig000 SET $statusCol = ? WHERE ped00_numped = ?',
-              ['pvpseJEnviado', pedido.codMov],
-            );
-          }
-        } catch (e) {
-          print('Aviso ao atualizar status de enviado no SQLite: $e');
-        } finally {
-          await db.close();
-        }
-      }
+      // Atualiza status do pedido no SQLite para JEnviado (1)
+      await StatusEnvioDb().marcarPedidoEnviado(pedido.codMov);
 
       // Move arquivo de temp/ para enviados/ (auditoria + evita reenvio)
       try {

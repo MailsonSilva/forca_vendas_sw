@@ -301,6 +301,9 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                             AppState().vendedor_nome = _model
                                                 .firstAccessLogin!.vendedorNome;
                                             safeSetState(() {});
+                                            AppState().vendedor_equipe = _model
+                                                .firstAccessLogin!.vendedorEquipe;
+                                            safeSetState(() {});
                                             AppState().empresa_codigo = _model
                                                 .empresaCodigoFieldTextController
                                                 .text;
@@ -370,6 +373,9 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                           safeSetState(() {});
                                           AppState().vendedor_nome =
                                               _model.offlineLogin!.vendedorNome;
+                                          safeSetState(() {});
+                                          AppState().vendedor_equipe =
+                                              _model.offlineLogin!.vendedorEquipe;
                                           safeSetState(() {});
                                           AppState().empresa_codigo = _model
                                               .empresaCodigoFieldTextController

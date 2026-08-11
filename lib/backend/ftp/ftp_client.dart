@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'ftp_transport.dart';
 
 /// Configuracao central das credenciais FTP do host legado homologado.
 ///
@@ -29,7 +30,7 @@ class FtpConfig {
 /// (TYPE I). Implementacao extraida e unificada das antigas duplicatas
 /// presentes em `first_access_login.dart`,
 /// `download_database_from_ftp.dart` e `upload_database_to_ftp.dart`.
-class FtpClient {
+class FtpClient implements FtpTransport {
   FtpClient._(this._socket, this._lines);
 
   final Socket _socket;
@@ -59,9 +60,11 @@ class FtpClient {
   }
 
   /// Troca de diretorio. Aceita path absoluto (`/x/y`) ou relativo (`pasta`).
+  @override
   Future<void> cwd(String path) => _cmd('CWD $path', [250]);
 
   /// Criar diretorio no FTP (se nao existir).
+  @override
   Future<void> mkd(String path) => _cmd('MKD $path', [257, 250, 550]);
 
   /// Download de um arquivo do diretorio atual. Retorna os bytes em memoria.
@@ -94,6 +97,7 @@ class FtpClient {
   /// Upload de bytes para o diretorio atual com o nome informado.
   /// Dispara [onProgress] (opcional) com o total de bytes ja enviados para
   /// atualizar barras de progresso na UI.
+  @override
   Future<void> stor(
     String fileName,
     List<int> bytes, {
@@ -133,6 +137,7 @@ class FtpClient {
   ///
   /// Usado apos `stor` para confirmar que o servidor realmente recebeu a
   /// quantidade de bytes esperada antes de mover o arquivo local para enviados.
+  @override
   Future<int> size(String fileName) async {
     final reply = await _cmd('SIZE $fileName', [213]);
     final parts = reply.message.trim().split(RegExp(r'\s+'));
@@ -143,6 +148,7 @@ class FtpClient {
   }
 
   /// Encerramento limpo da conexao. Ignora erros de desconexao.
+  @override
   Future<void> quit() async {
     try {
       await _cmd('QUIT', [221]);

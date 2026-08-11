@@ -247,7 +247,12 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
           backgroundColor: Colors.green,
         ),
       );
-      context.pushNamed('PedidoNovoInicio');
+      context.pushNamed(
+        PedidoResumoWidget.routeName,
+        queryParameters: {
+          'pedidoId': (widget.pedidoId ?? 0).toString(),
+        },
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
