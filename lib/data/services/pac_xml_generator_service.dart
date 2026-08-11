@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:archive/archive.dart';
 import 'package:intl/intl.dart';
 import '../../domain/models/pedido_venda.dart';
 
@@ -100,5 +103,16 @@ class PacXmlGeneratorService {
     xml.writeln('</root>');
 
     return xml.toString();
+  }
+
+  /// Compacta o XML de pedido em um arquivo ZIP em memória com a extensão
+  /// `.pac` (protocolo legado: `.pac` é um ZIP renomeado).
+  ///
+  /// Pura (sem I/O): o chamador decide onde gravar o arquivo. O conteúdo
+  /// original do XML é preservado íntegro dentro do arquivo `pedido.xml`.
+  static Uint8List compressXmlToPac(String xml) {
+    final archive = Archive()
+      ..addFile(ArchiveFile('pedido.xml', utf8.encode(xml).length, utf8.encode(xml)));
+    return Uint8List.fromList(ZipEncoder().encode(archive)!);
   }
 }

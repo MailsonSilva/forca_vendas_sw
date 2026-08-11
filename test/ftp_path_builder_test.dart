@@ -50,14 +50,17 @@ void main() {
   });
 
   group('FtpPathBuilder file names', () {
-    test('getFileNamePedido has no .xml extension', () {
-      expect(FtpPathBuilder.getFileNamePedido(71, 1007), equals('p71-1007'));
-      expect(FtpPathBuilder.getFileNamePedido(71, 1007), isNot(endsWith('.xml')));
+    test('getFileNamePedido follows guide naming with .pac extension', () {
+      expect(FtpPathBuilder.getFileNamePedido(71, 1682930),
+          equals('p71-1682930.pac'));
+      expect(FtpPathBuilder.getFileNamePedido(71, 1682930),
+          endsWith('.pac'));
     });
 
-    test('getFileNameCliente has no .xml extension', () {
-      expect(FtpPathBuilder.getFileNameCliente(71, 36109), equals('c71-36109'));
-      expect(FtpPathBuilder.getFileNameCliente(71, 36109), isNot(endsWith('.xml')));
+    test('getFileNameCliente follows guide naming with .xml extension', () {
+      expect(FtpPathBuilder.getFileNameCliente(71, 36109),
+          equals('c71-36109.xml'));
+      expect(FtpPathBuilder.getFileNameCliente(71, 36109), endsWith('.xml'));
     });
   });
 }

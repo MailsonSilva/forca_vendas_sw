@@ -54,15 +54,21 @@ class FtpPathBuilder {
     }
   }
 
-  /// Gera o nome do arquivo de pedido SEM extensão (protocolo legado Delphi).
-  /// Formato: p{codRep}-{codMov}  →  ex: p71-1007
+  /// Gera o nome do arquivo de pedido conforme o protocolo legado do guia.
+  /// Formato: p{codRep}-{ms}.pac  →  ex: p71-1682930.pac
+  ///
+  /// [codMov] aqui é o identificador livre do lote (ex.: `millisecondsSinceEpoch`
+  /// na geração), pois o id real do pedido vai no manifesto e no conteúdo XML.
   static String getFileNamePedido(int codRep, int codMov) {
-    return 'p$codRep-$codMov';
+    return 'p$codRep-$codMov.pac';
   }
 
-  /// Gera o nome do arquivo de cliente SEM extensão.
-  /// Formato: c{codRep}-{codCli}  →  ex: c71-36109
+  /// Gera o nome do arquivo de cliente conforme o protocolo legado do guia.
+  /// Formato: c{codRep}-{id}.xml  →  ex: c71-36109.xml
+  ///
+  /// [codCli] é o identificador do cliente (ou `millisecondsSinceEpoch` para
+  /// inclusão `cli00_codigo == 0`).
   static String getFileNameCliente(int codRep, int codCli) {
-    return 'c$codRep-$codCli';
+    return 'c$codRep-$codCli.xml';
   }
 }
