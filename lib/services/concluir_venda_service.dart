@@ -35,6 +35,20 @@ import 'status_envio_db.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 class ConcluirVendaService {
+  ConcluirVendaService({
+    Future<Directory> Function()? getTemporaryDirectoryFn,
+    Future<Directory> Function()? getDocumentsDirFn,
+    CargaRegistryService? registry,
+  })  : _getTemporaryDirectoryFn =
+            getTemporaryDirectoryFn ?? getTemporaryDirectory,
+        _getDocumentsDirFn =
+            getDocumentsDirFn ?? getApplicationDocumentsDirectory,
+        _registry = registry ?? CargaRegistryService();
+
+  final Future<Directory> Function() _getTemporaryDirectoryFn;
+  final Future<Directory> Function() _getDocumentsDirFn;
+  final CargaRegistryService _registry;
+
   /// Gera e salva o pedido **localmente** (SQLite + arquivo XML em temp/).
   ///
   /// NÃO realiza upload FTP. O arquivo fica em `getTemporaryDirectory()`
@@ -108,11 +122,11 @@ class ConcluirVendaService {
     );
 
     // 6. Grava localmente: temp/ (fila de upload) e documents/ (backup)
-    final tempDir = await getTemporaryDirectory();
+    final tempDir = await _getTemporaryDirectoryFn();
     final localFile = File(p.join(tempDir.path, fileName));
     await localFile.writeAsBytes(pacBytes, flush: true);
 
-    final docsDir = await getApplicationDocumentsDirectory();
+    final docsDir = await _getDocumentsDirFn();
     final docsFile = File(p.join(docsDir.path, fileName));
     await docsFile.writeAsBytes(pacBytes, flush: true);
 
@@ -120,7 +134,7 @@ class ConcluirVendaService {
     //    A camada de FTP só transporta; quem sabe o que está sendo enviado é
     //    esta camada de geração, e o repositório usa esta lista para marcar
     //    JEnviado após o transporte bem-sucedido.
-    await CargaRegistryService().registrar(CargaRegistro(
+    await _registry.registrar(CargaRegistro(
       arquivo: fileName,
       tipo: TipoCarga.pedido,
       id: pedido.codMov,
@@ -208,16 +222,15 @@ class ConcluirVendaService {
   /// [codMov] e remove suas entradas, evitando reenvio duplicado.
   Future<void> _limparTemporarioDoPedido(int codMov) async {
     try {
-      final tempDir = await getTemporaryDirectory();
-      final registry = CargaRegistryService();
-      final registros = await registry.listar();
+      final tempDir = await _getTemporaryDirectoryFn();
+      final registros = await _registry.listar();
       for (final reg in registros
           .where((r) => r.tipo == TipoCarga.pedido && r.id == codMov)) {
         final localFile = File(p.join(tempDir.path, reg.arquivo));
         if (await localFile.exists()) {
           await localFile.delete();
         }
-        await registry.remover(reg.arquivo);
+        await _registry.remover(reg.arquivo);
       }
     } catch (e) {
       print('Aviso ao limpar arquivos temporários do pedido: $e');
