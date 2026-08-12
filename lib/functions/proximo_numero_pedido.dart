@@ -11,12 +11,13 @@ import 'package:sqflite/sqflite.dart';
 ///
 /// Fallback seguro (padrão no-op): se o banco não existir, a tabela não
 /// existir ou ocorrer erro, retorna `1` sem lançar exceção.
-Future<int> obterProximoNumeroPedido() async {
+Future<int> obterProximoNumeroPedido({String? dbPath}) async {
   try {
-    final dbPath = join(await getDatabasesPath(), 'dbforcacad001.db');
-    if (!await File(dbPath).exists()) return 1;
+    final resolved =
+        dbPath ?? join(await getDatabasesPath(), 'dbforcacad001.db');
+    if (!await File(resolved).exists()) return 1;
 
-    final db = await openDatabase(dbPath);
+    final db = await openDatabase(resolved);
     try {
       final result = await db.rawQuery(
         'SELECT IFNULL(MAX(ped00_numped), 0) + 1 AS proximo FROM pckvendig000',
