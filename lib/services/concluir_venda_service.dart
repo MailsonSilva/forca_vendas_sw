@@ -100,10 +100,11 @@ class ConcluirVendaService {
     final pacBytes = PacXmlGeneratorService.compressXmlToPac(xmlContent);
 
     // 5. Define nome do arquivo conforme protocolo legado do guia:
-    //    p{codRep}-{millisecondsSinceEpoch}.pac  ex: p71-1682930.pac
+    //    p{codRep}-{codigoSequencialPacote}.pac  ex: p71-32504.pac
+    //    A sequência vem de MAX(ped00_numped)+1 do banco local (via codMov).
     final String fileName = FtpPathBuilder.getFileNamePedido(
       pedido.codRep,
-      DateTime.now().millisecondsSinceEpoch,
+      pedido.codMov,
     );
 
     // 6. Grava localmente: temp/ (fila de upload) e documents/ (backup)
@@ -153,7 +154,7 @@ class ConcluirVendaService {
     final pacBytes = PacXmlGeneratorService.compressXmlToPac(xmlContent);
     final String fileName = FtpPathBuilder.getFileNamePedido(
       pedido.codRep,
-      DateTime.now().millisecondsSinceEpoch,
+      pedido.codMov,
     );
 
     final String remotePath = FtpPathBuilder.getRemotePath(

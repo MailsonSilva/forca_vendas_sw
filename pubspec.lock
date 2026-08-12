@@ -286,7 +286,7 @@ packages:
     source: hosted
     version: "1.4.0"
   http_parser:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: http_parser
       sha256: "178d74305e7866013777bab2c3d8726205dc5a4dd935297175b19a23a2e66571"
@@ -650,6 +650,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.5.4+3"
+  sqflite_common_ffi:
+    dependency: "direct dev"
+    description:
+      name: sqflite_common_ffi
+      sha256: "1f3ef3888d3bfbb47785cc1dda0dc7dd7ebd8c1955d32a9e8e9dae1e38d1c4c1"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.3.5"
+  sqlite3:
+    dependency: "direct overridden"
+    description:
+      name: sqlite3
+      sha256: "955c57a3fd1b3ec839f3aa295e1fc83bc9db88920fa826c535812e7ffe281355"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.7.0"
   stack_trace:
     dependency: transitive
     description:

@@ -1,10 +1,7 @@
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
-import '/core/app_widgets.dart';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'pedidos_rascunhos_page_model.dart';
 export 'pedidos_rascunhos_page_model.dart';
 
@@ -66,7 +63,7 @@ class _PedidosRascunhosPageWidgetState
                   fontStyle: AppTheme.of(context).titleLarge.fontStyle,
                 ),
           ),
-          actions: [],
+          actions: const [],
           centerTitle: true,
           elevation: 0.0,
         ),
@@ -76,25 +73,25 @@ class _PedidosRascunhosPageWidgetState
             decoration: BoxDecoration(
               color: AppTheme.of(context).primaryBackground,
             ),
-            alignment: AlignmentDirectional(0.0, 0.0),
+            alignment: const AlignmentDirectional(0.0, 0.0),
             child: Padding(
-              padding: EdgeInsets.all(24.0),
+              padding: const EdgeInsets.all(24.0),
               child: Container(
                 width: 420.0,
                 decoration: BoxDecoration(
                   color: AppTheme.of(context).secondaryBackground,
                   borderRadius: BorderRadius.circular(12.0),
-                  boxShadow: [
+                  boxShadow: const [
                     BoxShadow(
                       blurRadius: 4.0,
-                      color: const Color(0x1A000000),
-                      offset: const Offset(0.0, 2.0),
+                      color: Color(0x1A000000),
+                      offset: Offset(0.0, 2.0),
                       spreadRadius: 0.0,
                     )
                   ],
                 ),
                 child: Padding(
-                  padding: EdgeInsets.all(24.0),
+                  padding: const EdgeInsets.all(24.0),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -148,7 +145,7 @@ class _PedidosRascunhosPageWidgetState
                                   .fontStyle,
                             ),
                       ),
-                    ].divide(SizedBox(height: 12.0)),
+                    ].divide(const SizedBox(height: 12.0)),
                   ),
                 ),
               ),

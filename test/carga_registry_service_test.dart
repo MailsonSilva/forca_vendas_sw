@@ -21,7 +21,7 @@ void main() {
 
   group('CargaRegistryService.registrar/listar', () {
     test('registers and lists a pedido record', () async {
-      await registry.registrar(CargaRegistro(
+      await registry.registrar(const CargaRegistro(
         arquivo: 'p7-12345.pac',
         tipo: TipoCarga.pedido,
         id: 1007,
@@ -35,12 +35,12 @@ void main() {
     });
 
     test('registers multiple records', () async {
-      await registry.registrar(CargaRegistro(
+      await registry.registrar(const CargaRegistro(
         arquivo: 'p7-12345.pac',
         tipo: TipoCarga.pedido,
         id: 1007,
       ));
-      await registry.registrar(CargaRegistro(
+      await registry.registrar(const CargaRegistro(
         arquivo: 'c7-54321.xml',
         tipo: TipoCarga.cliente,
         id: 20754,
@@ -53,7 +53,7 @@ void main() {
 
   group('CargaRegistryService.remover', () {
     test('removes a record by arquivo name', () async {
-      await registry.registrar(CargaRegistro(
+      await registry.registrar(const CargaRegistro(
         arquivo: 'p7-12345.pac',
         tipo: TipoCarga.pedido,
         id: 1007,
@@ -67,7 +67,7 @@ void main() {
 
   group('CargaRegistryService persistence', () {
     test('survives across instances (re-reads JSON from disk)', () async {
-      final reg = CargaRegistro(
+      const reg = CargaRegistro(
         arquivo: 'p7-12345.pac',
         tipo: TipoCarga.pedido,
         id: 1007,

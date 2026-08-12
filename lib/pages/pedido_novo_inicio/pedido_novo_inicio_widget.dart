@@ -1,12 +1,10 @@
 import '/action_code/index.dart';
-import '/backend/schema/structs/index.dart';
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
-import '/core/app_widgets.dart';
+import '/functions/proximo_numero_pedido.dart';
 import '/index.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'pedido_novo_inicio_model.dart';
 export 'pedido_novo_inicio_model.dart';
 
@@ -74,9 +72,9 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
           builder: (context, setStateDialog) {
             final filtered = _model.clientes.where((c) {
               final term = searchQuery.toLowerCase();
-              final name = (c.cli00Descri ?? '').toLowerCase();
-              final fantas = (c.cli00Fantas ?? '').toLowerCase();
-              final cod = (c.cli00Codigo ?? '').toString();
+              final name = c.cli00Descri.toLowerCase();
+              final fantas = c.cli00Fantas.toLowerCase();
+              final cod = c.cli00Codigo.toString();
               return name.contains(term) || fantas.contains(term) || cod.contains(term);
             }).toList();
 
@@ -167,7 +165,7 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 8.0),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? AppTheme.of(context).primary.withOpacity(0.08) : Colors.white,
+                                  color: isSelected ? AppTheme.of(context).primary.withValues(alpha: 0.08) : Colors.white,
                                   borderRadius: BorderRadius.circular(12.0),
                                   border: Border.all(
                                     color: isSelected ? AppTheme.of(context).primary : const Color(0xFFE0E3E7),
@@ -182,7 +180,7 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                                         ),
                                   ),
                                   subtitle: Text(
-                                    c.cli00Fantas ?? '',
+                                    c.cli00Fantas,
                                     style: AppTheme.of(context).bodyMedium.override(
                                           font: GoogleFonts.inter(
                                             color: AppTheme.of(context).secondaryText,
@@ -312,7 +310,7 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 8.0),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? AppTheme.of(context).primary.withOpacity(0.08) : Colors.white,
+                                  color: isSelected ? AppTheme.of(context).primary.withValues(alpha: 0.08) : Colors.white,
                                   borderRadius: BorderRadius.circular(12.0),
                                   border: Border.all(
                                     color: isSelected ? AppTheme.of(context).primary : const Color(0xFFE0E3E7),
@@ -454,7 +452,7 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 8.0),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? AppTheme.of(context).primary.withOpacity(0.08) : Colors.white,
+                                  color: isSelected ? AppTheme.of(context).primary.withValues(alpha: 0.08) : Colors.white,
                                   borderRadius: BorderRadius.circular(12.0),
                                   border: Border.all(
                                     color: isSelected ? AppTheme.of(context).primary : const Color(0xFFE0E3E7),
@@ -805,8 +803,9 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                               ),
                               elevation: 0,
                             ),
-                            onPressed: () {
-                              final tempOrderId = DateTime.now().millisecondsSinceEpoch % 100000;
+                            onPressed: () async {
+                              final tempOrderId = await obterProximoNumeroPedido();
+                              if (!context.mounted) return;
                               AppState().update(() {
                                 AppState().pedido_numero = tempOrderId;
                               });
@@ -818,7 +817,7 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                                   'clienteNome': _model.selectedCliente!.cli00Descri,
                                   'clienteCodigo': _model.selectedCliente!.cli00Codigo.toString(),
                                   'clienteCnpj': _model.selectedCliente!.cli00Cpfcnp,
-                                  'clienteCidade': '${_model.selectedCliente!.cli00Ciddes} - ${_model.selectedCliente!.cli00Estsgl ?? ''}',
+                                  'clienteCidade': '${_model.selectedCliente!.cli00Ciddes} - ${_model.selectedCliente!.cli00Estsgl}',
                                   'clienteLimite': _model.selectedCliente!.cli00Crelim.toString(),
                                   'linhaCodigo': _model.selectedLinha?.codigo ?? '',
                                   'linhaDescricao': _model.selectedLinha?.descricao ?? '',

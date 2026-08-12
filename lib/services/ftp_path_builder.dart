@@ -55,10 +55,10 @@ class FtpPathBuilder {
   }
 
   /// Gera o nome do arquivo de pedido conforme o protocolo legado do guia.
-  /// Formato: p{codRep}-{ms}.pac  →  ex: p71-1682930.pac
+  /// Formato: p{codRep}-{codigoSequencialPacote}.pac  →  ex: p71-32504.pac
   ///
-  /// [codMov] aqui é o identificador livre do lote (ex.: `millisecondsSinceEpoch`
-  /// na geração), pois o id real do pedido vai no manifesto e no conteúdo XML.
+  /// [codMov] aqui é o código sequencial do pacote (MAX(ped00_numped)+1 do
+  /// banco local), que também é o id real do pedido (manifesto e XML).
   static String getFileNamePedido(int codRep, int codMov) {
     return 'p$codRep-$codMov.pac';
   }

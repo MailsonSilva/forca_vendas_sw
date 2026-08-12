@@ -1,9 +1,7 @@
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
-import '/core/app_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'tab_item_model.dart';
 export 'tab_item_model.dart';
 
@@ -12,8 +10,8 @@ class TabItemWidget extends StatefulWidget {
     super.key,
     String? label,
     bool? selected,
-  })  : this.label = label ?? 'Principal',
-        this.selected = selected ?? false;
+  })  : label = label ?? 'Principal',
+        selected = selected ?? false;
 
   final String label;
   final bool selected;
@@ -50,7 +48,7 @@ class _TabItemWidgetState extends State<TabItemWidget> {
       decoration: BoxDecoration(
         color: valueOrDefault<Color>(
           valueOrDefault<bool>(
-            widget!.selected,
+            widget.selected,
             false,
           )
               ? AppTheme.of(context).secondary20
@@ -60,7 +58,7 @@ class _TabItemWidgetState extends State<TabItemWidget> {
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(valueOrDefault<double>(
             valueOrDefault<bool>(
-              widget!.selected,
+              widget.selected,
               false,
             )
                 ? 4.0
@@ -69,7 +67,7 @@ class _TabItemWidgetState extends State<TabItemWidget> {
           )),
           topRight: Radius.circular(valueOrDefault<double>(
             valueOrDefault<bool>(
-              widget!.selected,
+              widget.selected,
               false,
             )
                 ? 4.0
@@ -78,7 +76,7 @@ class _TabItemWidgetState extends State<TabItemWidget> {
           )),
           bottomLeft: Radius.circular(valueOrDefault<double>(
             valueOrDefault<bool>(
-              widget!.selected,
+              widget.selected,
               false,
             )
                 ? 4.0
@@ -87,7 +85,7 @@ class _TabItemWidgetState extends State<TabItemWidget> {
           )),
           bottomRight: Radius.circular(valueOrDefault<double>(
             valueOrDefault<bool>(
-              widget!.selected,
+              widget.selected,
               false,
             )
                 ? 4.0
@@ -102,13 +100,13 @@ class _TabItemWidgetState extends State<TabItemWidget> {
         ),
       ),
       child: Padding(
-        padding: EdgeInsetsDirectional.fromSTEB(16.0, 8.0, 16.0, 8.0),
+        padding: const EdgeInsetsDirectional.fromSTEB(16.0, 8.0, 16.0, 8.0),
         child: Container(
           child: Align(
-            alignment: AlignmentDirectional(0.0, 0.0),
+            alignment: const AlignmentDirectional(0.0, 0.0),
             child: Text(
               valueOrDefault<String>(
-                widget!.label,
+                widget.label,
                 'Principal',
               ),
               textAlign: TextAlign.center,
@@ -121,7 +119,7 @@ class _TabItemWidgetState extends State<TabItemWidget> {
                     ),
                     color: valueOrDefault<Color>(
                       valueOrDefault<bool>(
-                        widget!.selected,
+                        widget.selected,
                         false,
                       )
                           ? AppTheme.of(context).onSurface

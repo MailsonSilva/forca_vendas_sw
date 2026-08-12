@@ -1,17 +1,13 @@
-import '/backend/schema/structs/index.dart';
 import '/components/classification_row2/classification_row2_widget.dart';
 import '/components/inventory_stat2/inventory_stat2_widget.dart';
 import '/core/app_icon_button.dart';
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
-import '/core/app_widgets.dart';
-import 'dart:ui';
 import '/action_code/index.dart' as actions;
 import '/widgets/index.dart' as custom_widgets;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'detalhe_produto_page_model.dart';
 export 'detalhe_produto_page_model.dart';
 
@@ -44,7 +40,7 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
     // On page load action.
     SchedulerBinding.instance.addPostFrameCallback((_) async {
       _model.resultadoBanco = await actions.carregarProdutoDetalhe(
-        widget!.produtoRef,
+        widget.produtoRef,
       );
       _model.produtoResult = _model.resultadoBanco;
       safeSetState(() {});
@@ -76,7 +72,7 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
             borderRadius: 30.0,
             borderWidth: 1.0,
             buttonSize: 60.0,
-            icon: Icon(
+            icon: const Icon(
               Icons.arrow_back_rounded,
               color: Colors.white,
               size: 30.0,
@@ -103,7 +99,7 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                       AppTheme.of(context).headlineMedium.fontStyle,
                 ),
           ),
-          actions: [],
+          actions: const [],
           centerTitle: true,
           elevation: 2.0,
         ),
@@ -123,7 +119,7 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Padding(
-                        padding: EdgeInsets.all(16.0),
+                        padding: const EdgeInsets.all(16.0),
                         child: Container(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -143,7 +139,7 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                   ),
                                 ),
                                 child: Padding(
-                                  padding: EdgeInsets.all(16.0),
+                                  padding: const EdgeInsets.all(16.0),
                                   child: Container(
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
@@ -155,18 +151,18 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                         Container(
                                           width: double.infinity,
                                           height: 140.0,
-                                          decoration: BoxDecoration(),
+                                          decoration: const BoxDecoration(),
                                           child: Align(
                                             alignment:
-                                                AlignmentDirectional(0.0, 0.0),
+                                                const AlignmentDirectional(0.0, 0.0),
                                             child: Builder(
                                               builder: (context) {
                                                 final listaDeImagens = _model
                                                         .resultadoBanco
                                                         ?.fotosProduto
-                                                        ?.map((e) => e)
+                                                        .map((e) => e)
                                                         .toList()
-                                                        ?.toList() ??
+                                                        .toList() ??
                                                     [];
 
                                                 return ListView.separated(
@@ -177,13 +173,13 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                                   itemCount:
                                                       listaDeImagens.length,
                                                   separatorBuilder: (_, __) =>
-                                                      SizedBox(width: 16.0),
+                                                      const SizedBox(width: 16.0),
                                                   itemBuilder: (context,
                                                       listaDeImagensIndex) {
                                                     final listaDeImagensItem =
                                                         listaDeImagens[
                                                             listaDeImagensIndex];
-                                                    return Container(
+                                                    return SizedBox(
                                                       width: 140.0,
                                                       height: 140.0,
                                                       child: custom_widgets
@@ -281,13 +277,13 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                           children: [
                                             Container(
                                               decoration: BoxDecoration(
-                                                color: Color(0xFFF1F3F9),
+                                                color: const Color(0xFFF1F3F9),
                                                 borderRadius:
                                                     BorderRadius.circular(8.0),
                                                 shape: BoxShape.rectangle,
                                               ),
                                               child: Padding(
-                                                padding: EdgeInsetsDirectional
+                                                padding: const EdgeInsetsDirectional
                                                     .fromSTEB(
                                                         16.0, 8.0, 16.0, 8.0),
                                                 child: Container(
@@ -377,20 +373,20 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                                                 ),
                                                       ),
                                                     ].divide(
-                                                        SizedBox(height: 4.0)),
+                                                        const SizedBox(height: 4.0)),
                                                   ),
                                                 ),
                                               ),
                                             ),
                                             Container(
                                               decoration: BoxDecoration(
-                                                color: Color(0xFFF1F3F9),
+                                                color: const Color(0xFFF1F3F9),
                                                 borderRadius:
                                                     BorderRadius.circular(8.0),
                                                 shape: BoxShape.rectangle,
                                               ),
                                               child: Padding(
-                                                padding: EdgeInsetsDirectional
+                                                padding: const EdgeInsetsDirectional
                                                     .fromSTEB(
                                                         16.0, 8.0, 16.0, 8.0),
                                                 child: Container(
@@ -480,14 +476,14 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                                                 ),
                                                       ),
                                                     ].divide(
-                                                        SizedBox(height: 4.0)),
+                                                        const SizedBox(height: 4.0)),
                                                   ),
                                                 ),
                                               ),
                                             ),
-                                          ].divide(SizedBox(width: 16.0)),
+                                          ].divide(const SizedBox(width: 16.0)),
                                         ),
-                                      ].divide(SizedBox(height: 16.0)),
+                                      ].divide(const SizedBox(height: 16.0)),
                                     ),
                                   ),
                                 ),
@@ -505,7 +501,7 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                   ),
                                 ),
                                 child: Padding(
-                                  padding: EdgeInsets.all(16.0),
+                                  padding: const EdgeInsets.all(16.0),
                                   child: Container(
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
@@ -565,7 +561,7 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                                         lineHeight: 1.4,
                                                       ),
                                             ),
-                                          ].divide(SizedBox(width: 8.0)),
+                                          ].divide(const SizedBox(width: 8.0)),
                                         ),
                                         Row(
                                           mainAxisSize: MainAxisSize.max,
@@ -582,7 +578,7 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                                 updateCallback: () =>
                                                     safeSetState(() {}),
                                                 child: InventoryStat2Widget(
-                                                  bgTint: Color(0x1A00C2FF),
+                                                  bgTint: const Color(0x1A00C2FF),
                                                   label: 'Atual',
                                                   textColor:
                                                       AppTheme.of(
@@ -591,10 +587,10 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                                   value: valueOrDefault<String>(
                                                     _model.produtoResult
                                                         ?.estoqueAtual
-                                                        ?.toString(),
+                                                        .toString(),
                                                     '0',
                                                   ),
-                                                  bg: Color(0x1A10B981),
+                                                  bg: const Color(0x1A10B981),
                                                   color: AppTheme.of(
                                                           context)
                                                       .success,
@@ -609,7 +605,7 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                                 updateCallback: () =>
                                                     safeSetState(() {}),
                                                 child: InventoryStat2Widget(
-                                                  bgTint: Color(0x1A00C2FF),
+                                                  bgTint: const Color(0x1A00C2FF),
                                                   label: 'Pendente',
                                                   textColor:
                                                       AppTheme.of(
@@ -618,10 +614,10 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                                   value: valueOrDefault<String>(
                                                     _model.produtoResult
                                                         ?.estoquePendente
-                                                        ?.toString(),
+                                                        .toString(),
                                                     '0',
                                                   ),
-                                                  bg: Color(0x1A10B981),
+                                                  bg: const Color(0x1A10B981),
                                                   color: AppTheme.of(
                                                           context)
                                                       .success,
@@ -636,7 +632,7 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                                 updateCallback: () =>
                                                     safeSetState(() {}),
                                                 child: InventoryStat2Widget(
-                                                  bgTint: Color(0x1A00C2FF),
+                                                  bgTint: const Color(0x1A00C2FF),
                                                   label: 'Disponível',
                                                   textColor:
                                                       AppTheme.of(
@@ -645,19 +641,19 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                                   value: valueOrDefault<String>(
                                                     _model.produtoResult
                                                         ?.saldoEstoque
-                                                        ?.toString(),
+                                                        .toString(),
                                                     '0',
                                                   ),
-                                                  bg: Color(0x1A10B981),
+                                                  bg: const Color(0x1A10B981),
                                                   color: AppTheme.of(
                                                           context)
                                                       .success,
                                                 ),
                                               ),
                                             ),
-                                          ].divide(SizedBox(width: 16.0)),
+                                          ].divide(const SizedBox(width: 16.0)),
                                         ),
-                                      ].divide(SizedBox(height: 16.0)),
+                                      ].divide(const SizedBox(height: 16.0)),
                                     ),
                                   ),
                                 ),
@@ -675,7 +671,7 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                   ),
                                 ),
                                 child: Padding(
-                                  padding: EdgeInsets.all(16.0),
+                                  padding: const EdgeInsets.all(16.0),
                                   child: Container(
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
@@ -735,7 +731,7 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                                         lineHeight: 1.4,
                                                       ),
                                             ),
-                                          ].divide(SizedBox(width: 8.0)),
+                                          ].divide(const SizedBox(width: 8.0)),
                                         ),
                                         Row(
                                           mainAxisSize: MainAxisSize.max,
@@ -821,7 +817,7 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                             ),
                                           ],
                                         ),
-                                      ].divide(SizedBox(height: 16.0)),
+                                      ].divide(const SizedBox(height: 16.0)),
                                     ),
                                   ),
                                 ),
@@ -839,7 +835,7 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                   ),
                                 ),
                                 child: Padding(
-                                  padding: EdgeInsets.all(16.0),
+                                  padding: const EdgeInsets.all(16.0),
                                   child: Container(
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
@@ -899,7 +895,7 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                                         lineHeight: 1.4,
                                                       ),
                                             ),
-                                          ].divide(SizedBox(width: 8.0)),
+                                          ].divide(const SizedBox(width: 8.0)),
                                         ),
                                         Column(
                                           mainAxisSize: MainAxisSize.min,
@@ -963,12 +959,12 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                             ),
                                           ],
                                         ),
-                                      ].divide(SizedBox(height: 16.0)),
+                                      ].divide(const SizedBox(height: 16.0)),
                                     ),
                                   ),
                                 ),
                               ),
-                            ].divide(SizedBox(height: 16.0)),
+                            ].divide(const SizedBox(height: 16.0)),
                           ),
                         ),
                       ),

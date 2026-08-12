@@ -61,7 +61,7 @@ Se você precisar que a IA crie ou ajuste o serviço de geração do pacote, use
 > 1. Gerar uma string XML contendo os pedidos (baseie-se num layout padrão de Vendas).
 > 2. Compactar este arquivo XML em um ZIP usando a biblioteca `archive`.
 > 3. Salvar o arquivo compactado localmente usando `path_provider`, mas com a extensão `.pac`.
-> 4. O nome do arquivo deve seguir a nomenclatura legada: `p<codigoRepresentante>-<milissegundos>.pac` (ex: `p105-1682930.pac`).
+> 4. O nome do arquivo deve seguir a nomenclatura legada: `p<codigoRepresentante>-<codigoSequencialPacote>.pac` (ex: `p105-32504.pac`). O código sequencial vem de `MAX(ped00_numped)+1` da tabela `pckvendig000` do banco local — não de milissegundos Unix.
 > 5. Retorne o `File` gerado de forma assíncrona (`Future<File>`)."
 
 ---

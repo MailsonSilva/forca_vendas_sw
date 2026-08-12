@@ -1,7 +1,6 @@
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
 import '/core/app_widgets.dart';
-import 'dart:ui';
 import '/action_code/index.dart' as actions;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -63,14 +62,14 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
         borderRadius: BorderRadius.circular(16.0),
       ),
       child: Padding(
-        padding: EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
-              alignment: AlignmentDirectional(0.0, 0.0),
+              alignment: const AlignmentDirectional(0.0, 0.0),
               child: Container(
                 width: 40.0,
                 height: 4.0,
@@ -86,7 +85,7 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget!.descricaoProduto!,
+                  widget.descricaoProduto!,
                   maxLines: 2,
                   style: AppTheme.of(context).titleMedium.override(
                         font: GoogleFonts.plusJakartaSans(
@@ -133,7 +132,7 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
                           ),
                     ),
                     Text(
-                      widget!.codigoProduto!,
+                      widget.codigoProduto!,
                       style: AppTheme.of(context).bodySmall.override(
                             font: GoogleFonts.inter(
                               fontWeight: AppTheme.of(context)
@@ -175,7 +174,7 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
                           ),
                     ),
                     Text(
-                      widget!.unidadeProduto!,
+                      widget.unidadeProduto!,
                       style: AppTheme.of(context).bodySmall.override(
                             font: GoogleFonts.inter(
                               fontWeight: AppTheme.of(context)
@@ -195,9 +194,9 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
                                 .fontStyle,
                           ),
                     ),
-                  ].divide(SizedBox(width: 6.0)),
+                  ].divide(const SizedBox(width: 6.0)),
                 ),
-              ].divide(SizedBox(height: 4.0)),
+              ].divide(const SizedBox(height: 4.0)),
             ),
             Container(
               decoration: BoxDecoration(
@@ -205,7 +204,7 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
                 borderRadius: BorderRadius.circular(8.0),
               ),
               child: Padding(
-                padding: EdgeInsetsDirectional.fromSTEB(12.0, 10.0, 12.0, 10.0),
+                padding: const EdgeInsetsDirectional.fromSTEB(12.0, 10.0, 12.0, 10.0),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.start,
@@ -241,7 +240,7 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
                               ),
                         ),
                         Text(
-                          widget!.precoUnitario!.toString(),
+                          widget.precoUnitario!.toString(),
                           style:
                               AppTheme.of(context).titleMedium.override(
                                     font: GoogleFonts.plusJakartaSans(
@@ -294,7 +293,7 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
                               ),
                         ),
                         Text(
-                          widget!.saldoDisponivel!.toString(),
+                          widget.saldoDisponivel!.toString(),
                           style: AppTheme.of(context)
                               .bodyMedium
                               .override(
@@ -318,7 +317,7 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
                         ),
                       ],
                     ),
-                  ].divide(SizedBox(height: 4.0)),
+                  ].divide(const SizedBox(height: 4.0)),
                 ),
               ),
             ),
@@ -373,9 +372,9 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
                         width: 48.0,
                         height: 48.0,
                         padding:
-                            EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
+                            const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
                         iconPadding:
-                            EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
+                            const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
                         color: AppTheme.of(context).primaryBackground,
                         textStyle: TextStyle(
                           color: AppTheme.of(context).primaryText,
@@ -386,7 +385,7 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
                     Expanded(
                       flex: 1,
                       child: Container(
-                        alignment: AlignmentDirectional(0.0, 0.0),
+                        alignment: const AlignmentDirectional(0.0, 0.0),
                         child: Text(
                           AppState().quantidade_item.toString(),
                           style: AppTheme.of(context)
@@ -428,9 +427,9 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
                         width: 48.0,
                         height: 48.0,
                         padding:
-                            EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
+                            const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
                         iconPadding:
-                            EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
+                            const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
                         color: AppTheme.of(context).primary,
                         textStyle: TextStyle(
                           color:
@@ -439,23 +438,24 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
                         borderRadius: BorderRadius.circular(8.0),
                       ),
                     ),
-                  ].divide(SizedBox(width: 12.0)),
+                  ].divide(const SizedBox(width: 12.0)),
                 ),
-              ].divide(SizedBox(height: 8.0)),
+              ].divide(const SizedBox(height: 8.0)),
             ),
             AppButtonWidget(
               onPressed: () async {
                 AppState().is_loading = true;
                 safeSetState(() {});
                 _model.itemSalvo = await actions.salvarItemPedido(
-                  widget!.codigoProduto,
-                  widget!.descricaoProduto,
-                  widget!.unidadeProduto,
+                  widget.codigoProduto,
+                  widget.descricaoProduto,
+                  widget.unidadeProduto,
                   AppState().quantidade_item.toString(),
-                  widget!.precoUnitario,
+                  widget.precoUnitario,
                 );
                 AppState().is_loading = false;
                 safeSetState(() {});
+                if (!context.mounted) return;
                 if (_model.itemSalvo!) {
                   AppState().quantidade_item = 1;
                   safeSetState(() {});
@@ -463,12 +463,12 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
                     context: context,
                     builder: (alertDialogContext) {
                       return AlertDialog(
-                        title: Text('Pedido'),
-                        content: Text('Item adicionado ao pedido com sucesso!'),
+                        title: const Text('Pedido'),
+                        content: const Text('Item adicionado ao pedido com sucesso!'),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(alertDialogContext),
-                            child: Text('OK'),
+                            child: const Text('OK'),
                           ),
                         ],
                       );
@@ -479,13 +479,13 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
                     context: context,
                     builder: (alertDialogContext) {
                       return AlertDialog(
-                        title: Text('Erro'),
-                        content: Text(
+                        title: const Text('Erro'),
+                        content: const Text(
                             'Não foi possível adicionar o item. Tente novamente.'),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(alertDialogContext),
-                            child: Text('OK'),
+                            child: const Text('OK'),
                           ),
                         ],
                       );
@@ -499,8 +499,8 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
               options: AppButtonOptions(
                 width: double.infinity,
                 height: 52.0,
-                padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
-                iconPadding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
+                padding: const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
+                iconPadding: const EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
                 color: AppTheme.of(context).primary,
                 textStyle: TextStyle(
                   color: AppTheme.of(context).secondaryBackground,
@@ -508,7 +508,7 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
                 borderRadius: BorderRadius.circular(8.0),
               ),
             ),
-          ].divide(SizedBox(height: 16.0)),
+          ].divide(const SizedBox(height: 16.0)),
         ),
       ),
     );

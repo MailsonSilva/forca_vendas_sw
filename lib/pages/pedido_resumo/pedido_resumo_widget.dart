@@ -71,11 +71,11 @@ class _PedidoResumoWidgetState extends State<PedidoResumoWidget> {
                   decoration: BoxDecoration(
                     color: AppTheme.of(context).secondaryBackground,
                     borderRadius: BorderRadius.circular(12.0),
-                    boxShadow: [
+                    boxShadow: const [
                       BoxShadow(
                         blurRadius: 4.0,
-                        color: const Color(0x1A000000),
-                        offset: const Offset(0.0, 2.0),
+                        color: Color(0x1A000000),
+                        offset: Offset(0.0, 2.0),
                         spreadRadius: 0.0,
                       )
                     ],

@@ -1,18 +1,9 @@
 import '/backend/schema/structs/index.dart';
 import '/components/classification_row2/classification_row2_widget.dart';
 import '/components/inventory_stat2/inventory_stat2_widget.dart';
-import '/core/app_icon_button.dart';
-import '/core/app_theme.dart';
 import '/core/app_util.dart';
-import '/core/app_widgets.dart';
-import 'dart:ui';
-import '/action_code/index.dart' as actions;
-import '/widgets/index.dart' as custom_widgets;
 import 'detalhe_produto_page_widget.dart' show DetalheProdutoPageWidget;
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 
 class DetalheProdutoPageModel
     extends AppModel<DetalheProdutoPageWidget> {

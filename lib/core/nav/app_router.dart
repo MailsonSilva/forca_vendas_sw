@@ -1,18 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:page_transition/page_transition.dart';
 import 'package:provider/provider.dart';
 
 import '/backend/schema/structs/index.dart';
 
 import '/main.dart';
-import '/core/app_theme.dart';
-import '/core/lat_lng.dart';
-import '/core/place.dart';
 import '/core/app_util.dart';
-import 'serialization_util.dart';
 
 import '/index.dart';
 
@@ -52,7 +46,7 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
                 ),
               ),
             )
-          : LoginPageWidget(),
+          : const LoginPageWidget(),
       routes: [
         AppRoute(
           name: '_initialize',
@@ -67,29 +61,29 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
                     ),
                   ),
                 )
-              : LoginPageWidget(),
+              : const LoginPageWidget(),
         ),
         AppRoute(
           name: HomePageWidget.routeName,
           path: HomePageWidget.routePath,
           builder: (context, params) => params.isEmpty
-              ? NavBarPage(initialPage: 'HomePage')
-              : HomePageWidget(),
+              ? const NavBarPage(initialPage: 'HomePage')
+              : const HomePageWidget(),
         ),
         AppRoute(
           name: LoginPageWidget.routeName,
           path: LoginPageWidget.routePath,
-          builder: (context, params) => LoginPageWidget(),
+          builder: (context, params) => const LoginPageWidget(),
         ),
         AppRoute(
           name: PedidosRascunhosPageWidget.routeName,
           path: PedidosRascunhosPageWidget.routePath,
-          builder: (context, params) => PedidosRascunhosPageWidget(),
+          builder: (context, params) => const PedidosRascunhosPageWidget(),
         ),
         AppRoute(
           name: BuscaProdutoPageWidget.routeName,
           path: BuscaProdutoPageWidget.routePath,
-          builder: (context, params) => BuscaProdutoPageWidget(),
+          builder: (context, params) => const BuscaProdutoPageWidget(),
         ),
         AppRoute(
           name: FormClientesPageWidget.routeName,
@@ -105,8 +99,8 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: ConfiguracaoPageWidget.routeName,
           path: ConfiguracaoPageWidget.routePath,
           builder: (context, params) => params.isEmpty
-              ? NavBarPage(initialPage: 'ConfiguracaoPage')
-              : ConfiguracaoPageWidget(),
+              ? const NavBarPage(initialPage: 'ConfiguracaoPage')
+              : const ConfiguracaoPageWidget(),
         ),
         AppRoute(
           name: DetalheProdutoPageWidget.routeName,
@@ -121,7 +115,7 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         AppRoute(
           name: FerramentasPageWidget.routeName,
           path: FerramentasPageWidget.routePath,
-          builder: (context, params) => FerramentasPageWidget(),
+          builder: (context, params) => const FerramentasPageWidget(),
         ),
         AppRoute(
           name: ExtratoClientePageWidget.routeName,
@@ -136,12 +130,12 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         AppRoute(
           name: ClientePageWidget.routeName,
           path: ClientePageWidget.routePath,
-          builder: (context, params) => ClientePageWidget(),
+          builder: (context, params) => const ClientePageWidget(),
         ),
         AppRoute(
           name: PedidoNovoInicioWidget.routeName,
           path: PedidoNovoInicioWidget.routePath,
-          builder: (context, params) => PedidoNovoInicioWidget(),
+          builder: (context, params) => const PedidoNovoInicioWidget(),
         ),
         AppRoute(
           name: PedidoItensListaWidget.routeName,
@@ -369,7 +363,7 @@ class TransitionInfo {
   final Duration duration;
   final Alignment? alignment;
 
-  static TransitionInfo appDefault() => TransitionInfo(hasTransition: false);
+  static TransitionInfo appDefault() => const TransitionInfo(hasTransition: false);
 }
 
 class RootPageContext {

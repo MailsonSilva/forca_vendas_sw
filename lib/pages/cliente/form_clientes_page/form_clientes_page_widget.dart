@@ -6,7 +6,6 @@ import '/core/app_theme.dart';
 import '/core/app_util.dart';
 import '/core/app_widgets.dart';
 import '/core/form_field_controller.dart';
-import 'dart:ui';
 import '/action_code/index.dart' as actions;
 import '/index.dart';
 import 'dart:convert';
@@ -17,7 +16,6 @@ import 'package:flutter/scheduler.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
-import 'package:provider/provider.dart';
 import 'form_clientes_page_model.dart';
 export 'form_clientes_page_model.dart';
 
@@ -50,7 +48,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
 
     // On page load action.
     SchedulerBinding.instance.addPostFrameCallback((_) async {
-      if (widget!.clienteCodigo == null) {
+      if (widget.clienteCodigo == null) {
         _model.cliData = ClienteResultStruct(
           isNovoCliente: true,
           isModificado: false,
@@ -61,7 +59,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
         safeSetState(() {});
       } else {
         _model.clienteResult = await actions.carregarClienteOffline(
-          widget!.clienteCodigo!,
+          widget.clienteCodigo!,
         );
         _model.cliData = _model.clienteResult;
         _model.tipoPessoa = _model.cliData?.cli00Pessoa;
@@ -337,7 +335,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
             borderRadius: 30.0,
             borderWidth: 1.0,
             buttonSize: 60.0,
-            icon: Icon(
+            icon: const Icon(
               Icons.arrow_back_rounded,
               color: Colors.white,
               size: 30.0,
@@ -362,7 +360,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                   fontStyle: AppTheme.of(context).titleLarge.fontStyle,
                 ),
           ),
-          actions: [],
+          actions: const [],
           centerTitle: true,
           elevation: 2.0,
         ),
@@ -382,7 +380,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                         return Column(
                           children: [
                             Align(
-                              alignment: Alignment(0.0, 0),
+                              alignment: const Alignment(0.0, 0),
                               child: TabBar(
                                 isScrollable: true,
                                 labelColor:
@@ -432,7 +430,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                     ),
                                 indicatorColor:
                                     AppTheme.of(context).primary,
-                                tabs: [
+                                tabs: const [
                                   Tab(
                                     text: 'Principal',
                                   ),
@@ -469,7 +467,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                       children: [
                                         Padding(
                                           padding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
                                             controller:
@@ -491,50 +489,50 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               ),
                                               alignLabelWithHint: false,
                                               hintText: 'Razão social',
-                                              enabledBorder: OutlineInputBorder(
+                                              enabledBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              focusedBorder: OutlineInputBorder(
+                                              focusedBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              errorBorder: OutlineInputBorder(
+                                              errorBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
                                               focusedErrorBorder:
-                                                  OutlineInputBorder(
+                                                  const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
@@ -559,7 +557,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                         ),
                                         Padding(
                                           padding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
                                             controller: _model
@@ -581,50 +579,50 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               ),
                                               alignLabelWithHint: false,
                                               hintText: 'Nome Fantasia',
-                                              enabledBorder: OutlineInputBorder(
+                                              enabledBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              focusedBorder: OutlineInputBorder(
+                                              focusedBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              errorBorder: OutlineInputBorder(
+                                              errorBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
                                               focusedErrorBorder:
-                                                  OutlineInputBorder(
+                                                  const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
@@ -649,7 +647,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                         ),
                                         Padding(
                                           padding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 4.0),
                                           child: Column(
                                             mainAxisSize: MainAxisSize.min,
@@ -659,7 +657,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 CrossAxisAlignment.start,
                                             children: [
                                               Padding(
-                                                padding: EdgeInsetsDirectional
+                                                padding: const EdgeInsetsDirectional
                                                     .fromSTEB(
                                                         10.0, 0.0, 0.0, 0.0),
                                                 child: Text(
@@ -711,14 +709,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                         width: double.infinity,
                                                         height: 42.0,
                                                         padding:
-                                                            EdgeInsetsDirectional
+                                                            const EdgeInsetsDirectional
                                                                 .fromSTEB(
                                                                     0.0,
                                                                     0.0,
                                                                     0.0,
                                                                     0.0),
                                                         iconPadding:
-                                                            EdgeInsetsDirectional
+                                                            const EdgeInsetsDirectional
                                                                 .fromSTEB(
                                                                     0.0,
                                                                     0.0,
@@ -765,14 +763,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                         width: double.infinity,
                                                         height: 42.0,
                                                         padding:
-                                                            EdgeInsetsDirectional
+                                                            const EdgeInsetsDirectional
                                                                 .fromSTEB(
                                                                     0.0,
                                                                     0.0,
                                                                     0.0,
                                                                     0.0),
                                                         iconPadding:
-                                                            EdgeInsetsDirectional
+                                                            const EdgeInsetsDirectional
                                                                 .fromSTEB(
                                                                     0.0,
                                                                     0.0,
@@ -807,16 +805,16 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                       ),
                                                     ),
                                                   ),
-                                                ].divide(SizedBox(width: 12.0)),
+                                                ].divide(const SizedBox(width: 12.0)),
                                               ),
-                                            ].divide(SizedBox(height: 8.0)),
+                                            ].divide(const SizedBox(height: 8.0)),
                                           ),
                                         ),
                                         Builder(
                                           builder: (context) {
                                             if (_model.tipoPessoa == 'F') {
                                               return Padding(
-                                                padding: EdgeInsetsDirectional
+                                                padding: const EdgeInsetsDirectional
                                                     .fromSTEB(
                                                         16.0, 0.0, 16.0, 0.0),
                                                 child: TextFormField(
@@ -842,14 +840,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     ),
                                                     hintText: '000.000.000-00',
                                                     enabledBorder:
-                                                        OutlineInputBorder(
+                                                        const OutlineInputBorder(
                                                       borderSide: BorderSide(
                                                         color:
                                                             Color(0x00000000),
                                                         width: 1.0,
                                                       ),
                                                       borderRadius:
-                                                          const BorderRadius
+                                                          BorderRadius
                                                               .only(
                                                         topLeft:
                                                             Radius.circular(
@@ -860,14 +858,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                       ),
                                                     ),
                                                     focusedBorder:
-                                                        OutlineInputBorder(
+                                                        const OutlineInputBorder(
                                                       borderSide: BorderSide(
                                                         color:
                                                             Color(0x00000000),
                                                         width: 1.0,
                                                       ),
                                                       borderRadius:
-                                                          const BorderRadius
+                                                          BorderRadius
                                                               .only(
                                                         topLeft:
                                                             Radius.circular(
@@ -878,14 +876,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                       ),
                                                     ),
                                                     errorBorder:
-                                                        OutlineInputBorder(
+                                                        const OutlineInputBorder(
                                                       borderSide: BorderSide(
                                                         color:
                                                             Color(0x00000000),
                                                         width: 1.0,
                                                       ),
                                                       borderRadius:
-                                                          const BorderRadius
+                                                          BorderRadius
                                                               .only(
                                                         topLeft:
                                                             Radius.circular(
@@ -896,14 +894,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                       ),
                                                     ),
                                                     focusedErrorBorder:
-                                                        OutlineInputBorder(
+                                                        const OutlineInputBorder(
                                                       borderSide: BorderSide(
                                                         color:
                                                             Color(0x00000000),
                                                         width: 1.0,
                                                       ),
                                                       borderRadius:
-                                                          const BorderRadius
+                                                          BorderRadius
                                                               .only(
                                                         topLeft:
                                                             Radius.circular(
@@ -938,7 +936,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               );
                                             } else {
                                               return Padding(
-                                                padding: EdgeInsetsDirectional
+                                                padding: const EdgeInsetsDirectional
                                                     .fromSTEB(
                                                         16.0, 0.0, 16.0, 0.0),
                                                 child: TextFormField(
@@ -949,7 +947,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                   onChanged: (_) =>
                                                       EasyDebounce.debounce(
                                                     '_model.cnpjFieldTextController',
-                                                    Duration(
+                                                    const Duration(
                                                         milliseconds: 2000),
                                                     () async {
                                                       safeSetState(() {});
@@ -974,14 +972,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     hintText:
                                                         '00.000.000/0000-0',
                                                     enabledBorder:
-                                                        OutlineInputBorder(
+                                                        const OutlineInputBorder(
                                                       borderSide: BorderSide(
                                                         color:
                                                             Color(0x00000000),
                                                         width: 1.0,
                                                       ),
                                                       borderRadius:
-                                                          const BorderRadius
+                                                          BorderRadius
                                                               .only(
                                                         topLeft:
                                                             Radius.circular(
@@ -992,14 +990,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                       ),
                                                     ),
                                                     focusedBorder:
-                                                        OutlineInputBorder(
+                                                        const OutlineInputBorder(
                                                       borderSide: BorderSide(
                                                         color:
                                                             Color(0x00000000),
                                                         width: 1.0,
                                                       ),
                                                       borderRadius:
-                                                          const BorderRadius
+                                                          BorderRadius
                                                               .only(
                                                         topLeft:
                                                             Radius.circular(
@@ -1010,14 +1008,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                       ),
                                                     ),
                                                     errorBorder:
-                                                        OutlineInputBorder(
+                                                        const OutlineInputBorder(
                                                       borderSide: BorderSide(
                                                         color:
                                                             Color(0x00000000),
                                                         width: 1.0,
                                                       ),
                                                       borderRadius:
-                                                          const BorderRadius
+                                                          BorderRadius
                                                               .only(
                                                         topLeft:
                                                             Radius.circular(
@@ -1028,14 +1026,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                       ),
                                                     ),
                                                     focusedErrorBorder:
-                                                        OutlineInputBorder(
+                                                        const OutlineInputBorder(
                                                       borderSide: BorderSide(
                                                         color:
                                                             Color(0x00000000),
                                                         width: 1.0,
                                                       ),
                                                       borderRadius:
-                                                          const BorderRadius
+                                                          BorderRadius
                                                               .only(
                                                         topLeft:
                                                             Radius.circular(
@@ -1073,7 +1071,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                         ),
                                         Padding(
                                           padding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
                                             controller:
@@ -1082,7 +1080,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             onChanged: (_) =>
                                                 EasyDebounce.debounce(
                                               '_model.ieFieldTextController',
-                                              Duration(milliseconds: 2000),
+                                              const Duration(milliseconds: 2000),
                                               () async {
                                                 safeSetState(() {});
                                               },
@@ -1101,50 +1099,50 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 fontSize: 14.0,
                                               ),
                                               hintText: '00000000-0',
-                                              enabledBorder: OutlineInputBorder(
+                                              enabledBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              focusedBorder: OutlineInputBorder(
+                                              focusedBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              errorBorder: OutlineInputBorder(
+                                              errorBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
                                               focusedErrorBorder:
-                                                  OutlineInputBorder(
+                                                  const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
@@ -1170,7 +1168,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                         ),
                                         Padding(
                                           padding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
                                             controller:
@@ -1179,7 +1177,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             onChanged: (_) =>
                                                 EasyDebounce.debounce(
                                               '_model.rgFieldTextController',
-                                              Duration(milliseconds: 2000),
+                                              const Duration(milliseconds: 2000),
                                               () async {
                                                 safeSetState(() {});
                                               },
@@ -1198,50 +1196,50 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 fontSize: 14.0,
                                               ),
                                               hintText: '000.000.00000-0',
-                                              enabledBorder: OutlineInputBorder(
+                                              enabledBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              focusedBorder: OutlineInputBorder(
+                                              focusedBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              errorBorder: OutlineInputBorder(
+                                              errorBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
                                               focusedErrorBorder:
-                                                  OutlineInputBorder(
+                                                  const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
@@ -1269,7 +1267,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                           ),
                                         ),
                                         Padding(
-                                          padding: EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+                                          padding: const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
                                           child: Row(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
@@ -1289,10 +1287,10 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     labelText: "DDD",
                                                     labelStyle: GoogleFonts.inter(color: AppTheme.of(context).secondaryText, fontWeight: FontWeight.w600, fontSize: 14.0),
                                                     hintText: "00",
-                                                    enabledBorder: OutlineInputBorder(borderSide: const BorderSide(color: Color(0x00000000), width: 1.0), borderRadius: const BorderRadius.only(topLeft: Radius.circular(4.0), topRight: Radius.circular(4.0))),
-                                                    focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: Color(0x00000000), width: 1.0), borderRadius: const BorderRadius.only(topLeft: Radius.circular(4.0), topRight: Radius.circular(4.0))),
-                                                    errorBorder: OutlineInputBorder(borderSide: const BorderSide(color: Color(0x00000000), width: 1.0), borderRadius: const BorderRadius.only(topLeft: Radius.circular(4.0), topRight: Radius.circular(4.0))),
-                                                    focusedErrorBorder: OutlineInputBorder(borderSide: const BorderSide(color: Color(0x00000000), width: 1.0), borderRadius: const BorderRadius.only(topLeft: Radius.circular(4.0), topRight: Radius.circular(4.0))),
+                                                    enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Color(0x00000000), width: 1.0), borderRadius: BorderRadius.only(topLeft: Radius.circular(4.0), topRight: Radius.circular(4.0))),
+                                                    focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: Color(0x00000000), width: 1.0), borderRadius: BorderRadius.only(topLeft: Radius.circular(4.0), topRight: Radius.circular(4.0))),
+                                                    errorBorder: const OutlineInputBorder(borderSide: BorderSide(color: Color(0x00000000), width: 1.0), borderRadius: BorderRadius.only(topLeft: Radius.circular(4.0), topRight: Radius.circular(4.0))),
+                                                    focusedErrorBorder: const OutlineInputBorder(borderSide: BorderSide(color: Color(0x00000000), width: 1.0), borderRadius: BorderRadius.only(topLeft: Radius.circular(4.0), topRight: Radius.circular(4.0))),
                                                     filled: true,
                                                     fillColor: AppTheme.of(context).secondaryBackground,
                                                   ),
@@ -1316,10 +1314,10 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     labelText: "N\u00famero",
                                                     labelStyle: GoogleFonts.inter(color: AppTheme.of(context).secondaryText, fontWeight: FontWeight.w600, fontSize: 14.0),
                                                     hintText: "00000-0000",
-                                                    enabledBorder: OutlineInputBorder(borderSide: const BorderSide(color: Color(0x00000000), width: 1.0), borderRadius: const BorderRadius.only(topLeft: Radius.circular(4.0), topRight: Radius.circular(4.0))),
-                                                    focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: Color(0x00000000), width: 1.0), borderRadius: const BorderRadius.only(topLeft: Radius.circular(4.0), topRight: Radius.circular(4.0))),
-                                                    errorBorder: OutlineInputBorder(borderSide: const BorderSide(color: Color(0x00000000), width: 1.0), borderRadius: const BorderRadius.only(topLeft: Radius.circular(4.0), topRight: Radius.circular(4.0))),
-                                                    focusedErrorBorder: OutlineInputBorder(borderSide: const BorderSide(color: Color(0x00000000), width: 1.0), borderRadius: const BorderRadius.only(topLeft: Radius.circular(4.0), topRight: Radius.circular(4.0))),
+                                                    enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Color(0x00000000), width: 1.0), borderRadius: BorderRadius.only(topLeft: Radius.circular(4.0), topRight: Radius.circular(4.0))),
+                                                    focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: Color(0x00000000), width: 1.0), borderRadius: BorderRadius.only(topLeft: Radius.circular(4.0), topRight: Radius.circular(4.0))),
+                                                    errorBorder: const OutlineInputBorder(borderSide: BorderSide(color: Color(0x00000000), width: 1.0), borderRadius: BorderRadius.only(topLeft: Radius.circular(4.0), topRight: Radius.circular(4.0))),
+                                                    focusedErrorBorder: const OutlineInputBorder(borderSide: BorderSide(color: Color(0x00000000), width: 1.0), borderRadius: BorderRadius.only(topLeft: Radius.circular(4.0), topRight: Radius.circular(4.0))),
                                                     filled: true,
                                                     fillColor: AppTheme.of(context).secondaryBackground,
                                                   ),
@@ -1334,7 +1332,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                         ),
                                         Padding(
                                           padding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
                                             controller:
@@ -1344,7 +1342,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             onChanged: (_) =>
                                                 EasyDebounce.debounce(
                                               '_model.emailFieldTextController',
-                                              Duration(milliseconds: 2000),
+                                              const Duration(milliseconds: 2000),
                                               () async {
                                                 safeSetState(() {});
                                               },
@@ -1363,50 +1361,50 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 fontSize: 14.0,
                                               ),
                                               hintText: 'seu@email.com',
-                                              enabledBorder: OutlineInputBorder(
+                                              enabledBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              focusedBorder: OutlineInputBorder(
+                                              focusedBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              errorBorder: OutlineInputBorder(
+                                              errorBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
                                               focusedErrorBorder:
-                                                  OutlineInputBorder(
+                                                  const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
@@ -1433,7 +1431,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                         ),
                                         Padding(
                                           padding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.max,
@@ -1463,14 +1461,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     hintText:
                                                         'Ramo de atividade',
                                                     enabledBorder:
-                                                        OutlineInputBorder(
+                                                        const OutlineInputBorder(
                                                       borderSide: BorderSide(
                                                         color:
                                                             Color(0x00000000),
                                                         width: 1.0,
                                                       ),
                                                       borderRadius:
-                                                          const BorderRadius
+                                                          BorderRadius
                                                               .only(
                                                         topLeft:
                                                             Radius.circular(
@@ -1481,14 +1479,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                       ),
                                                     ),
                                                     focusedBorder:
-                                                        OutlineInputBorder(
+                                                        const OutlineInputBorder(
                                                       borderSide: BorderSide(
                                                         color:
                                                             Color(0x00000000),
                                                         width: 1.0,
                                                       ),
                                                       borderRadius:
-                                                          const BorderRadius
+                                                          BorderRadius
                                                               .only(
                                                         topLeft:
                                                             Radius.circular(
@@ -1499,14 +1497,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                       ),
                                                     ),
                                                     errorBorder:
-                                                        OutlineInputBorder(
+                                                        const OutlineInputBorder(
                                                       borderSide: BorderSide(
                                                         color:
                                                             Color(0x00000000),
                                                         width: 1.0,
                                                       ),
                                                       borderRadius:
-                                                          const BorderRadius
+                                                          BorderRadius
                                                               .only(
                                                         topLeft:
                                                             Radius.circular(
@@ -1517,14 +1515,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                       ),
                                                     ),
                                                     focusedErrorBorder:
-                                                        OutlineInputBorder(
+                                                        const OutlineInputBorder(
                                                       borderSide: BorderSide(
                                                         color:
                                                             Color(0x00000000),
                                                         width: 1.0,
                                                       ),
                                                       borderRadius:
-                                                          const BorderRadius
+                                                          BorderRadius
                                                               .only(
                                                         topLeft:
                                                             Radius.circular(
@@ -1561,7 +1559,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                   onChanged: (_) =>
                                                       EasyDebounce.debounce(
                                                     '_model.limiteFieldTextController',
-                                                    Duration(
+                                                    const Duration(
                                                         milliseconds: 2000),
                                                     () async {
                                                       safeSetState(() {});
@@ -1584,14 +1582,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     ),
                                                     hintText: '00,00',
                                                     enabledBorder:
-                                                        OutlineInputBorder(
+                                                        const OutlineInputBorder(
                                                       borderSide: BorderSide(
                                                         color:
                                                             Color(0x00000000),
                                                         width: 1.0,
                                                       ),
                                                       borderRadius:
-                                                          const BorderRadius
+                                                          BorderRadius
                                                               .only(
                                                         topLeft:
                                                             Radius.circular(
@@ -1602,14 +1600,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                       ),
                                                     ),
                                                     focusedBorder:
-                                                        OutlineInputBorder(
+                                                        const OutlineInputBorder(
                                                       borderSide: BorderSide(
                                                         color:
                                                             Color(0x00000000),
                                                         width: 1.0,
                                                       ),
                                                       borderRadius:
-                                                          const BorderRadius
+                                                          BorderRadius
                                                               .only(
                                                         topLeft:
                                                             Radius.circular(
@@ -1620,14 +1618,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                       ),
                                                     ),
                                                     errorBorder:
-                                                        OutlineInputBorder(
+                                                        const OutlineInputBorder(
                                                       borderSide: BorderSide(
                                                         color:
                                                             Color(0x00000000),
                                                         width: 1.0,
                                                       ),
                                                       borderRadius:
-                                                          const BorderRadius
+                                                          BorderRadius
                                                               .only(
                                                         topLeft:
                                                             Radius.circular(
@@ -1638,14 +1636,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                       ),
                                                     ),
                                                     focusedErrorBorder:
-                                                        OutlineInputBorder(
+                                                        const OutlineInputBorder(
                                                       borderSide: BorderSide(
                                                         color:
                                                             Color(0x00000000),
                                                         width: 1.0,
                                                       ),
                                                       borderRadius:
-                                                          const BorderRadius
+                                                          BorderRadius
                                                               .only(
                                                         topLeft:
                                                             Radius.circular(
@@ -1676,20 +1674,20 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                       .asValidator(context),
                                                 ),
                                               ),
-                                            ].divide(SizedBox(width: 12.0)),
+                                            ].divide(const SizedBox(width: 12.0)),
                                           ),
                                         ),
                                       ]
-                                          .divide(SizedBox(height: 12.0))
-                                          .addToStart(SizedBox(height: 16.0))
-                                          .addToEnd(SizedBox(height: 16.0)),
+                                          .divide(const SizedBox(height: 12.0))
+                                          .addToStart(const SizedBox(height: 16.0))
+                                          .addToEnd(const SizedBox(height: 16.0)),
                                     ),
                                   ),
                                   Column(
                                     mainAxisSize: MainAxisSize.max,
                                     children: [
                                       Padding(
-                                        padding: EdgeInsetsDirectional.fromSTEB(
+                                        padding: const EdgeInsetsDirectional.fromSTEB(
                                             16.0, 0.0, 16.0, 0.0),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.max,
@@ -1708,7 +1706,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 onChanged: (_) =>
                                                     EasyDebounce.debounce(
                                                   '_model.cepFieldTextController',
-                                                  Duration(milliseconds: 1000),
+                                                  const Duration(milliseconds: 1000),
                                                   () async {
                                                     final cep = _model.cepFieldTextController?.text.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
                                                     if (cep.length == 8) {
@@ -1745,13 +1743,13 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                   ),
                                                   hintText: '00000-000',
                                                   enabledBorder:
-                                                      OutlineInputBorder(
+                                                      const OutlineInputBorder(
                                                     borderSide: BorderSide(
                                                       color: Color(0x00000000),
                                                       width: 1.0,
                                                     ),
                                                     borderRadius:
-                                                        const BorderRadius.only(
+                                                        BorderRadius.only(
                                                       topLeft:
                                                           Radius.circular(4.0),
                                                       topRight:
@@ -1759,13 +1757,13 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     ),
                                                   ),
                                                   focusedBorder:
-                                                      OutlineInputBorder(
+                                                      const OutlineInputBorder(
                                                     borderSide: BorderSide(
                                                       color: Color(0x00000000),
                                                       width: 1.0,
                                                     ),
                                                     borderRadius:
-                                                        const BorderRadius.only(
+                                                        BorderRadius.only(
                                                       topLeft:
                                                           Radius.circular(4.0),
                                                       topRight:
@@ -1773,13 +1771,13 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     ),
                                                   ),
                                                   errorBorder:
-                                                      OutlineInputBorder(
+                                                      const OutlineInputBorder(
                                                     borderSide: BorderSide(
                                                       color: Color(0x00000000),
                                                       width: 1.0,
                                                     ),
                                                     borderRadius:
-                                                        const BorderRadius.only(
+                                                        BorderRadius.only(
                                                       topLeft:
                                                           Radius.circular(4.0),
                                                       topRight:
@@ -1787,13 +1785,13 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     ),
                                                   ),
                                                   focusedErrorBorder:
-                                                      OutlineInputBorder(
+                                                      const OutlineInputBorder(
                                                     borderSide: BorderSide(
                                                       color: Color(0x00000000),
                                                       width: 1.0,
                                                     ),
                                                     borderRadius:
-                                                        const BorderRadius.only(
+                                                        BorderRadius.only(
                                                       topLeft:
                                                           Radius.circular(4.0),
                                                       topRight:
@@ -1834,7 +1832,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 onChanged: (_) =>
                                                     EasyDebounce.debounce(
                                                   '_model.numeroFieldTextController',
-                                                  Duration(milliseconds: 2000),
+                                                  const Duration(milliseconds: 2000),
                                                   () async {
                                                     safeSetState(() {});
                                                   },
@@ -1849,13 +1847,13 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     fontSize: 14.0,
                                                   ),
                                                   enabledBorder:
-                                                      OutlineInputBorder(
+                                                      const OutlineInputBorder(
                                                     borderSide: BorderSide(
                                                       color: Color(0x00000000),
                                                       width: 1.0,
                                                     ),
                                                     borderRadius:
-                                                        const BorderRadius.only(
+                                                        BorderRadius.only(
                                                       topLeft:
                                                           Radius.circular(4.0),
                                                       topRight:
@@ -1863,13 +1861,13 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     ),
                                                   ),
                                                   focusedBorder:
-                                                      OutlineInputBorder(
+                                                      const OutlineInputBorder(
                                                     borderSide: BorderSide(
                                                       color: Color(0x00000000),
                                                       width: 1.0,
                                                     ),
                                                     borderRadius:
-                                                        const BorderRadius.only(
+                                                        BorderRadius.only(
                                                       topLeft:
                                                           Radius.circular(4.0),
                                                       topRight:
@@ -1877,13 +1875,13 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     ),
                                                   ),
                                                   errorBorder:
-                                                      OutlineInputBorder(
+                                                      const OutlineInputBorder(
                                                     borderSide: BorderSide(
                                                       color: Color(0x00000000),
                                                       width: 1.0,
                                                     ),
                                                     borderRadius:
-                                                        const BorderRadius.only(
+                                                        BorderRadius.only(
                                                       topLeft:
                                                           Radius.circular(4.0),
                                                       topRight:
@@ -1891,13 +1889,13 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     ),
                                                   ),
                                                   focusedErrorBorder:
-                                                      OutlineInputBorder(
+                                                      const OutlineInputBorder(
                                                     borderSide: BorderSide(
                                                       color: Color(0x00000000),
                                                       width: 1.0,
                                                     ),
                                                     borderRadius:
-                                                        const BorderRadius.only(
+                                                        BorderRadius.only(
                                                       topLeft:
                                                           Radius.circular(4.0),
                                                       topRight:
@@ -1923,11 +1921,11 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     .asValidator(context),
                                               ),
                                             ),
-                                          ].divide(SizedBox(width: 12.0)),
+                                          ].divide(const SizedBox(width: 12.0)),
                                         ),
                                       ),
                                       Padding(
-                                        padding: EdgeInsetsDirectional.fromSTEB(
+                                        padding: const EdgeInsetsDirectional.fromSTEB(
                                             16.0, 0.0, 16.0, 0.0),
                                         child: TextFormField(
                                           controller:
@@ -1937,7 +1935,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                           onChanged: (_) =>
                                               EasyDebounce.debounce(
                                             '_model.bairroFieldTextController',
-                                            Duration(milliseconds: 2000),
+                                            const Duration(milliseconds: 2000),
                                             () async {
                                               safeSetState(() {});
                                             },
@@ -1955,47 +1953,47 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               fontSize: 14.0,
                                             ),
                                             hintText: 'Bairro',
-                                            enabledBorder: OutlineInputBorder(
+                                            enabledBorder: const OutlineInputBorder(
                                               borderSide: BorderSide(
                                                 color: Color(0x00000000),
                                                 width: 1.0,
                                               ),
                                               borderRadius:
-                                                  const BorderRadius.only(
+                                                  BorderRadius.only(
                                                 topLeft: Radius.circular(4.0),
                                                 topRight: Radius.circular(4.0),
                                               ),
                                             ),
-                                            focusedBorder: OutlineInputBorder(
+                                            focusedBorder: const OutlineInputBorder(
                                               borderSide: BorderSide(
                                                 color: Color(0x00000000),
                                                 width: 1.0,
                                               ),
                                               borderRadius:
-                                                  const BorderRadius.only(
+                                                  BorderRadius.only(
                                                 topLeft: Radius.circular(4.0),
                                                 topRight: Radius.circular(4.0),
                                               ),
                                             ),
-                                            errorBorder: OutlineInputBorder(
+                                            errorBorder: const OutlineInputBorder(
                                               borderSide: BorderSide(
                                                 color: Color(0x00000000),
                                                 width: 1.0,
                                               ),
                                               borderRadius:
-                                                  const BorderRadius.only(
+                                                  BorderRadius.only(
                                                 topLeft: Radius.circular(4.0),
                                                 topRight: Radius.circular(4.0),
                                               ),
                                             ),
                                             focusedErrorBorder:
-                                                OutlineInputBorder(
+                                                const OutlineInputBorder(
                                               borderSide: BorderSide(
                                                 color: Color(0x00000000),
                                                 width: 1.0,
                                               ),
                                               borderRadius:
-                                                  const BorderRadius.only(
+                                                  BorderRadius.only(
                                                 topLeft: Radius.circular(4.0),
                                                 topRight: Radius.circular(4.0),
                                               ),
@@ -2017,7 +2015,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                         ),
                                       ),
                                       Padding(
-                                        padding: EdgeInsetsDirectional.fromSTEB(
+                                        padding: const EdgeInsetsDirectional.fromSTEB(
                                             16.0, 0.0, 16.0, 0.0),
                                         child: TextFormField(
                                           controller: _model
@@ -2027,7 +2025,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                           onChanged: (_) =>
                                               EasyDebounce.debounce(
                                             '_model.enderecoFieldTextController',
-                                            Duration(milliseconds: 2000),
+                                            const Duration(milliseconds: 2000),
                                             () async {
                                               safeSetState(() {});
                                             },
@@ -2045,47 +2043,47 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               fontSize: 14.0,
                                             ),
                                             hintText: 'Endereço',
-                                            enabledBorder: OutlineInputBorder(
+                                            enabledBorder: const OutlineInputBorder(
                                               borderSide: BorderSide(
                                                 color: Color(0x00000000),
                                                 width: 1.0,
                                               ),
                                               borderRadius:
-                                                  const BorderRadius.only(
+                                                  BorderRadius.only(
                                                 topLeft: Radius.circular(4.0),
                                                 topRight: Radius.circular(4.0),
                                               ),
                                             ),
-                                            focusedBorder: OutlineInputBorder(
+                                            focusedBorder: const OutlineInputBorder(
                                               borderSide: BorderSide(
                                                 color: Color(0x00000000),
                                                 width: 1.0,
                                               ),
                                               borderRadius:
-                                                  const BorderRadius.only(
+                                                  BorderRadius.only(
                                                 topLeft: Radius.circular(4.0),
                                                 topRight: Radius.circular(4.0),
                                               ),
                                             ),
-                                            errorBorder: OutlineInputBorder(
+                                            errorBorder: const OutlineInputBorder(
                                               borderSide: BorderSide(
                                                 color: Color(0x00000000),
                                                 width: 1.0,
                                               ),
                                               borderRadius:
-                                                  const BorderRadius.only(
+                                                  BorderRadius.only(
                                                 topLeft: Radius.circular(4.0),
                                                 topRight: Radius.circular(4.0),
                                               ),
                                             ),
                                             focusedErrorBorder:
-                                                OutlineInputBorder(
+                                                const OutlineInputBorder(
                                               borderSide: BorderSide(
                                                 color: Color(0x00000000),
                                                 width: 1.0,
                                               ),
                                               borderRadius:
-                                                  const BorderRadius.only(
+                                                  BorderRadius.only(
                                                 topLeft: Radius.circular(4.0),
                                                 topRight: Radius.circular(4.0),
                                               ),
@@ -2107,7 +2105,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                         ),
                                       ),
                                       Padding(
-                                        padding: EdgeInsetsDirectional.fromSTEB(
+                                        padding: const EdgeInsetsDirectional.fromSTEB(
                                             16.0, 0.0, 16.0, 0.0),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.max,
@@ -2126,7 +2124,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 onChanged: (_) =>
                                                     EasyDebounce.debounce(
                                                   '_model.cidadeFieldTextController',
-                                                  Duration(milliseconds: 2000),
+                                                  const Duration(milliseconds: 2000),
                                                   () async {
                                                     safeSetState(() {});
                                                   },
@@ -2146,13 +2144,13 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                   ),
                                                   hintText: 'Cidade',
                                                   enabledBorder:
-                                                      OutlineInputBorder(
+                                                      const OutlineInputBorder(
                                                     borderSide: BorderSide(
                                                       color: Color(0x00000000),
                                                       width: 1.0,
                                                     ),
                                                     borderRadius:
-                                                        const BorderRadius.only(
+                                                        BorderRadius.only(
                                                       topLeft:
                                                           Radius.circular(4.0),
                                                       topRight:
@@ -2160,13 +2158,13 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     ),
                                                   ),
                                                   focusedBorder:
-                                                      OutlineInputBorder(
+                                                      const OutlineInputBorder(
                                                     borderSide: BorderSide(
                                                       color: Color(0x00000000),
                                                       width: 1.0,
                                                     ),
                                                     borderRadius:
-                                                        const BorderRadius.only(
+                                                        BorderRadius.only(
                                                       topLeft:
                                                           Radius.circular(4.0),
                                                       topRight:
@@ -2174,13 +2172,13 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     ),
                                                   ),
                                                   errorBorder:
-                                                      OutlineInputBorder(
+                                                      const OutlineInputBorder(
                                                     borderSide: BorderSide(
                                                       color: Color(0x00000000),
                                                       width: 1.0,
                                                     ),
                                                     borderRadius:
-                                                        const BorderRadius.only(
+                                                        BorderRadius.only(
                                                       topLeft:
                                                           Radius.circular(4.0),
                                                       topRight:
@@ -2188,13 +2186,13 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     ),
                                                   ),
                                                   focusedErrorBorder:
-                                                      OutlineInputBorder(
+                                                      const OutlineInputBorder(
                                                     borderSide: BorderSide(
                                                       color: Color(0x00000000),
                                                       width: 1.0,
                                                     ),
                                                     borderRadius:
-                                                        const BorderRadius.only(
+                                                        BorderRadius.only(
                                                       topLeft:
                                                           Radius.circular(4.0),
                                                       topRight:
@@ -2233,7 +2231,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     'UF',
                                                   ),
                                                 ),
-                                                options: [
+                                                options: const [
                                                   'AC',
                                                   'AL',
                                                   'AP',
@@ -2315,7 +2313,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                         .alternate,
                                                 borderWidth: 1.0,
                                                 borderRadius: 0.0,
-                                                margin: EdgeInsetsDirectional
+                                                margin: const EdgeInsetsDirectional
                                                     .fromSTEB(
                                                         12.0, 0.0, 12.0, 0.0),
                                                 hidesUnderline: true,
@@ -2323,16 +2321,16 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 isSearchable: false,
                                                 isMultiSelect: false,
                                                 labelText: 'UF',
-                                                labelTextStyle: TextStyle(),
+                                                labelTextStyle: const TextStyle(),
                                               ),
                                             ),
-                                          ].divide(SizedBox(width: 12.0)),
+                                          ].divide(const SizedBox(width: 12.0)),
                                         ),
                                       ),
                                     ]
-                                        .divide(SizedBox(height: 16.0))
-                                        .addToStart(SizedBox(height: 16.0))
-                                        .addToEnd(SizedBox(height: 16.0)),
+                                        .divide(const SizedBox(height: 16.0))
+                                        .addToStart(const SizedBox(height: 16.0))
+                                        .addToEnd(const SizedBox(height: 16.0)),
                                   ),
                                   SingleChildScrollView(
                                     child: Column(
@@ -2340,7 +2338,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                       children: [
                                         Padding(
                                           padding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
                                             controller: _model
@@ -2350,7 +2348,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             onChanged: (_) =>
                                                 EasyDebounce.debounce(
                                               '_model.nomePropFieldTextController',
-                                              Duration(milliseconds: 2000),
+                                              const Duration(milliseconds: 2000),
                                               () async {
                                                 safeSetState(() {});
                                               },
@@ -2370,50 +2368,50 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               ),
                                               alignLabelWithHint: false,
                                               hintText: 'Nome',
-                                              enabledBorder: OutlineInputBorder(
+                                              enabledBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              focusedBorder: OutlineInputBorder(
+                                              focusedBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              errorBorder: OutlineInputBorder(
+                                              errorBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
                                               focusedErrorBorder:
-                                                  OutlineInputBorder(
+                                                  const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
@@ -2438,7 +2436,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                         ),
                                         Padding(
                                           padding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
                                             controller: _model
@@ -2448,7 +2446,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             onChanged: (_) =>
                                                 EasyDebounce.debounce(
                                               '_model.enderecoPropFieldTextController',
-                                              Duration(milliseconds: 2000),
+                                              const Duration(milliseconds: 2000),
                                               () async {
                                                 safeSetState(() {});
                                               },
@@ -2467,50 +2465,50 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 fontSize: 14.0,
                                               ),
                                               hintText: 'Endereço',
-                                              enabledBorder: OutlineInputBorder(
+                                              enabledBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              focusedBorder: OutlineInputBorder(
+                                              focusedBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              errorBorder: OutlineInputBorder(
+                                              errorBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
                                               focusedErrorBorder:
-                                                  OutlineInputBorder(
+                                                  const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
@@ -2535,7 +2533,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                         ),
                                         Padding(
                                           padding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
                                             controller: _model
@@ -2545,7 +2543,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             onChanged: (_) =>
                                                 EasyDebounce.debounce(
                                               '_model.bairroPropFieldTextController',
-                                              Duration(milliseconds: 2000),
+                                              const Duration(milliseconds: 2000),
                                               () async {
                                                 safeSetState(() {});
                                               },
@@ -2564,50 +2562,50 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 fontSize: 14.0,
                                               ),
                                               hintText: 'Bairro',
-                                              enabledBorder: OutlineInputBorder(
+                                              enabledBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              focusedBorder: OutlineInputBorder(
+                                              focusedBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              errorBorder: OutlineInputBorder(
+                                              errorBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
                                               focusedErrorBorder:
-                                                  OutlineInputBorder(
+                                                  const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
@@ -2632,7 +2630,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                         ),
                                         Padding(
                                           padding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.max,
@@ -2651,7 +2649,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                   onChanged: (_) =>
                                                       EasyDebounce.debounce(
                                                     '_model.cidadePropFieldTextController',
-                                                    Duration(
+                                                    const Duration(
                                                         milliseconds: 2000),
                                                     () async {
                                                       safeSetState(() {});
@@ -2675,14 +2673,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     ),
                                                     hintText: 'Cidade',
                                                     enabledBorder:
-                                                        OutlineInputBorder(
+                                                        const OutlineInputBorder(
                                                       borderSide: BorderSide(
                                                         color:
                                                             Color(0x00000000),
                                                         width: 1.0,
                                                       ),
                                                       borderRadius:
-                                                          const BorderRadius
+                                                          BorderRadius
                                                               .only(
                                                         topLeft:
                                                             Radius.circular(
@@ -2693,14 +2691,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                       ),
                                                     ),
                                                     focusedBorder:
-                                                        OutlineInputBorder(
+                                                        const OutlineInputBorder(
                                                       borderSide: BorderSide(
                                                         color:
                                                             Color(0x00000000),
                                                         width: 1.0,
                                                       ),
                                                       borderRadius:
-                                                          const BorderRadius
+                                                          BorderRadius
                                                               .only(
                                                         topLeft:
                                                             Radius.circular(
@@ -2711,14 +2709,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                       ),
                                                     ),
                                                     errorBorder:
-                                                        OutlineInputBorder(
+                                                        const OutlineInputBorder(
                                                       borderSide: BorderSide(
                                                         color:
                                                             Color(0x00000000),
                                                         width: 1.0,
                                                       ),
                                                       borderRadius:
-                                                          const BorderRadius
+                                                          BorderRadius
                                                               .only(
                                                         topLeft:
                                                             Radius.circular(
@@ -2729,14 +2727,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                       ),
                                                     ),
                                                     focusedErrorBorder:
-                                                        OutlineInputBorder(
+                                                        const OutlineInputBorder(
                                                       borderSide: BorderSide(
                                                         color:
                                                             Color(0x00000000),
                                                         width: 1.0,
                                                       ),
                                                       borderRadius:
-                                                          const BorderRadius
+                                                          BorderRadius
                                                               .only(
                                                         topLeft:
                                                             Radius.circular(
@@ -2772,7 +2770,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                           .ufPropDropdownValueController ??=
                                                       FormFieldController<
                                                           String>(null),
-                                                  options: [
+                                                  options: const [
                                                     'AC',
                                                     'AL',
                                                     'AP',
@@ -2856,7 +2854,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                           .alternate,
                                                   borderWidth: 1.0,
                                                   borderRadius: 0.0,
-                                                  margin: EdgeInsetsDirectional
+                                                  margin: const EdgeInsetsDirectional
                                                       .fromSTEB(
                                                           12.0, 0.0, 12.0, 0.0),
                                                   hidesUnderline: true,
@@ -2864,15 +2862,15 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                   isSearchable: false,
                                                   isMultiSelect: false,
                                                   labelText: 'UF',
-                                                  labelTextStyle: TextStyle(),
+                                                  labelTextStyle: const TextStyle(),
                                                 ),
                                               ),
-                                            ].divide(SizedBox(width: 12.0)),
+                                            ].divide(const SizedBox(width: 12.0)),
                                           ),
                                         ),
                                         Padding(
                                           padding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
                                             controller: _model
@@ -2882,7 +2880,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             onChanged: (_) =>
                                                 EasyDebounce.debounce(
                                               '_model.rgPropFieldTextController',
-                                              Duration(milliseconds: 2000),
+                                              const Duration(milliseconds: 2000),
                                               () async {
                                                 safeSetState(() {});
                                               },
@@ -2901,50 +2899,50 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 fontSize: 14.0,
                                               ),
                                               hintText: '000.000.00000-0',
-                                              enabledBorder: OutlineInputBorder(
+                                              enabledBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              focusedBorder: OutlineInputBorder(
+                                              focusedBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              errorBorder: OutlineInputBorder(
+                                              errorBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
                                               focusedErrorBorder:
-                                                  OutlineInputBorder(
+                                                  const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
@@ -2973,7 +2971,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                         ),
                                         Padding(
                                           padding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
                                             controller: _model
@@ -2983,7 +2981,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             onChanged: (_) =>
                                                 EasyDebounce.debounce(
                                               '_model.cpfPropFieldTextController',
-                                              Duration(milliseconds: 2000),
+                                              const Duration(milliseconds: 2000),
                                               () async {
                                                 safeSetState(() {});
                                               },
@@ -3002,50 +3000,50 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 fontSize: 14.0,
                                               ),
                                               hintText: '000.000.000-00',
-                                              enabledBorder: OutlineInputBorder(
+                                              enabledBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              focusedBorder: OutlineInputBorder(
+                                              focusedBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              errorBorder: OutlineInputBorder(
+                                              errorBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
                                               focusedErrorBorder:
-                                                  OutlineInputBorder(
+                                                  const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
@@ -3082,7 +3080,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                         ),
                                         Padding(
                                           padding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
                                             controller: _model
@@ -3092,7 +3090,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             onChanged: (_) =>
                                                 EasyDebounce.debounce(
                                               '_model.nomePropConjFieldTextController',
-                                              Duration(milliseconds: 2000),
+                                              const Duration(milliseconds: 2000),
                                               () async {
                                                 safeSetState(() {});
                                               },
@@ -3112,50 +3110,50 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               ),
                                               alignLabelWithHint: false,
                                               hintText: 'Nome',
-                                              enabledBorder: OutlineInputBorder(
+                                              enabledBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              focusedBorder: OutlineInputBorder(
+                                              focusedBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              errorBorder: OutlineInputBorder(
+                                              errorBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
                                               focusedErrorBorder:
-                                                  OutlineInputBorder(
+                                                  const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
@@ -3180,7 +3178,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                         ),
                                         Padding(
                                           padding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
                                             controller: _model
@@ -3190,7 +3188,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             onChanged: (_) =>
                                                 EasyDebounce.debounce(
                                               '_model.rgPropConjFieldTextController',
-                                              Duration(milliseconds: 2000),
+                                              const Duration(milliseconds: 2000),
                                               () async {
                                                 safeSetState(() {});
                                               },
@@ -3209,50 +3207,50 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 fontSize: 14.0,
                                               ),
                                               hintText: '000.000.00000-0',
-                                              enabledBorder: OutlineInputBorder(
+                                              enabledBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              focusedBorder: OutlineInputBorder(
+                                              focusedBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              errorBorder: OutlineInputBorder(
+                                              errorBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
                                               focusedErrorBorder:
-                                                  OutlineInputBorder(
+                                                  const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
@@ -3281,7 +3279,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                         ),
                                         Padding(
                                           padding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
                                             controller: _model
@@ -3291,7 +3289,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             onChanged: (_) =>
                                                 EasyDebounce.debounce(
                                               '_model.cpfPropConjFieldTextController',
-                                              Duration(milliseconds: 2000),
+                                              const Duration(milliseconds: 2000),
                                               () async {
                                                 safeSetState(() {});
                                               },
@@ -3310,50 +3308,50 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 fontSize: 14.0,
                                               ),
                                               hintText: '000.000.000-00',
-                                              enabledBorder: OutlineInputBorder(
+                                              enabledBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              focusedBorder: OutlineInputBorder(
+                                              focusedBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
-                                              errorBorder: OutlineInputBorder(
+                                              errorBorder: const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
                                                 ),
                                               ),
                                               focusedErrorBorder:
-                                                  OutlineInputBorder(
+                                                  const OutlineInputBorder(
                                                 borderSide: BorderSide(
                                                   color: Color(0x00000000),
                                                   width: 1.0,
                                                 ),
                                                 borderRadius:
-                                                    const BorderRadius.only(
+                                                    BorderRadius.only(
                                                   topLeft: Radius.circular(4.0),
                                                   topRight:
                                                       Radius.circular(4.0),
@@ -3381,16 +3379,16 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                           ),
                                         ),
                                       ]
-                                          .divide(SizedBox(height: 14.0))
-                                          .addToStart(SizedBox(height: 16.0))
-                                          .addToEnd(SizedBox(height: 16.0)),
+                                          .divide(const SizedBox(height: 14.0))
+                                          .addToStart(const SizedBox(height: 16.0))
+                                          .addToEnd(const SizedBox(height: 16.0)),
                                     ),
                                   ),
                                   Column(
                                     mainAxisSize: MainAxisSize.max,
                                     children: [
                                       Padding(
-                                        padding: EdgeInsetsDirectional.fromSTEB(
+                                        padding: const EdgeInsetsDirectional.fromSTEB(
                                             16.0, 0.0, 16.0, 0.0),
                                         child: Container(
                                           width: double.infinity,
@@ -3402,7 +3400,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 BorderRadius.circular(8.0),
                                           ),
                                           child: Padding(
-                                            padding: EdgeInsets.all(16.0),
+                                            padding: const EdgeInsets.all(16.0),
                                             child: Column(
                                               mainAxisSize: MainAxisSize.max,
                                               crossAxisAlignment:
@@ -3459,16 +3457,16 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                                 children: [
                                                                   TextField(
                                                                     controller: nomeController,
-                                                                    decoration: InputDecoration(labelText: 'Nome do Banco'),
+                                                                    decoration: const InputDecoration(labelText: 'Nome do Banco'),
                                                                   ),
                                                                   TextField(
                                                                     controller: dddController,
-                                                                    decoration: InputDecoration(labelText: 'DDD (Ex: 11)'),
+                                                                    decoration: const InputDecoration(labelText: 'DDD (Ex: 11)'),
                                                                     keyboardType: TextInputType.number,
                                                                   ),
                                                                   TextField(
                                                                     controller: telefoneController,
-                                                                    decoration: InputDecoration(labelText: 'Telefone'),
+                                                                    decoration: const InputDecoration(labelText: 'Telefone'),
                                                                     keyboardType: TextInputType.phone,
                                                                   ),
                                                                 ],
@@ -3496,21 +3494,21 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                         );
                                                       },
                                                       text: 'Adicionar',
-                                                      icon: Icon(
+                                                      icon: const Icon(
                                                         Icons.add_rounded,
                                                         size: 15.0,
                                                       ),
                                                       options: AppButtonOptions(
                                                         height: 36.0,
                                                         padding:
-                                                            EdgeInsetsDirectional
+                                                            const EdgeInsetsDirectional
                                                                 .fromSTEB(
                                                                     16.0,
                                                                     0.0,
                                                                     16.0,
                                                                     0.0),
                                                         iconPadding:
-                                                            EdgeInsetsDirectional
+                                                            const EdgeInsetsDirectional
                                                                 .fromSTEB(
                                                                     0.0,
                                                                     0.0,
@@ -3573,7 +3571,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                         itemCount:
                                                             listBancos.length,
                                                         separatorBuilder:
-                                                            (_, __) => SizedBox(
+                                                            (_, __) => const SizedBox(
                                                                 height: 8.0),
                                                         itemBuilder: (context,
                                                             listBancosIndex) {
@@ -3588,7 +3586,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                               color: AppTheme
                                                                       .of(context)
                                                                   .secondaryBackground,
-                                                              boxShadow: [
+                                                              boxShadow: const [
                                                                 BoxShadow(
                                                                   blurRadius:
                                                                       4.0,
@@ -3608,7 +3606,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                             ),
                                                             child: Padding(
                                                               padding:
-                                                                  EdgeInsets
+                                                                  const EdgeInsets
                                                                       .all(8.0),
                                                               child: Row(
                                                                 mainAxisSize:
@@ -3616,7 +3614,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                                         .max,
                                                                 children: [
                                                                   Padding(
-                                                                    padding: EdgeInsetsDirectional
+                                                                    padding: const EdgeInsetsDirectional
                                                                         .fromSTEB(
                                                                             4.0,
                                                                             0.0,
@@ -3688,7 +3686,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                                       safeSetState(() {});
                                                                     },
                                                                     child: Padding(
-                                                                      padding: EdgeInsetsDirectional
+                                                                      padding: const EdgeInsetsDirectional
                                                                           .fromSTEB(
                                                                               0.0,
                                                                               0.0,
@@ -3697,7 +3695,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                                       child:
                                                                           FaIcon(
                                                                         FontAwesomeIcons
-                                                                            .trashAlt,
+                                                                            .trashCan,
                                                                         color: AppTheme.of(
                                                                                 context)
                                                                             .error,
@@ -3706,7 +3704,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                                       ),
                                                                     ),
                                                                   ),
-                                                                ].divide(SizedBox(
+                                                                ].divide(const SizedBox(
                                                                     width:
                                                                         12.0)),
                                                               ),
@@ -3717,13 +3715,13 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     },
                                                   ),
                                                 ),
-                                              ].divide(SizedBox(height: 12.0)),
+                                              ].divide(const SizedBox(height: 12.0)),
                                             ),
                                           ),
                                         ),
                                       ),
                                       Padding(
-                                        padding: EdgeInsetsDirectional.fromSTEB(
+                                        padding: const EdgeInsetsDirectional.fromSTEB(
                                             16.0, 0.0, 16.0, 0.0),
                                         child: Container(
                                           width: double.infinity,
@@ -3735,7 +3733,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 BorderRadius.circular(8.0),
                                           ),
                                           child: Padding(
-                                            padding: EdgeInsets.all(16.0),
+                                            padding: const EdgeInsets.all(16.0),
                                             child: Column(
                                               mainAxisSize: MainAxisSize.max,
                                               crossAxisAlignment:
@@ -3768,7 +3766,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                       ),
                                                 ),
                                                 Expanded(
-                                                  child: Container(
+                                                  child: SizedBox(
                                                     width: double.infinity,
                                                     child: TextFormField(
                                                       controller: _model
@@ -3861,7 +3859,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                         focusedBorder:
                                                             OutlineInputBorder(
                                                           borderSide:
-                                                              BorderSide(
+                                                              const BorderSide(
                                                             color: Color(
                                                                 0x00000000),
                                                             width: 1.0,
@@ -3944,15 +3942,15 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     ),
                                                   ),
                                                 ),
-                                              ].divide(SizedBox(height: 12.0)),
+                                              ].divide(const SizedBox(height: 12.0)),
                                             ),
                                           ),
                                         ),
                                       ),
                                     ]
-                                        .divide(SizedBox(height: 16.0))
-                                        .addToStart(SizedBox(height: 16.0))
-                                        .addToEnd(SizedBox(height: 16.0)),
+                                        .divide(const SizedBox(height: 16.0))
+                                        .addToStart(const SizedBox(height: 16.0))
+                                        .addToEnd(const SizedBox(height: 16.0)),
                                   ),
                                 ],
                               ),
@@ -3963,14 +3961,14 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                         return wrapWithModel(
                           model: _model.loadingModel,
                           updateCallback: () => safeSetState(() {}),
-                          child: LoadingWidget(),
+                          child: const LoadingWidget(),
                         );
                       }
                     },
                   ),
                 ),
                 Padding(
-                  padding: EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(16.0),
                   child: Row(
                     mainAxisSize: MainAxisSize.max,
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -3991,15 +3989,15 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                             );
                           },
                           text: 'Extrato',
-                          icon: Icon(
+                          icon: const Icon(
                             Icons.receipt_long,
                             size: 20.0,
                           ),
                           options: AppButtonOptions(
                             height: 48.0,
-                            padding: EdgeInsetsDirectional.fromSTEB(
+                            padding: const EdgeInsetsDirectional.fromSTEB(
                                 0.0, 0.0, 0.0, 0.0),
-                            iconPadding: EdgeInsetsDirectional.fromSTEB(
+                            iconPadding: const EdgeInsetsDirectional.fromSTEB(
                                 0.0, 0.0, 0.0, 0.0),
                             iconColor: AppTheme.of(context).primary,
                             color:
@@ -4018,10 +4016,9 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                       Expanded(
                         child: AppButtonWidget(
                           onPressed: () async {
-                            if (_model.nomeFieldTextController.text == null ||
-                                _model.nomeFieldTextController.text == '') {
+                            if (_model.nomeFieldTextController.text == '') {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
+                                const SnackBar(
                                   content: Text(
                                     'Razão Social é obrigatória.',
                                     style: TextStyle(),
@@ -4033,31 +4030,31 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                             }
 
                             if (_model.tipoPessoa == 'F' && (_model.cpfFieldTextController?.text == null || _model.cpfFieldTextController!.text.isEmpty)) {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('CPF é obrigatório.'), duration: Duration(milliseconds: 4000)));
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('CPF é obrigatório.'), duration: Duration(milliseconds: 4000)));
                               return;
                             }
                             if (_model.tipoPessoa == 'J' && (_model.cnpjFieldTextController?.text == null || _model.cnpjFieldTextController!.text.isEmpty)) {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('CNPJ é obrigatório.'), duration: Duration(milliseconds: 4000)));
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('CNPJ é obrigatório.'), duration: Duration(milliseconds: 4000)));
                               return;
                             }
                             if (_model.enderecoFieldTextController?.text == null || _model.enderecoFieldTextController!.text.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Endereço é obrigatório.'), duration: Duration(milliseconds: 4000)));
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Endereço é obrigatório.'), duration: Duration(milliseconds: 4000)));
                               return;
                             }
                             if (_model.cepFieldTextController?.text == null || _model.cepFieldTextController!.text.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('CEP é obrigatório.'), duration: Duration(milliseconds: 4000)));
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('CEP é obrigatório.'), duration: Duration(milliseconds: 4000)));
                               return;
                             }
                             if (_model.dddFieldTextController?.text == null || _model.dddFieldTextController!.text.trim().isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('DDD é obrigatório.'), duration: Duration(milliseconds: 4000)));
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('DDD é obrigatório.'), duration: Duration(milliseconds: 4000)));
                               return;
                             }
                             if (_model.dddFieldTextController!.text.trim().replaceAll(RegExp(r'[^0-9]'), '').length != 2) {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('DDD deve ter 2 dígitos.'), duration: Duration(milliseconds: 4000)));
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('DDD deve ter 2 dígitos.'), duration: Duration(milliseconds: 4000)));
                               return;
                             }
                             if (_model.telefoneFieldTextController?.text == null || _model.telefoneFieldTextController!.text.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Telefone é obrigatório.'), duration: Duration(milliseconds: 4000)));
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Telefone é obrigatório.'), duration: Duration(milliseconds: 4000)));
                               return;
                             }
 
@@ -4147,10 +4144,12 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                             );
                             safeSetState(() {});
 
+                            if (!context.mounted) return;
+
                             if (_model.xmlPath != null &&
                                 _model.xmlPath!.isNotEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
+                                const SnackBar(
                                   content: Text(
                                     'Cadastro preparado para envio. Arquivo gerado.',
                                     style: TextStyle(),
@@ -4160,7 +4159,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                               );
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
+                                const SnackBar(
                                   content: Text(
                                     'Falha ao gerar arquivo do cliente.',
                                     style: TextStyle(),
@@ -4174,11 +4173,11 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                           options: AppButtonOptions(
                             width: double.infinity,
                             height: 50.0,
-                            padding: EdgeInsetsDirectional.fromSTEB(
+                            padding: const EdgeInsetsDirectional.fromSTEB(
                                 0.0, 0.0, 0.0, 0.0),
-                            iconPadding: EdgeInsetsDirectional.fromSTEB(
+                            iconPadding: const EdgeInsetsDirectional.fromSTEB(
                                 0.0, 0.0, 0.0, 0.0),
-                            color: Color(0xFF5CB85C),
+                            color: const Color(0xFF5CB85C),
                             textStyle: TextStyle(
                               color: AppTheme.of(context)
                                   .secondaryBackground,
@@ -4187,7 +4186,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                           ),
                         ),
                       ),
-                    ].divide(SizedBox(width: 8.0)),
+                    ].divide(const SizedBox(width: 8.0)),
                   ),
                 ),
               ],

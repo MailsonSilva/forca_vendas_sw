@@ -1,10 +1,7 @@
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
-import '/core/app_widgets.dart';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'configuracao_page_model.dart';
 export 'configuracao_page_model.dart';
 
@@ -67,11 +64,11 @@ class _ConfiguracaoPageWidgetState extends State<ConfiguracaoPageWidget> {
                       AppTheme.of(context).headlineMedium.fontStyle,
                 ),
           ),
-          actions: [],
+          actions: const [],
           centerTitle: false,
           elevation: 2.0,
         ),
-        body: SafeArea(
+        body: const SafeArea(
           top: true,
           child: Column(
             mainAxisSize: MainAxisSize.max,

@@ -1,18 +1,9 @@
 import '/backend/schema/structs/index.dart';
 import '/components/loading/loading_widget.dart';
-import '/core/app_icon_button.dart';
-import '/core/app_theme.dart';
 import '/core/app_util.dart';
-import '/core/app_widgets.dart';
-import 'dart:ui';
-import '/action_code/index.dart' as actions;
 import '/index.dart';
 import 'cliente_page_widget.dart' show ClientePageWidget;
-import 'package:easy_debounce/easy_debounce.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 
 class ClientePageModel extends AppModel<ClientePageWidget> {
   ///  Local state fields for this page.

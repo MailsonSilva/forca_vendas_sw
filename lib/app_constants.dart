@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-import 'core/app_util.dart';
 
 abstract class AppConstants {
   static const List<String> sufixoList = [

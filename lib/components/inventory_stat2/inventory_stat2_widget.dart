@@ -1,10 +1,7 @@
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
-import '/core/app_widgets.dart';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'inventory_stat2_model.dart';
 export 'inventory_stat2_model.dart';
 
@@ -17,12 +14,12 @@ class InventoryStat2Widget extends StatefulWidget {
     String? value,
     Color? bg,
     Color? color,
-  })  : this.bgTint = bgTint ?? const Color(0x00000000),
-        this.label = label ?? 'Atual',
-        this.textColor = textColor ?? const Color(0x00000000),
-        this.value = value ?? '1',
-        this.bg = bg ?? const Color(0x1A5D65AB),
-        this.color = color ?? const Color(0xFF1A1C2E);
+  })  : bgTint = bgTint ?? const Color(0x00000000),
+        label = label ?? 'Atual',
+        textColor = textColor ?? const Color(0x00000000),
+        value = value ?? '1',
+        bg = bg ?? const Color(0x1A5D65AB),
+        color = color ?? const Color(0xFF1A1C2E);
 
   final Color bgTint;
   final String label;
@@ -62,14 +59,14 @@ class _InventoryStat2WidgetState extends State<InventoryStat2Widget> {
     return Container(
       decoration: BoxDecoration(
         color: valueOrDefault<Color>(
-          widget!.bgTint,
+          widget.bgTint,
           AppTheme.of(context).primary,
         ),
         borderRadius: BorderRadius.circular(12.0),
         shape: BoxShape.rectangle,
       ),
       child: Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: Container(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -78,7 +75,7 @@ class _InventoryStat2WidgetState extends State<InventoryStat2Widget> {
             children: [
               Text(
                 valueOrDefault<String>(
-                  widget!.label,
+                  widget.label,
                   'Atual',
                 ),
                 style: AppTheme.of(context).labelSmall.override(
@@ -99,7 +96,7 @@ class _InventoryStat2WidgetState extends State<InventoryStat2Widget> {
               ),
               Text(
                 valueOrDefault<String>(
-                  widget!.value,
+                  widget.value,
                   '1',
                 ),
                 style: AppTheme.of(context).titleLarge.override(
@@ -109,8 +106,8 @@ class _InventoryStat2WidgetState extends State<InventoryStat2Widget> {
                             AppTheme.of(context).titleLarge.fontStyle,
                       ),
                       color: valueOrDefault<Color>(
-                        widget!.textColor,
-                        Color(0x00000000),
+                        widget.textColor,
+                        const Color(0x00000000),
                       ),
                       letterSpacing: 0.0,
                       fontWeight: FontWeight.bold,
@@ -119,7 +116,7 @@ class _InventoryStat2WidgetState extends State<InventoryStat2Widget> {
                       lineHeight: 1.3,
                     ),
               ),
-            ].divide(SizedBox(height: 4.0)),
+            ].divide(const SizedBox(height: 4.0)),
           ),
         ),
       ),

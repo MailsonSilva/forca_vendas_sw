@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path_pkg;
 import '/backend/schema/structs/index.dart';
@@ -8,7 +7,6 @@ import '/core/app_theme.dart';
 import '/core/app_util.dart';
 import 'bottom_sheet_combos_model.dart';
 export 'bottom_sheet_combos_model.dart';
-import 'package:intl/intl.dart';
 
 class BottomSheetCombosWidget extends StatefulWidget {
   const BottomSheetCombosWidget({
@@ -253,7 +251,7 @@ class _BottomSheetCombosWidgetState extends State<BottomSheetCombosWidget> {
                           
                           return Card(
                             elevation: isSelected ? 3 : 1,
-                            color: isSelected ? AppTheme.of(context).primary.withOpacity(0.1) : Colors.white,
+                            color: isSelected ? AppTheme.of(context).primary.withValues(alpha: 0.1) : Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8.0),
                               side: BorderSide(

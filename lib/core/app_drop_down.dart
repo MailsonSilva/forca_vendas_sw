@@ -196,7 +196,7 @@ class _AppDropDownState<T> extends State<AppDropDown<T>> {
 
   Widget _buildLegacyDropdown() {
     return DropdownButtonFormField<T>(
-      value: currentValue,
+      initialValue: currentValue,
       hint: _createHintText(),
       items: _createMenuItems(),
       elevation: widget.elevation.toInt(),

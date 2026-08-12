@@ -3,15 +3,12 @@ import '/components/loading/loading_widget.dart';
 import '/core/app_icon_button.dart';
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
-import '/core/app_widgets.dart';
-import 'dart:ui';
 import '/action_code/index.dart' as actions;
 import '/index.dart';
 import 'package:easy_debounce/easy_debounce.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'cliente_page_model.dart';
 export 'cliente_page_model.dart';
 
@@ -78,7 +75,7 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                 borderRadius: 30.0,
                 borderWidth: 1.0,
                 buttonSize: 60.0,
-                icon: Icon(
+                icon: const Icon(
                   Icons.arrow_back_rounded,
                   color: Colors.white,
                   size: 30.0,
@@ -116,7 +113,7 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                 borderRadius: 30.0,
                 borderWidth: 1.0,
                 buttonSize: 60.0,
-                icon: Icon(
+                icon: const Icon(
                   Icons.person_add_alt_1,
                   color: Colors.white,
                   size: 28.0,
@@ -127,7 +124,7 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
               ),
             ],
           ),
-          actions: [],
+          actions: const [],
           centerTitle: true,
           elevation: 2.0,
         ),
@@ -137,20 +134,20 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
             mainAxisSize: MainAxisSize.max,
             children: [
               Padding(
-                padding: EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 0.0),
+                padding: const EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 0.0),
                 child: Container(
                   decoration: BoxDecoration(
                     color: AppTheme.of(context).primaryBackground,
                   ),
                   child: Padding(
                     padding:
-                        EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+                        const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
                     child: TextFormField(
                       controller: _model.buscaClienteFieldTextController,
                       focusNode: _model.buscaClienteFieldFocusNode,
                       onChanged: (_) => EasyDebounce.debounce(
                         '_model.buscaClienteFieldTextController',
-                        Duration(milliseconds: 2000),
+                        const Duration(milliseconds: 2000),
                         () async {
                           _model.buscaCliente =
                               _model.buscaClienteFieldTextController.text;
@@ -244,7 +241,7 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                               )
                             : null,
                       ),
-                      style: TextStyle(),
+                      style: const TextStyle(),
                       maxLines: null,
                       validator: _model.buscaClienteFieldTextControllerValidator
                           .asValidator(context),
@@ -263,7 +260,7 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                               _model.clientesResultPage.toList();
 
                           return ListView.separated(
-                            padding: EdgeInsets.fromLTRB(
+                            padding: const EdgeInsets.fromLTRB(
                               0,
                               0,
                               0,
@@ -273,16 +270,16 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                             shrinkWrap: true,
                             scrollDirection: Axis.vertical,
                             itemCount: listaCliente.length,
-                            separatorBuilder: (_, __) => SizedBox(height: 16.0),
+                            separatorBuilder: (_, __) => const SizedBox(height: 16.0),
                             itemBuilder: (context, listaClienteIndex) {
                               final listaClienteItem =
                                   listaCliente[listaClienteIndex];
                               return Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                     16.0, 0.0, 16.0, 0.0),
                                 child: Container(
                                   decoration: BoxDecoration(
-                                    boxShadow: [
+                                    boxShadow: const [
                                       BoxShadow(
                                         blurRadius: 4.0,
                                         color: Color(0x33000000),
@@ -300,9 +297,9 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                                         ),
                                         Colors.white
                                       ],
-                                      stops: [0.0, 0.04],
-                                      begin: AlignmentDirectional(-1.0, 0.0),
-                                      end: AlignmentDirectional(1.0, 0),
+                                      stops: const [0.0, 0.04],
+                                      begin: const AlignmentDirectional(-1.0, 0.0),
+                                      end: const AlignmentDirectional(1.0, 0),
                                     ),
                                     borderRadius: BorderRadius.circular(8.0),
                                   ),
@@ -328,7 +325,7 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                                         Expanded(
                                           child: Padding(
                                             padding:
-                                                EdgeInsetsDirectional.fromSTEB(
+                                                const EdgeInsetsDirectional.fromSTEB(
                                                     16.0, 12.0, 0.0, 12.0),
                                             child: Column(
                                               mainAxisSize: MainAxisSize.min,
@@ -504,15 +501,15 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                                                           TextOverflow.ellipsis,
                                                     ),
                                                   ].divide(
-                                                      SizedBox(width: 8.0)),
+                                                      const SizedBox(width: 8.0)),
                                                 ),
-                                              ].divide(SizedBox(height: 6.0)),
+                                              ].divide(const SizedBox(height: 6.0)),
                                             ),
                                           ),
                                         ),
                                         Padding(
                                           padding:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   0.0, 0.0, 8.0, 0.0),
                                           child: Icon(
                                             Icons.chevron_right,
@@ -534,13 +531,13 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                       return wrapWithModel(
                         model: _model.loadingModel,
                         updateCallback: () => safeSetState(() {}),
-                        child: LoadingWidget(),
+                        child: const LoadingWidget(),
                       );
                     }
                   },
                 ),
               ),
-            ].divide(SizedBox(height: 16.0)).addToEnd(SizedBox(height: 16.0)),
+            ].divide(const SizedBox(height: 16.0)).addToEnd(const SizedBox(height: 16.0)),
           ),
         ),
       ),

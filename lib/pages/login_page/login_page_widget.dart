@@ -1,8 +1,6 @@
-import '/backend/schema/structs/index.dart';
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
 import '/core/app_widgets.dart';
-import 'dart:ui';
 import '/action_code/index.dart' as actions;
 import '/index.dart';
 import 'package:flutter/material.dart';
@@ -70,7 +68,7 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
         body: SafeArea(
           top: true,
           child: Stack(
-            alignment: AlignmentDirectional(0.0, 0.0),
+            alignment: const AlignmentDirectional(0.0, 0.0),
             children: [
               Container(
                 width: double.infinity,
@@ -78,13 +76,13 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                 decoration: BoxDecoration(
                   color: AppTheme.of(context).primaryBackground,
                 ),
-                alignment: AlignmentDirectional(0.0, 0.0),
+                alignment: const AlignmentDirectional(0.0, 0.0),
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.max,
                     children: [
                       Padding(
-                        padding: EdgeInsets.all(24.0),
+                        padding: const EdgeInsets.all(24.0),
                         child: Container(
                           width: 400.0,
                           decoration: BoxDecoration(
@@ -93,7 +91,7 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                             borderRadius: BorderRadius.circular(16.0),
                           ),
                           child: Padding(
-                            padding: EdgeInsets.all(24.0),
+                            padding: const EdgeInsets.all(24.0),
                             child: SingleChildScrollView(
                               primary: false,
                               child: Column(
@@ -102,7 +100,7 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   Padding(
-                                    padding: EdgeInsetsDirectional.fromSTEB(
+                                    padding: const EdgeInsetsDirectional.fromSTEB(
                                         0.0, 0.0, 0.0, 18.0),
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(8.0),
@@ -149,7 +147,7 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                                       .fontStyle,
                                             ),
                                       ),
-                                    ].divide(SizedBox(height: 4.0)),
+                                    ].divide(const SizedBox(height: 4.0)),
                                   ),
                                   if (AppState().is_first_access)
                                     TextFormField(
@@ -159,7 +157,7 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                           _model.empresaCodigoFieldFocusNode,
                                       textInputAction: TextInputAction.next,
                                       obscureText: false,
-                                      decoration: InputDecoration(
+                                      decoration: const InputDecoration(
                                         labelText: 'Código da Empresa',
                                         hintText: 'Digite o código da empresa',
                                         enabledBorder: OutlineInputBorder(
@@ -167,7 +165,7 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                             color: Color(0x00000000),
                                             width: 1.0,
                                           ),
-                                          borderRadius: const BorderRadius.only(
+                                          borderRadius: BorderRadius.only(
                                             topLeft: Radius.circular(4.0),
                                             topRight: Radius.circular(4.0),
                                           ),
@@ -177,7 +175,7 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                             color: Color(0x00000000),
                                             width: 1.0,
                                           ),
-                                          borderRadius: const BorderRadius.only(
+                                          borderRadius: BorderRadius.only(
                                             topLeft: Radius.circular(4.0),
                                             topRight: Radius.circular(4.0),
                                           ),
@@ -187,7 +185,7 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                             color: Color(0x00000000),
                                             width: 1.0,
                                           ),
-                                          borderRadius: const BorderRadius.only(
+                                          borderRadius: BorderRadius.only(
                                             topLeft: Radius.circular(4.0),
                                             topRight: Radius.circular(4.0),
                                           ),
@@ -197,14 +195,14 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                             color: Color(0x00000000),
                                             width: 1.0,
                                           ),
-                                          borderRadius: const BorderRadius.only(
+                                          borderRadius: BorderRadius.only(
                                             topLeft: Radius.circular(4.0),
                                             topRight: Radius.circular(4.0),
                                           ),
                                         ),
                                         filled: true,
                                       ),
-                                      style: TextStyle(),
+                                      style: const TextStyle(),
                                       maxLines: null,
                                       validator: _model
                                           .empresaCodigoFieldTextControllerValidator
@@ -217,7 +215,7 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                         _model.vendedorCodigoFieldFocusNode,
                                     textInputAction: TextInputAction.go,
                                     obscureText: false,
-                                    decoration: InputDecoration(
+                                    decoration: const InputDecoration(
                                       labelText: 'Código do Vendedor',
                                       hintText: 'Digite o código do vendedor',
                                       enabledBorder: OutlineInputBorder(
@@ -225,7 +223,7 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                           color: Color(0x00000000),
                                           width: 1.0,
                                         ),
-                                        borderRadius: const BorderRadius.only(
+                                        borderRadius: BorderRadius.only(
                                           topLeft: Radius.circular(4.0),
                                           topRight: Radius.circular(4.0),
                                         ),
@@ -235,7 +233,7 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                           color: Color(0x00000000),
                                           width: 1.0,
                                         ),
-                                        borderRadius: const BorderRadius.only(
+                                        borderRadius: BorderRadius.only(
                                           topLeft: Radius.circular(4.0),
                                           topRight: Radius.circular(4.0),
                                         ),
@@ -245,7 +243,7 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                           color: Color(0x00000000),
                                           width: 1.0,
                                         ),
-                                        borderRadius: const BorderRadius.only(
+                                        borderRadius: BorderRadius.only(
                                           topLeft: Radius.circular(4.0),
                                           topRight: Radius.circular(4.0),
                                         ),
@@ -255,14 +253,14 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                           color: Color(0x00000000),
                                           width: 1.0,
                                         ),
-                                        borderRadius: const BorderRadius.only(
+                                        borderRadius: BorderRadius.only(
                                           topLeft: Radius.circular(4.0),
                                           topRight: Radius.circular(4.0),
                                         ),
                                       ),
                                       filled: true,
                                     ),
-                                    style: TextStyle(),
+                                    style: const TextStyle(),
                                     maxLines: null,
                                     keyboardType: TextInputType.number,
                                     validator: _model
@@ -283,6 +281,7 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                               .vendedorCodigoFieldTextController
                                               .text,
                                         );
+                                        if (!context.mounted) return;
                                         if (_model.firstAccessResult!.success) {
                                           AppState().is_first_access = false;
                                           safeSetState(() {});
@@ -292,6 +291,7 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                                 .vendedorCodigoFieldTextController
                                                 .text,
                                           );
+                                          if (!context.mounted) return;
                                           if (_model
                                               .firstAccessLogin!.success) {
                                             AppState().vendedor_codigo =
@@ -320,16 +320,16 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                               context: context,
                                               builder: (alertDialogContext) {
                                                 return AlertDialog(
-                                                  title: Text(
+                                                  title: const Text(
                                                       'Login nao validado'),
-                                                  content: Text(
+                                                  content: const Text(
                                                       'Vendedor nao encontrado no banco local.'),
                                                   actions: [
                                                     TextButton(
                                                       onPressed: () =>
                                                           Navigator.pop(
                                                               alertDialogContext),
-                                                      child: Text('OK'),
+                                                      child: const Text('OK'),
                                                     ),
                                                   ],
                                                 );
@@ -343,7 +343,7 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                             context: context,
                                             builder: (alertDialogContext) {
                                               return AlertDialog(
-                                                title: Text(
+                                                title: const Text(
                                                     'Falha na carga inicial'),
                                                 content: Text(_model
                                                     .firstAccessResult!
@@ -353,7 +353,7 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                                     onPressed: () =>
                                                         Navigator.pop(
                                                             alertDialogContext),
-                                                    child: Text('OK'),
+                                                    child: const Text('OK'),
                                                   ),
                                                 ],
                                               );
@@ -367,6 +367,7 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                               .vendedorCodigoFieldTextController
                                               .text,
                                         );
+                                        if (!context.mounted) return;
                                         if (_model.offlineLogin!.success) {
                                           AppState().vendedor_codigo = _model
                                               .offlineLogin!.vendedorCodigo;
@@ -394,15 +395,15 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                             builder: (alertDialogContext) {
                                               return AlertDialog(
                                                 title:
-                                                    Text('Login nao validado'),
-                                                content: Text(
+                                                    const Text('Login nao validado'),
+                                                content: const Text(
                                                     'Vendedor nao encontrado no banco local.'),
                                                 actions: [
                                                   TextButton(
                                                     onPressed: () =>
                                                         Navigator.pop(
                                                             alertDialogContext),
-                                                    child: Text('OK'),
+                                                    child: const Text('OK'),
                                                   ),
                                                 ],
                                               );
@@ -417,10 +418,10 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                     options: AppButtonOptions(
                                       width: double.infinity,
                                       height: 50.0,
-                                      padding: EdgeInsetsDirectional.fromSTEB(
+                                      padding: const EdgeInsetsDirectional.fromSTEB(
                                           0.0, 0.0, 0.0, 0.0),
                                       iconPadding:
-                                          EdgeInsetsDirectional.fromSTEB(
+                                          const EdgeInsetsDirectional.fromSTEB(
                                               0.0, 0.0, 0.0, 0.0),
                                       color:
                                           AppTheme.of(context).primary,
@@ -440,7 +441,7 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                       fit: BoxFit.contain,
                                     ),
                                   ),
-                                ].divide(SizedBox(height: 20.0)),
+                                ].divide(const SizedBox(height: 20.0)),
                               ),
                             ),
                           ),
@@ -454,10 +455,10 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                 Container(
                   width: double.infinity,
                   height: double.infinity,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: Color(0x80000000),
                   ),
-                  alignment: AlignmentDirectional(0.0, 0.0),
+                  alignment: const AlignmentDirectional(0.0, 0.0),
                   child: CircularPercentIndicator(
                     percent: 0.0,
                     radius: 25.0,

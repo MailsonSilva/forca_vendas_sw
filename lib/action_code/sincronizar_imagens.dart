@@ -1,21 +1,17 @@
 // Imports do app
-import '/backend/schema/structs/index.dart';
-import '/core/app_theme.dart';
 import '/core/app_util.dart';
-import '/action_code/index.dart'; // Imports other custom actions
-import '/core/app_functions.dart'; // Imports custom functions
+// Imports other custom actions
+// Imports custom functions
 import 'package:flutter/material.dart';
 // Begin custom action code
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
 // Set your action name, define your arguments and return parameter,
 // and then add the boilerplate code using the `</>` button on the right!
-import '/app_state.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
-import 'dart:convert';
 import 'dart:isolate';
 import 'dart:async';
 
@@ -157,8 +153,8 @@ Future<dynamic> sincronizarImagens(
   BuildContext context,
   String modo,
 ) async {
-  final String baseUrl = "http://heh08x312dp.sn.mynetname.net:8080/catalogo";
-  final String subdir = "images/catalogo_imagens";
+  const String baseUrl = "http://heh08x312dp.sn.mynetname.net:8080/catalogo";
+  const String subdir = "images/catalogo_imagens";
 
   final directory = await getApplicationDocumentsDirectory();
   final documentsDirPath = directory.path;

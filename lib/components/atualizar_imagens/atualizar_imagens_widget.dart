@@ -3,7 +3,6 @@
 import '/core/app_icon_button.dart';
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
-import '/core/app_widgets.dart';
 import 'dart:ui';
 import 'dart:async';
 import '/services/background_sync_service.dart';

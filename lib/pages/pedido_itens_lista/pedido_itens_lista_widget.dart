@@ -1,13 +1,11 @@
-import 'dart:async';
+﻿import 'dart:async';
 import '/action_code/index.dart';
 import '/backend/schema/structs/index.dart';
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
-import '/core/app_widgets.dart';
 import '/index.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'pedido_itens_lista_model.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path_pkg;
@@ -81,13 +79,6 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
     super.dispose();
   }
 
-  void _onSearchChanged(String query) {
-    if (_debounceTimer?.isActive ?? false) _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
-      _searchProducts(query);
-    });
-  }
-
   Future<void> _searchProducts(String query) async {
     safeSetState(() {
       _model.isLoading = true;
@@ -140,8 +131,9 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
       await db.close();
       if (results.isNotEmpty) {
         final val = results.first['saldo'];
-        if (val is num) saldo = val.toDouble();
-        else if (val != null) saldo = double.tryParse(val.toString()) ?? 0.0;
+        if (val is num) {
+          saldo = val.toDouble();
+        } else if (val != null) saldo = double.tryParse(val.toString()) ?? 0.0;
       }
     } catch (e) {
       print('Erro ao consultar estoque: $e');
@@ -152,6 +144,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
   Future<void> _incrementarQuantidade(ProdutoResultStruct p) async {
     final existing = _findCartItem(p.codigo);
     final saldo = await _getSaldoEstoque(p.codigo);
+    if (!mounted) return;
 
     if (saldo <= 0.0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -240,6 +233,8 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
       _model.isLoading = false;
     });
 
+    if (!mounted) return;
+
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -271,6 +266,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
     );
     if (result != null && result is ItemPedidoStruct) {
       final saldo = await _getSaldoEstoque(result.codigoProduto);
+      if (!mounted) return;
       final existing = _findCartItem(result.codigoProduto);
       final currentQty = existing != null ? existing.quantidade : 0.0;
       final newQty = currentQty + result.quantidade;
@@ -772,9 +768,10 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                       clienteCodigo: widget.clienteCodigo ?? 0,
                       linhaCodigo: widget.linhaCodigo,
                       planoCodigo: widget.planoCodigo,
-                      carrinhoItens: _model.carrinhoItens,
+carrinhoItens: _model.carrinhoItens,
                     );
 
+                    if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Bonificações adicionadas com sucesso!'),
@@ -816,9 +813,10 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                       clienteCodigo: widget.clienteCodigo ?? 0,
                       linhaCodigo: widget.linhaCodigo,
                       planoCodigo: widget.planoCodigo,
-                      carrinhoItens: _model.carrinhoItens,
+carrinhoItens: _model.carrinhoItens,
                     );
 
+                    if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Combos adicionados com sucesso!'),
@@ -957,6 +955,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
       _model.recalcularTotais();
     });
 
+    if (!mounted) return;
     context.go('/homePage');
   }
 
@@ -980,6 +979,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
     safeSetState(() {
       _model.isLoading = false;
     });
+    if (!mounted) return;
 
     String searchQuery = '';
     showModalBottomSheet(
@@ -1082,7 +1082,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 8.0),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? AppTheme.of(context).primary.withOpacity(0.08) : Colors.white,
+                                  color: isSelected ? AppTheme.of(context).primary.withValues(alpha: 0.08) : Colors.white,
                                   borderRadius: BorderRadius.circular(12.0),
                                   border: Border.all(
                                     color: isSelected ? AppTheme.of(context).primary : const Color(0xFFE0E3E7),
@@ -1146,3 +1146,4 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
     }
   }
 }
+

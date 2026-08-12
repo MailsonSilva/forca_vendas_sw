@@ -83,10 +83,12 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.0
 
+  http_parser: any
 dependency_overrides:
   http: 1.4.0
   intl: 0.20.2
   uuid: ^4.0.0
+  sqlite3: 2.7.0
 
 dev_dependencies:
   flutter_launcher_icons: 0.13.1
@@ -95,6 +97,7 @@ dev_dependencies:
   lints: 4.0.0
   flutter_test:
     sdk: flutter
+  sqflite_common_ffi: ^2.3.5
 
 
 flutter_launcher_icons:

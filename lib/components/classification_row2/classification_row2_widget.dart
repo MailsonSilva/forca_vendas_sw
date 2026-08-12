@@ -1,10 +1,7 @@
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
-import '/core/app_widgets.dart';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'classification_row2_model.dart';
 export 'classification_row2_model.dart';
 
@@ -13,8 +10,8 @@ class ClassificationRow2Widget extends StatefulWidget {
     super.key,
     String? label,
     String? value,
-  })  : this.label = label ?? 'Linha',
-        this.value = value ?? 'LINHA GERAL';
+  })  : label = label ?? 'Linha',
+        value = value ?? 'LINHA GERAL';
 
   final String label;
   final String value;
@@ -54,7 +51,7 @@ class _ClassificationRow2WidgetState extends State<ClassificationRow2Widget> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Padding(
-          padding: EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+          padding: const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
           child: Row(
             mainAxisSize: MainAxisSize.max,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -62,7 +59,7 @@ class _ClassificationRow2WidgetState extends State<ClassificationRow2Widget> {
             children: [
               Text(
                 valueOrDefault<String>(
-                  widget!.label,
+                  widget.label,
                   'Linha',
                 ),
                 style: AppTheme.of(context).bodyMedium.override(
@@ -85,7 +82,7 @@ class _ClassificationRow2WidgetState extends State<ClassificationRow2Widget> {
                 flex: 1,
                 child: Text(
                   valueOrDefault<String>(
-                    widget!.value,
+                    widget.value,
                     'LINHA GERAL',
                   ),
                   textAlign: TextAlign.end,
@@ -113,7 +110,7 @@ class _ClassificationRow2WidgetState extends State<ClassificationRow2Widget> {
           ),
         ),
         Padding(
-          padding: EdgeInsetsDirectional.fromSTEB(0.0, 8.0, 0.0, 8.0),
+          padding: const EdgeInsetsDirectional.fromSTEB(0.0, 8.0, 0.0, 8.0),
           child: Container(
             child: Divider(
               height: 16.0,

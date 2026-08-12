@@ -398,38 +398,38 @@ class AppShadows {
   final AppTheme theme;
   BoxShadow get none => const BoxShadow(
       blurRadius: 0.0,
-      color: const Color(0x00000000),
-      offset: const Offset(0.0, 0.0),
+      color: Color(0x00000000),
+      offset: Offset(0.0, 0.0),
       spreadRadius: 0.0);
   BoxShadow get xs => const BoxShadow(
       blurRadius: 2.0,
-      color: const Color(0x0D000000),
-      offset: const Offset(0.0, 1.0),
+      color: Color(0x0D000000),
+      offset: Offset(0.0, 1.0),
       spreadRadius: 0.0);
   BoxShadow get sm => const BoxShadow(
       blurRadius: 4.0,
-      color: const Color(0x1A000000),
-      offset: const Offset(0.0, 2.0),
+      color: Color(0x1A000000),
+      offset: Offset(0.0, 2.0),
       spreadRadius: 0.0);
   BoxShadow get md => const BoxShadow(
       blurRadius: 8.0,
-      color: const Color(0x1A000000),
-      offset: const Offset(0.0, 4.0),
+      color: Color(0x1A000000),
+      offset: Offset(0.0, 4.0),
       spreadRadius: -2.0);
   BoxShadow get lg => const BoxShadow(
       blurRadius: 16.0,
-      color: const Color(0x1F000000),
-      offset: const Offset(0.0, 8.0),
+      color: Color(0x1F000000),
+      offset: Offset(0.0, 8.0),
       spreadRadius: -4.0);
   BoxShadow get xl => const BoxShadow(
       blurRadius: 24.0,
-      color: const Color(0x24000000),
-      offset: const Offset(0.0, 12.0),
+      color: Color(0x24000000),
+      offset: Offset(0.0, 12.0),
       spreadRadius: -6.0);
   BoxShadow get xxl => const BoxShadow(
       blurRadius: 40.0,
-      color: const Color(0x29000000),
-      offset: const Offset(0.0, 20.0),
+      color: Color(0x29000000),
+      offset: Offset(0.0, 20.0),
       spreadRadius: -8.0);
 }
 
@@ -474,7 +474,7 @@ extension TextStyleHelper on TextStyle {
       letterSpacing: letterSpacing ?? this.letterSpacing,
       fontStyle: fontStyle ?? this.fontStyle,
       decoration: decoration ?? this.decoration,
-      height: lineHeight ?? this.height,
+      height: lineHeight ?? height,
       shadows: shadows ?? this.shadows,
     );
   }

@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import '/backend/schema/structs/index.dart';
-import '/backend/api_requests/api_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'core/app_util.dart';
 
 class AppState extends ChangeNotifier {
   static const _vendedorCodigoKey = 'app_vendedor_codigo';
@@ -240,11 +237,5 @@ class AppState extends ChangeNotifier {
 void _safeInit(Function() initializeField) {
   try {
     initializeField();
-  } catch (_) {}
-}
-
-Future _safeInitAsync(Function() initializeField) async {
-  try {
-    await initializeField();
   } catch (_) {}
 }

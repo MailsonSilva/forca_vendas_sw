@@ -1,20 +1,13 @@
 // Imports do app
 import '/backend/schema/structs/index.dart';
-import '/core/app_theme.dart';
-import '/core/app_util.dart';
-import '/action_code/index.dart'; // Imports other custom actions
-import '/core/app_functions.dart'; // Imports custom functions
-import 'package:flutter/material.dart';
+// Imports other custom actions
+// Imports custom functions
 // Begin custom action code
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
 // Imports do app
-import '/backend/schema/structs/index.dart';
-import '/core/app_theme.dart';
-import '/core/app_util.dart';
-import '/action_code/index.dart'; // Imports other custom actions
-import '/core/app_functions.dart'; // Imports custom functions
-import 'package:flutter/material.dart';
+// Imports other custom actions
+// Imports custom functions
 // Begin custom action code
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
@@ -36,9 +29,9 @@ Future<List<ProdutoResultStruct>> buscaProduto(
 ) async {
   try {
     final dbPath = join(await getDatabasesPath(), 'dbforcacad001.db');
-    print('DIAGNOSTICO: Caminho do banco: ' + dbPath);
+    print('DIAGNOSTICO: Caminho do banco: $dbPath');
     final exists = await File(dbPath).exists();
-    print('DIAGNOSTICO: O arquivo do banco existe? ' + exists.toString());
+    print('DIAGNOSTICO: O arquivo do banco existe? $exists');
 
     if (!exists) {
       print(
@@ -51,15 +44,13 @@ Future<List<ProdutoResultStruct>> buscaProduto(
     try {
       final countPro = Sqflite.firstIntValue(
           await db.rawQuery('SELECT COUNT(*) FROM cadpro00'));
-      print('DIAGNOSTICO: Registros em cadpro00 (produtos): ' +
-          countPro.toString());
+      print('DIAGNOSTICO: Registros em cadpro00 (produtos): $countPro');
       final countEst = Sqflite.firstIntValue(
           await db.rawQuery('SELECT COUNT(*) FROM estpro00'));
-      print('DIAGNOSTICO: Registros em estpro00 (estoque): ' +
-          countEst.toString());
+      print('DIAGNOSTICO: Registros em estpro00 (estoque): $countEst');
     } catch (dbErr) {
       print(
-          'DIAGNOSTICO: ERRO ao ler tabelas estruturais: ' + dbErr.toString());
+          'DIAGNOSTICO: ERRO ao ler tabelas estruturais: $dbErr');
     }
 
     final String busca = filtro ?? '';
@@ -139,7 +130,7 @@ Future<List<ProdutoResultStruct>> buscaProduto(
     }
 
     String whereClause =
-        condicoes.isNotEmpty ? 'WHERE ' + condicoes.join(' AND ') : '';
+        condicoes.isNotEmpty ? 'WHERE ${condicoes.join(' AND ')}' : '';
 
     List<dynamic> finalBinds = [filial, ...whereBinds, currentOffset];
 
@@ -158,10 +149,9 @@ Future<List<ProdutoResultStruct>> buscaProduto(
         "ORDER BY p.pro00_descri "
         "LIMIT 500 OFFSET ?";
 
-    print('DIAGNOSTICO: Executando query com binds: ' + finalBinds.toString());
+    print('DIAGNOSTICO: Executando query com binds: $finalBinds');
     final results = await db.rawQuery(query, finalBinds);
-    print('DIAGNOSTICO: Query executada. Resultados encontrados: ' +
-        results.length.toString());
+    print('DIAGNOSTICO: Query executada. Resultados encontrados: ${results.length}');
     await db.close();
 
     double parseDouble(dynamic val) {
@@ -182,7 +172,7 @@ Future<List<ProdutoResultStruct>> buscaProduto(
             ))
         .toList();
   } catch (e) {
-    print('DIAGNOSTICO: Erro fatal na busca do SQLite: ' + e.toString());
+    print('DIAGNOSTICO: Erro fatal na busca do SQLite: $e');
     return [];
   }
 }

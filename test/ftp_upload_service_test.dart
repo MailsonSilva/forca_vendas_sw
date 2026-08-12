@@ -105,7 +105,7 @@ void main() {
     test('uploads a pedido .pac, marks status by registry id and deletes file',
         () async {
       final registros = [
-        CargaRegistro(
+        const CargaRegistro(
           arquivo: 'p7-1682930.pac',
           tipo: TipoCarga.pedido,
           id: 1007,
@@ -137,7 +137,7 @@ void main() {
 
     test('uploads a cliente .xml and marks status by registry id', () async {
       final registros = [
-        CargaRegistro(
+        const CargaRegistro(
           arquivo: 'c7-54321.xml',
           tipo: TipoCarga.cliente,
           id: 20754,
@@ -166,7 +166,7 @@ void main() {
     test('keeps file pending (retry) when SIZE diverges and does not mark',
         () async {
       final registros = [
-        CargaRegistro(
+        const CargaRegistro(
           arquivo: 'p7-1682930.pac',
           tipo: TipoCarga.pedido,
           id: 1007,
@@ -194,12 +194,12 @@ void main() {
 
     test('respects enviarPedidos/enviarClientes filters', () async {
       final registros = [
-        CargaRegistro(
+        const CargaRegistro(
           arquivo: 'p7-1682930.pac',
           tipo: TipoCarga.pedido,
           id: 1007,
         ),
-        CargaRegistro(
+        const CargaRegistro(
           arquivo: 'c7-54321.xml',
           tipo: TipoCarga.cliente,
           id: 20754,

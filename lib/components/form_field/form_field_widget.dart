@@ -1,11 +1,8 @@
 import '/components/text_field/text_field_widget.dart';
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
-import '/core/app_widgets.dart';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'form_field_model.dart';
 export 'form_field_model.dart';
 
@@ -14,8 +11,8 @@ class FormFieldWidget extends StatefulWidget {
     super.key,
     String? hint,
     String? label,
-  })  : this.hint = hint ?? 'Razão Social',
-        this.label = label ?? 'Razão Social';
+  })  : hint = hint ?? 'Razão Social',
+        label = label ?? 'Razão Social';
 
   final String hint;
   final String label;
@@ -55,7 +52,7 @@ class _FormFieldWidgetState extends State<FormFieldWidget> {
       children: [
         Text(
           valueOrDefault<String>(
-            widget!.label,
+            widget.label,
             'Razão Social',
           ),
           style: AppTheme.of(context).labelMedium.override(
@@ -82,7 +79,7 @@ class _FormFieldWidgetState extends State<FormFieldWidget> {
             leadingIconPresent: false,
             trailingIconPresent: false,
             hint: valueOrDefault<String>(
-              widget!.hint,
+              widget.hint,
               'Razão Social',
             ),
             value: '',
@@ -90,7 +87,7 @@ class _FormFieldWidgetState extends State<FormFieldWidget> {
             error: false,
           ),
         ),
-      ].divide(SizedBox(height: 4.0)),
+      ].divide(const SizedBox(height: 4.0)),
     );
   }
 }

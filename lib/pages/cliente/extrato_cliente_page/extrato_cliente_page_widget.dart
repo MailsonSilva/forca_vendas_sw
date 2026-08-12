@@ -1,10 +1,7 @@
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
-import '/core/app_widgets.dart';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'extrato_cliente_page_model.dart';
 export 'extrato_cliente_page_model.dart';
 
@@ -70,7 +67,7 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget> {
                   fontStyle: AppTheme.of(context).titleLarge.fontStyle,
                 ),
           ),
-          actions: [],
+          actions: const [],
           centerTitle: true,
           elevation: 0.0,
         ),
@@ -78,7 +75,7 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget> {
           top: true,
           child: Container(
             child: Padding(
-              padding: EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(16.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.start,
@@ -109,7 +106,7 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget> {
                       borderRadius: BorderRadius.circular(8.0),
                     ),
                     child: Padding(
-                      padding: EdgeInsets.all(16.0),
+                      padding: const EdgeInsets.all(16.0),
                       child: Row(
                         mainAxisSize: MainAxisSize.max,
                         mainAxisAlignment: MainAxisAlignment.start,
@@ -123,7 +120,7 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget> {
                           Expanded(
                             flex: 1,
                             child: Text(
-                              widget!.codigoCliente!,
+                              widget.codigoCliente!,
                               style: AppTheme.of(context)
                                   .titleMedium
                                   .override(
@@ -145,7 +142,7 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget> {
                                   ),
                             ),
                           ),
-                        ].divide(SizedBox(width: 8.0)),
+                        ].divide(const SizedBox(width: 8.0)),
                       ),
                     ),
                   ),
@@ -155,7 +152,7 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget> {
                       borderRadius: BorderRadius.circular(8.0),
                     ),
                     child: Padding(
-                      padding: EdgeInsets.all(12.0),
+                      padding: const EdgeInsets.all(12.0),
                       child: Row(
                         mainAxisSize: MainAxisSize.max,
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -212,7 +209,7 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget> {
                                           .fontStyle,
                                     ),
                               ),
-                            ].divide(SizedBox(height: 4.0)),
+                            ].divide(const SizedBox(height: 4.0)),
                           ),
                           Text(
                             'R\$ 0,00',
@@ -245,9 +242,9 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget> {
                       color: AppTheme.of(context).primaryBackground,
                       borderRadius: BorderRadius.circular(8.0),
                     ),
-                    alignment: AlignmentDirectional(0.0, 0.0),
+                    alignment: const AlignmentDirectional(0.0, 0.0),
                     child: Padding(
-                      padding: EdgeInsets.all(24.0),
+                      padding: const EdgeInsets.all(24.0),
                       child: Text(
                         'Nenhum lancamento carregado.',
                         textAlign: TextAlign.center,
@@ -272,7 +269,7 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget> {
                       ),
                     ),
                   ),
-                ].divide(SizedBox(height: 12.0)),
+                ].divide(const SizedBox(height: 12.0)),
               ),
             ),
           ),

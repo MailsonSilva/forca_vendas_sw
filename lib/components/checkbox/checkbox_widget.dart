@@ -1,10 +1,7 @@
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
-import '/core/app_widgets.dart';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'checkbox_model.dart';
 export 'checkbox_model.dart';
 
@@ -17,12 +14,12 @@ class CheckboxWidget extends StatefulWidget {
     bool? isChecked,
     bool? hasSubtitle,
     bool? disabled,
-  })  : this.label = label ?? 'Usar Endereço de Entrega',
-        this.subtitle = subtitle ?? 'Receive weekly updates',
-        this.color = color ?? const Color(0x00000000),
-        this.isChecked = isChecked ?? false,
-        this.hasSubtitle = hasSubtitle ?? false,
-        this.disabled = disabled ?? false;
+  })  : label = label ?? 'Usar Endereço de Entrega',
+        subtitle = subtitle ?? 'Receive weekly updates',
+        color = color ?? const Color(0x00000000),
+        isChecked = isChecked ?? false,
+        hasSubtitle = hasSubtitle ?? false,
+        disabled = disabled ?? false;
 
   final String label;
   final String subtitle;
@@ -62,7 +59,7 @@ class _CheckboxWidgetState extends State<CheckboxWidget> {
     return Opacity(
       opacity: valueOrDefault<double>(
         valueOrDefault<bool>(
-          widget!.disabled,
+          widget.disabled,
           false,
         )
             ? 0.55
@@ -72,7 +69,7 @@ class _CheckboxWidgetState extends State<CheckboxWidget> {
       child: Container(
         child: Container(
           child: Padding(
-            padding: EdgeInsetsDirectional.fromSTEB(0.0, 8.0, 0.0, 8.0),
+            padding: const EdgeInsetsDirectional.fromSTEB(0.0, 8.0, 0.0, 8.0),
             child: Container(
               child: Row(
                 mainAxisSize: MainAxisSize.max,
@@ -83,7 +80,7 @@ class _CheckboxWidgetState extends State<CheckboxWidget> {
                     padding: EdgeInsetsDirectional.fromSTEB(
                         valueOrDefault<double>(
                           valueOrDefault<bool>(
-                            widget!.hasSubtitle,
+                            widget.hasSubtitle,
                             false,
                           )
                               ? 0.0
@@ -92,7 +89,7 @@ class _CheckboxWidgetState extends State<CheckboxWidget> {
                         ),
                         valueOrDefault<double>(
                           valueOrDefault<bool>(
-                            widget!.hasSubtitle,
+                            widget.hasSubtitle,
                             false,
                           )
                               ? 3.0
@@ -101,7 +98,7 @@ class _CheckboxWidgetState extends State<CheckboxWidget> {
                         ),
                         valueOrDefault<double>(
                           valueOrDefault<bool>(
-                            widget!.hasSubtitle,
+                            widget.hasSubtitle,
                             false,
                           )
                               ? 0.0
@@ -110,7 +107,7 @@ class _CheckboxWidgetState extends State<CheckboxWidget> {
                         ),
                         valueOrDefault<double>(
                           valueOrDefault<bool>(
-                            widget!.hasSubtitle,
+                            widget.hasSubtitle,
                             false,
                           )
                               ? 0.0
@@ -124,10 +121,10 @@ class _CheckboxWidgetState extends State<CheckboxWidget> {
                         decoration: BoxDecoration(
                           color: valueOrDefault<Color>(
                             valueOrDefault<bool>(
-                              widget!.isChecked,
+                              widget.isChecked,
                               false,
                             )
-                                ? Color(0x00000000)
+                                ? const Color(0x00000000)
                                 : Colors.transparent,
                             Colors.transparent,
                           ),
@@ -138,11 +135,11 @@ class _CheckboxWidgetState extends State<CheckboxWidget> {
                             width: 0.0,
                           ),
                         ),
-                        alignment: AlignmentDirectional(0.0, 0.0),
+                        alignment: const AlignmentDirectional(0.0, 0.0),
                         child: Visibility(
                           visible: valueOrDefault<bool>(
                             valueOrDefault<bool>(
-                              widget!.isChecked,
+                              widget.isChecked,
                               false,
                             )
                                 ? true
@@ -167,7 +164,7 @@ class _CheckboxWidgetState extends State<CheckboxWidget> {
                       children: [
                         Text(
                           valueOrDefault<String>(
-                            widget!.label,
+                            widget.label,
                             'Usar Endereço de Entrega',
                           ),
                           maxLines: 1,
@@ -196,7 +193,7 @@ class _CheckboxWidgetState extends State<CheckboxWidget> {
                         ),
                         if (valueOrDefault<bool>(
                           valueOrDefault<bool>(
-                            widget!.hasSubtitle,
+                            widget.hasSubtitle,
                             false,
                           )
                               ? true
@@ -207,7 +204,7 @@ class _CheckboxWidgetState extends State<CheckboxWidget> {
                             child: Container(
                               child: Text(
                                 valueOrDefault<String>(
-                                  widget!.subtitle,
+                                  widget.subtitle,
                                   'Receive weekly updates',
                                 ),
                                 maxLines: 3,
@@ -240,7 +237,7 @@ class _CheckboxWidgetState extends State<CheckboxWidget> {
                       ],
                     ),
                   ),
-                ].divide(SizedBox(width: 16.0)),
+                ].divide(const SizedBox(width: 16.0)),
               ),
             ),
           ),

@@ -151,15 +151,14 @@ Future<void> _dbDownloadWork({
   final result =
       await downloadDatabaseFromFtp(empresaCodigo, vendedorCodigo);
 
-  if (result != null && result.success) {
+  if (result.success) {
     await prefs.setString(kPrefDbStatus, 'complete');
     await prefs.setDouble(kPrefDbProgress, 1.0);
     await prefs.setString(kPrefDbText, result.message);
   } else {
     await prefs.setString(kPrefDbStatus, 'error');
     await prefs.setDouble(kPrefDbProgress, 1.0);
-    await prefs.setString(
-        kPrefDbText, result?.message ?? 'Erro desconhecido no FTP');
+    await prefs.setString(kPrefDbText, result.message);
   }
 }
 
@@ -176,7 +175,6 @@ class BackgroundSyncService {
     _initialized = true;
     Workmanager().initialize(
       callbackDispatcher,
-      isInDebugMode: false,
     );
   }
 

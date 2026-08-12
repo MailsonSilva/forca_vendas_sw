@@ -6,7 +6,6 @@ import '/core/app_theme.dart';
 import '/core/app_util.dart';
 import '/core/app_widgets.dart';
 import '/core/form_field_controller.dart';
-import 'dart:ui';
 import '/action_code/index.dart' as actions;
 import '/widgets/index.dart' as custom_widgets;
 import '/core/app_functions.dart' as functions;
@@ -79,10 +78,10 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
     _model.buscaProdutoFieldFocusNode ??= FocusNode();
   }
 
-  @override
+@override
   void dispose() {
     _model.dispose();
-
+    super.dispose();
   }
 
   void _abrirModalAdicionarCarrinho(ProdutoResultStruct produto) {
@@ -193,8 +192,8 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                         ),
                         if (produto.saldoEstoque <= 0) ...[
                           const SizedBox(height: 12.0),
-                          Row(
-                            children: const [
+                          const Row(
+                            children: [
                               Icon(Icons.warning_amber_rounded, color: Colors.red, size: 18.0),
                               SizedBox(width: 6.0),
                               Expanded(
@@ -344,7 +343,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
             borderRadius: 30.0,
             borderWidth: 1.0,
             buttonSize: 60.0,
-            icon: Icon(
+            icon: const Icon(
               Icons.arrow_back_rounded,
               color: Colors.white,
               size: 30.0,
@@ -368,7 +367,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                   fontStyle: AppTheme.of(context).titleLarge.fontStyle,
                 ),
           ),
-          actions: [],
+          actions: const [],
           centerTitle: true,
           elevation: 2.0,
         ),
@@ -379,26 +378,26 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
               color: AppTheme.of(context).primaryBackground,
             ),
             child: Padding(
-              padding: EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 16.0),
+              padding: const EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 16.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Container(
-                    decoration: BoxDecoration(),
+                    decoration: const BoxDecoration(),
                     child: Column(
                       mainAxisSize: MainAxisSize.max,
                       children: [
                         Padding(
-                          padding: EdgeInsetsDirectional.fromSTEB(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
                               16.0, 0.0, 16.0, 0.0),
                           child: TextFormField(
                             controller: _model.buscaProdutoFieldTextController,
                             focusNode: _model.buscaProdutoFieldFocusNode,
                             onChanged: (_) => EasyDebounce.debounce(
                               '_model.buscaProdutoFieldTextController',
-                              Duration(milliseconds: 2000),
+                              const Duration(milliseconds: 2000),
                               () async {
                                 _model.resultadoBusca =
                                     await actions.buscaProduto(
@@ -424,7 +423,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                             ),
                             textInputAction: TextInputAction.search,
                             obscureText: false,
-                            decoration: InputDecoration(
+                            decoration: const InputDecoration(
                               labelText: 'Produto',
                               hintText: 'Pesquise por código ou descrição...',
                               enabledBorder: OutlineInputBorder(
@@ -432,7 +431,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                   color: Color(0x00000000),
                                   width: 1.0,
                                 ),
-                                borderRadius: const BorderRadius.only(
+                                borderRadius: BorderRadius.only(
                                   topLeft: Radius.circular(4.0),
                                   topRight: Radius.circular(4.0),
                                 ),
@@ -442,7 +441,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                   color: Color(0x00000000),
                                   width: 1.0,
                                 ),
-                                borderRadius: const BorderRadius.only(
+                                borderRadius: BorderRadius.only(
                                   topLeft: Radius.circular(4.0),
                                   topRight: Radius.circular(4.0),
                                 ),
@@ -452,7 +451,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                   color: Color(0x00000000),
                                   width: 1.0,
                                 ),
-                                borderRadius: const BorderRadius.only(
+                                borderRadius: BorderRadius.only(
                                   topLeft: Radius.circular(4.0),
                                   topRight: Radius.circular(4.0),
                                 ),
@@ -462,7 +461,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                   color: Color(0x00000000),
                                   width: 1.0,
                                 ),
-                                borderRadius: const BorderRadius.only(
+                                borderRadius: BorderRadius.only(
                                   topLeft: Radius.circular(4.0),
                                   topRight: Radius.circular(4.0),
                                 ),
@@ -472,7 +471,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                 Icons.search,
                               ),
                             ),
-                            style: TextStyle(),
+                            style: const TextStyle(),
                             maxLines: null,
                             validator: _model
                                 .buscaProdutoFieldTextControllerValidator
@@ -480,7 +479,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                           ),
                         ),
                         Padding(
-                          padding: EdgeInsetsDirectional.fromSTEB(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
                               16.0, 0.0, 16.0, 0.0),
                           child: Container(
                             width: double.infinity,
@@ -488,7 +487,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                             decoration: BoxDecoration(
                               color: AppTheme.of(context)
                                   .secondaryBackground,
-                              boxShadow: [
+                              boxShadow: const [
                                 BoxShadow(
                                   blurRadius: 4.0,
                                   color: Color(0x33000000),
@@ -501,7 +500,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                               borderRadius: BorderRadius.circular(12.0),
                             ),
                             child: Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
+                              padding: const EdgeInsetsDirectional.fromSTEB(
                                   12.0, 8.0, 12.0, 8.0),
                               child: InkWell(
                                 splashColor: Colors.transparent,
@@ -524,7 +523,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                     ),
                                     Expanded(
                                       child: Padding(
-                                        padding: EdgeInsetsDirectional.fromSTEB(
+                                        padding: const EdgeInsetsDirectional.fromSTEB(
                                             8.0, 0.0, 0.0, 0.0),
                                         child: Text(
                                           'Filtros Avançados',
@@ -581,14 +580,14 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                         ),
                         if (_model.isFiltroExpanded && _model.dadosCarregados)
                           Padding(
-                            padding: EdgeInsetsDirectional.fromSTEB(
+                            padding: const EdgeInsetsDirectional.fromSTEB(
                                 16.0, 0.0, 16.0, 0.0),
                             child: Container(
                               width: double.infinity,
                               decoration: BoxDecoration(
                                 color: AppTheme.of(context)
                                     .secondaryBackground,
-                                boxShadow: [
+                                boxShadow: const [
                                   BoxShadow(
                                     blurRadius: 4.0,
                                     color: Color(0x33000000),
@@ -601,7 +600,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                 borderRadius: BorderRadius.circular(12.0),
                               ),
                               child: Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                     16.0, 0.0, 16.0, 0.0),
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
@@ -709,14 +708,14 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                           borderWidth: 1.0,
                                           borderRadius: 8.0,
                                           margin:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   12.0, 0.0, 12.0, 0.0),
                                           hidesUnderline: true,
                                           isOverButton: false,
                                           isSearchable: false,
                                           isMultiSelect: false,
                                         ),
-                                      ].divide(SizedBox(height: 4.0)),
+                                      ].divide(const SizedBox(height: 4.0)),
                                     ),
                                     Column(
                                       mainAxisSize: MainAxisSize.min,
@@ -818,14 +817,14 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                           borderWidth: 1.0,
                                           borderRadius: 8.0,
                                           margin:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   12.0, 0.0, 12.0, 0.0),
                                           hidesUnderline: true,
                                           isOverButton: false,
                                           isSearchable: false,
                                           isMultiSelect: false,
                                         ),
-                                      ].divide(SizedBox(height: 4.0)),
+                                      ].divide(const SizedBox(height: 4.0)),
                                     ),
                                     Column(
                                       mainAxisSize: MainAxisSize.min,
@@ -927,14 +926,14 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                           borderWidth: 1.0,
                                           borderRadius: 8.0,
                                           margin:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   12.0, 0.0, 12.0, 0.0),
                                           hidesUnderline: true,
                                           isOverButton: false,
                                           isSearchable: false,
                                           isMultiSelect: false,
                                         ),
-                                      ].divide(SizedBox(height: 4.0)),
+                                      ].divide(const SizedBox(height: 4.0)),
                                     ),
                                     Column(
                                       mainAxisSize: MainAxisSize.min,
@@ -1036,14 +1035,14 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                           borderWidth: 1.0,
                                           borderRadius: 8.0,
                                           margin:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   12.0, 0.0, 12.0, 0.0),
                                           hidesUnderline: true,
                                           isOverButton: false,
                                           isSearchable: false,
                                           isMultiSelect: false,
                                         ),
-                                      ].divide(SizedBox(height: 4.0)),
+                                      ].divide(const SizedBox(height: 4.0)),
                                     ),
                                     Column(
                                       mainAxisSize: MainAxisSize.min,
@@ -1086,7 +1085,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                           controller: _model
                                                   .ddDataEntValueController ??=
                                               FormFieldController<String>(null),
-                                          options: [
+                                          options: const [
                                             'Todas',
                                             'Hoje',
                                             'Ontem',
@@ -1144,14 +1143,14 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                           borderWidth: 1.0,
                                           borderRadius: 8.0,
                                           margin:
-                                              EdgeInsetsDirectional.fromSTEB(
+                                              const EdgeInsetsDirectional.fromSTEB(
                                                   12.0, 0.0, 12.0, 0.0),
                                           hidesUnderline: true,
                                           isOverButton: false,
                                           isSearchable: false,
                                           isMultiSelect: false,
                                         ),
-                                      ].divide(SizedBox(height: 4.0)),
+                                      ].divide(const SizedBox(height: 4.0)),
                                     ),
                                     Row(
                                       mainAxisSize: MainAxisSize.max,
@@ -1199,18 +1198,11 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                     safeSetState(() {});
                                                   }
                                                 },
-                                                side: (AppTheme.of(
-                                                                context)
-                                                            .secondaryText !=
-                                                        null)
-                                                    ? BorderSide(
-                                                        width: 2,
-                                                        color:
-                                                            AppTheme.of(
-                                                                    context)
-                                                                .secondaryText!,
-                                                      )
-                                                    : null,
+side: BorderSide(
+                                                  width: 2,
+                                                  color: AppTheme.of(context)
+                                                      .secondaryText,
+                                                ),
                                                 activeColor:
                                                     AppTheme.of(context)
                                                         .primary,
@@ -1222,7 +1214,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                             Container(
                                               width: 8.0,
                                             ),
-                                            Text(
+                                            const Text(
                                               'Só promoções',
                                               style: TextStyle(),
                                             ),
@@ -1265,18 +1257,11 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                     safeSetState(() {});
                                                   }
                                                 },
-                                                side: (AppTheme.of(
-                                                                context)
-                                                            .secondaryText !=
-                                                        null)
-                                                    ? BorderSide(
-                                                        width: 2,
-                                                        color:
-                                                            AppTheme.of(
-                                                                    context)
-                                                                .secondaryText!,
-                                                      )
-                                                    : null,
+side: BorderSide(
+                                                  width: 2,
+                                                  color: AppTheme.of(context)
+                                                      .secondaryText,
+                                                ),
                                                 activeColor:
                                                     AppTheme.of(context)
                                                         .primary,
@@ -1288,16 +1273,16 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                             Container(
                                               width: 8.0,
                                             ),
-                                            Text(
+                                            const Text(
                                               'Com estoque',
                                               style: TextStyle(),
                                             ),
                                           ],
                                         ),
-                                      ].divide(SizedBox(width: 12.0)),
+                                      ].divide(const SizedBox(width: 12.0)),
                                     ),
                                     Padding(
-                                      padding: EdgeInsetsDirectional.fromSTEB(
+                                      padding: const EdgeInsetsDirectional.fromSTEB(
                                           0.0, 8.0, 0.0, 0.0),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.max,
@@ -1353,24 +1338,24 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                 safeSetState(() {});
                                               },
                                               text: 'Limpar',
-                                              icon: Icon(
+                                              icon: const Icon(
                                                 Icons.clear,
                                                 size: 20.0,
                                               ),
                                               options: AppButtonOptions(
                                                 height: 42.0,
-                                                padding: EdgeInsetsDirectional
+                                                padding: const EdgeInsetsDirectional
                                                     .fromSTEB(
                                                         0.0, 0.0, 0.0, 0.0),
                                                 iconPadding:
-                                                    EdgeInsetsDirectional
+                                                    const EdgeInsetsDirectional
                                                         .fromSTEB(
                                                             0.0, 0.0, 0.0, 0.0),
                                                 iconColor: Colors.white,
                                                 color:
                                                     AppTheme.of(context)
                                                         .secondary,
-                                                textStyle: TextStyle(
+                                                textStyle: const TextStyle(
                                                   color: Colors.white,
                                                 ),
                                                 borderRadius:
@@ -1411,24 +1396,24 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                 safeSetState(() {});
                                               },
                                               text: 'Aplicar Filtros',
-                                              icon: Icon(
+                                              icon: const Icon(
                                                 Icons.check,
                                                 size: 20.0,
                                               ),
                                               options: AppButtonOptions(
                                                 height: 42.0,
-                                                padding: EdgeInsetsDirectional
+                                                padding: const EdgeInsetsDirectional
                                                     .fromSTEB(
                                                         0.0, 0.0, 0.0, 0.0),
                                                 iconPadding:
-                                                    EdgeInsetsDirectional
+                                                    const EdgeInsetsDirectional
                                                         .fromSTEB(
                                                             0.0, 0.0, 0.0, 0.0),
                                                 iconColor: Colors.white,
                                                 color:
                                                     AppTheme.of(context)
                                                         .primary,
-                                                textStyle: TextStyle(
+                                                textStyle: const TextStyle(
                                                   color: Colors.white,
                                                 ),
                                                 borderRadius:
@@ -1436,23 +1421,23 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                               ),
                                             ),
                                           ),
-                                        ].divide(SizedBox(width: 12.0)),
+                                        ].divide(const SizedBox(width: 12.0)),
                                       ),
                                     ),
                                   ]
-                                      .divide(SizedBox(height: 12.0))
-                                      .addToStart(SizedBox(height: 12.0))
-                                      .addToEnd(SizedBox(height: 12.0)),
+                                      .divide(const SizedBox(height: 12.0))
+                                      .addToStart(const SizedBox(height: 12.0))
+                                      .addToEnd(const SizedBox(height: 12.0)),
                                 ),
                               ),
                             ),
                           ),
-                      ].divide(SizedBox(height: 12.0)),
+                      ].divide(const SizedBox(height: 12.0)),
                     ),
                   ),
                   Expanded(
                     child: Container(
-                      decoration: BoxDecoration(),
+                      decoration: const BoxDecoration(),
                       child: Builder(
                         builder: (context) {
                           if (_model.listaProdutos.isNotEmpty) {
@@ -1467,12 +1452,12 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                   scrollDirection: Axis.vertical,
                                   itemCount: listaProduto.length,
                                   separatorBuilder: (_, __) =>
-                                      SizedBox(height: 12.0),
+                                      const SizedBox(height: 12.0),
                                   itemBuilder: (context, listaProdutoIndex) {
                                     final listaProdutoItem =
                                         listaProduto[listaProdutoIndex];
                                     return Padding(
-                                      padding: EdgeInsetsDirectional.fromSTEB(
+                                      padding: const EdgeInsetsDirectional.fromSTEB(
                                           16.0, 0.0, 16.0, 0.0),
                                       child: InkWell(
                                         splashColor: Colors.transparent,
@@ -1502,7 +1487,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                 BorderRadius.circular(12.0),
                                           ),
                                           child: Padding(
-                                            padding: EdgeInsets.all(12.0),
+                                            padding: const EdgeInsets.all(12.0),
                                             child: Row(
                                               mainAxisSize: MainAxisSize.max,
                                               mainAxisAlignment:
@@ -1510,7 +1495,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.center,
                                               children: [
-                                                Container(
+                                                SizedBox(
                                                   width: 80.0,
                                                   height: 80.0,
                                                   child: custom_widgets
@@ -1615,7 +1600,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                                       .ellipsis,
                                                             ),
                                                           ),
-                                                        ].divide(SizedBox(
+                                                        ].divide(const SizedBox(
                                                             width: 8.0)),
                                                       ),
                                                       Row(
@@ -1854,14 +1839,14 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                               ),
                                                             ],
                                                           ),
-                                                        ].divide(SizedBox(
+                                                        ].divide(const SizedBox(
                                                             width: 16.0)),
                                                       ),
                                                     ].divide(
-                                                        SizedBox(height: 4.0)),
+                                                        const SizedBox(height: 4.0)),
                                                   ),
                                                 ),
-                                              ].divide(SizedBox(width: 12.0)),
+                                              ].divide(const SizedBox(width: 12.0)),
                                             ),
                                           ),
                                         ),
@@ -1875,14 +1860,14 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                             return wrapWithModel(
                               model: _model.loadingModel,
                               updateCallback: () => safeSetState(() {}),
-                              child: LoadingWidget(),
+                              child: const LoadingWidget(),
                             );
                           }
                         },
                       ),
                     ),
                   ),
-                ].divide(SizedBox(height: 16.0)),
+                ].divide(const SizedBox(height: 16.0)),
               ),
             ),
           ),
