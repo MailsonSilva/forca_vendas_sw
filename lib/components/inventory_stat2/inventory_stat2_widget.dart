@@ -66,18 +66,20 @@ class _InventoryStat2WidgetState extends State<InventoryStat2Widget> {
         shape: BoxShape.rectangle,
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Container(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
+        padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 10.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
                 valueOrDefault<String>(
                   widget.label,
                   'Atual',
                 ),
+                maxLines: 1,
                 style: AppTheme.of(context).labelSmall.override(
                       font: GoogleFonts.inter(
                         fontWeight:
@@ -94,11 +96,15 @@ class _InventoryStat2WidgetState extends State<InventoryStat2Widget> {
                       lineHeight: 1.2,
                     ),
               ),
-              Text(
+            ),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
                 valueOrDefault<String>(
                   widget.value,
                   '1',
                 ),
+                maxLines: 1,
                 style: AppTheme.of(context).titleLarge.override(
                       font: GoogleFonts.plusJakartaSans(
                         fontWeight: FontWeight.bold,
@@ -116,8 +122,8 @@ class _InventoryStat2WidgetState extends State<InventoryStat2Widget> {
                       lineHeight: 1.3,
                     ),
               ),
-            ].divide(const SizedBox(height: 4.0)),
-          ),
+            ),
+          ].divide(const SizedBox(height: 4.0)),
         ),
       ),
     );

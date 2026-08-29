@@ -5,13 +5,11 @@ import '/backend/schema/structs/index.dart';
 // Begin custom action code
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
+import '../data/services/local_sales_database_service.dart';
 
 Future<ClienteResultStruct?> carregarClienteOffline(int codigo) async {
   try {
-    final dbPath = join(await getDatabasesPath(), 'dbforcacad001.db');
-    final db = await openDatabase(dbPath);
+    final db = await LocalSalesDatabaseService.getDatabase();
 
     final List<Map<String, dynamic>> results = await db.rawQuery(
       '''
@@ -22,7 +20,6 @@ Future<ClienteResultStruct?> carregarClienteOffline(int codigo) async {
       ''',
       [codigo],
     );
-    await db.close();
 
     if (results.isEmpty) {
       print('Nenhum cliente encontrado');

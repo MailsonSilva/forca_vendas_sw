@@ -1,10 +1,15 @@
+import 'dart:io';
 import '/action_code/index.dart';
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
 import '/functions/proximo_numero_pedido.dart';
 import '/index.dart';
+import '/domain/services/bloqueio_financeiro_service.dart';
+import '/backend/schema/structs/index.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:path/path.dart' as p;
+import 'package:sqflite/sqflite.dart';
 import 'pedido_novo_inicio_model.dart';
 export 'pedido_novo_inicio_model.dart';
 
@@ -21,6 +26,10 @@ class PedidoNovoInicioWidget extends StatefulWidget {
 class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
   late PedidoNovoInicioModel _model;
   final scaffoldKey = GlobalKey<ScaffoldState>();
+  // PRD 1 §4A — pré-carregamento mandatório cli00_codage
+  String? _agentePreCodigo;
+  String? _agentePreDescricao;
+  bool _agentePreLoading = false;
 
   @override
   void initState() {
@@ -59,6 +68,199 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
 
   String _formatCurrency(double val) {
     return 'R\$ ${val.toStringAsFixed(2).replaceAll('.', ',')}';
+  }
+
+  // PRD 1 §4A — busca cli00_codage e descrição do agente em codage00/cadagt00
+  Future<void> _prefetchAgente(ClienteResultStruct c) async {
+    final cod = c.cli00Codage;
+    if (cod == 0) {
+      safeSetState(() {
+        _agentePreCodigo = null;
+        _agentePreDescricao = null;
+        _agentePreLoading = false;
+      });
+      return;
+    }
+    safeSetState(() => _agentePreLoading = true);
+    String? desc;
+    final codStr = cod.toString();
+    try {
+      final dbPath = p.join(await getDatabasesPath(), 'dbforcacad001.db');
+      if (await File(dbPath).exists()) {
+        final db = await openDatabase(dbPath, readOnly: true);
+        try {
+          for (final tbl in ['codage00', 'cadagt00', 'cadage00', 'cadcob00', 'codcob00', 'cadcob000', 'cadage000', 'cadagt000']) {
+            try {
+              final exists = await db.rawQuery(
+                  "SELECT name FROM sqlite_master WHERE type='table' AND lower(name)=?", [tbl]);
+              if (exists.isEmpty) continue;
+              final cols = await db.rawQuery('PRAGMA table_info($tbl)');
+              final cn = cols.map((r) => r['name'].toString().toLowerCase()).toSet();
+              String? codCol;
+              String? descCol;
+              for (final cand in ['age00_codigo', 'agt00_codigo', 'agt00_codage', 'agt00_codagt', 'cob00_codigo', 'cob00_codcob', 'cad00_codigo', 'codigo']) {
+                if (cn.contains(cand)) { codCol = cand; break; }
+              }
+              for (final cand in ['age00_descri', 'agt00_descri', 'agt00_descricao', 'agt00_nome', 'age00_descricao', 'age00_nome', 'cob00_descri', 'cob00_descricao', 'cob00_nome', 'descricao', 'descri', 'nome']) {
+                if (cn.contains(cand)) { descCol = cand; break; }
+              }
+              if (codCol == null || descCol == null) continue;
+              final r = await db.rawQuery('SELECT $descCol as d FROM $tbl WHERE $codCol = ? LIMIT 1', [cod]);
+              if (r.isNotEmpty && r.first['d'] != null) {
+                desc = r.first['d'].toString();
+                break;
+              }
+            } catch (_) {}
+          }
+        } finally {
+          await db.close();
+        }
+      }
+    } catch (_) {}
+    if (!mounted) return;
+    safeSetState(() {
+      _agentePreCodigo = codStr;
+      // Se não achou descrição, mantém código; integridade referencial valida depois
+      _agentePreDescricao = (desc != null && desc.trim().isNotEmpty) ? desc : null;
+      _agentePreLoading = false;
+    });
+  }
+
+  /// Modal informativo de títulos vencidos (dup00) ao selecionar o cliente
+  Future<void> _exibirModalTitulosVencidos(BuildContext context, List<TituloVencidoItem> titulos, String clienteNome) async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          height: MediaQuery.of(ctx).size.height * 0.75,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2.5),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Títulos Vencidos em Aberto',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1D2429)),
+                          ),
+                          Text(
+                            clienteNome,
+                            style: const TextStyle(fontSize: 13, color: Colors.grey),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                  itemCount: titulos.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (context, idx) {
+                    final t = titulos[idx];
+                    return Container(
+                      padding: const EdgeInsets.all(14.0),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF8E1),
+                        borderRadius: BorderRadius.circular(12.0),
+                        border: Border.all(color: const Color(0xFFFFE082)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Documento: ${t.numeroDocumento}',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1D2429)),
+                              ),
+                              Text(
+                                'R\$ ${t.valor.toStringAsFixed(2).replaceAll('.', ',')}',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFFC62828)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Vencimento: ${t.dataVencimento}',
+                                style: const TextStyle(fontSize: 13, color: Colors.black87),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade100,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '${t.diasAtraso} dia(s) em atraso',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.red.shade800),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(16.0),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, -2))],
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.of(context).primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text(
+                      'Continuar Digitação',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _showClientBottomSheet() {
@@ -188,11 +390,20 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                                         ),
                                   ),
                                   trailing: isSelected ? Icon(Icons.check_circle_rounded, color: AppTheme.of(context).primary) : null,
-                                  onTap: () {
+                                  onTap: () async {
+                                    final selected = c;
                                     safeSetState(() {
-                                      _model.selectedCliente = c;
+                                      _model.selectedCliente = selected;
                                     });
+                                    // PRD 1 §4A — pré-carregamento mandatório cli00_codage
+                                    _prefetchAgente(selected);
                                     Navigator.pop(context);
+
+                                    // Consulta se o cliente possui títulos em atraso (dup00)
+                                    final titulos = await BloqueioFinanceiroService.listarTitulosVencidos(selected.cli00Codigo);
+                                    if (titulos.isNotEmpty && context.mounted) {
+                                      await _exibirModalTitulosVencidos(context, titulos, selected.cli00Descri);
+                                    }
                                   },
                                 ),
                               );
@@ -764,9 +975,46 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                                       _formatCurrency(_model.selectedCliente!.cli00Crelim),
                                     ),
                                     _buildSummaryRow(
-                                      'Limite Atual',
-                                      _formatCurrency(_model.selectedCliente!.cli00Crelim),
+                                      'Limite Disponível',
+                                      _formatCurrency(_model.selectedCliente!.cli00Crelim - _model.selectedCliente!.cli00Creatu),
                                       valueColor: AppTheme.of(context).primary,
+                                    ),
+                                    // PRD 1 §4A — agente pré-carregado via cli00_codage
+                                    if (_agentePreCodigo != null)
+                                      _buildSummaryRow(
+                                        'Agente Cobrador',
+                                        _agentePreDescricao != null
+                                            ? '$_agentePreCodigo - $_agentePreDescricao'
+                                            : _agentePreCodigo!,
+                                        valueColor: AppTheme.of(context).primary,
+                                      )
+                                    else if (_agentePreLoading)
+                                      _buildSummaryRow('Agente Cobrador', 'Carregando...'),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            // Mostra agente também quando só cliente selecionado (feedback imediato)
+                            if (_model.selectedCliente != null && !hasSelectedAll && _agentePreCodigo != null) ...[
+                              const SizedBox(height: 12.0),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12.0),
+                                  border: Border.all(color: const Color(0xFFE0E3E7)),
+                                ),
+                                padding: const EdgeInsets.all(12.0),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.person_outline, size: 18, color: AppTheme.of(context).primary),
+                                    const SizedBox(width: 8),
+                                    Text('Agente: ', style: GoogleFonts.inter(color: const Color(0xFF57636C), fontSize: 13, fontWeight: FontWeight.w600)),
+                                    Expanded(
+                                      child: Text(
+                                        _agentePreDescricao != null ? '$_agentePreCodigo - $_agentePreDescricao' : _agentePreCodigo!,
+                                        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -809,6 +1057,16 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                               AppState().update(() {
                                 AppState().pedido_numero = tempOrderId;
                               });
+
+                              // Persiste o cabeçalho inicial como rascunho imediatamente
+                              await salvarCarrinhoPedido(
+                                pedidoId: tempOrderId,
+                                clienteCodigo: _model.selectedCliente!.cli00Codigo,
+                                linhaCodigo: _model.selectedLinha?.codigo,
+                                planoCodigo: _model.selectedPlano?.codigo,
+                                carrinhoItens: [],
+                              );
+                              if (!context.mounted) return;
 
                               context.pushNamed(
                                 PedidoItensListaWidget.routeName,

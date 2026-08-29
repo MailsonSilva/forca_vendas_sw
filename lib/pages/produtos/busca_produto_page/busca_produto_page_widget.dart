@@ -20,9 +20,11 @@ export 'busca_produto_page_model.dart';
 
 /// Consulta de estoque e catalogo de produtos com busca SQLite.
 class BuscaProdutoPageWidget extends StatefulWidget {
-  const BuscaProdutoPageWidget({super.key, this.isSelectionMode = false});
+  const BuscaProdutoPageWidget(
+      {super.key, this.isSelectionMode = false, this.filtroInicial});
 
   final bool isSelectionMode;
+  final String? filtroInicial;
 
   static String routeName = 'BuscaProdutoPage';
   static String routePath = '/estoque';
@@ -55,8 +57,9 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
       _model.listaMarca = await actions.carregarFiltros(
         'marcas',
       );
+      final String filtroInicial = widget.filtroInicial?.trim() ?? '';
       _model.resultadoOnLoad = await actions.buscaProduto(
-        '',
+        filtroInicial,
         0,
         _model.filtroLinha,
         _model.filtroGrupo,
@@ -74,7 +77,8 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
       safeSetState(() {});
     });
 
-    _model.buscaProdutoFieldTextController ??= TextEditingController();
+    _model.buscaProdutoFieldTextController ??=
+        TextEditingController(text: widget.filtroInicial ?? '');
     _model.buscaProdutoFieldFocusNode ??= FocusNode();
   }
 
@@ -84,16 +88,18 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
     super.dispose();
   }
 
-  void _abrirModalAdicionarCarrinho(ProdutoResultStruct produto) {
-    int quantidade = produto.saldoEstoque > 0 ? 1 : 0;
+  void _abrirModalAdicionarCarrinho(ProdutoResultStruct produto) async {
+    final bool validaEstoque = (AppState().ven_chkest == 1);
+    final bool temEstoque = !validaEstoque || (produto.saldoEstoque > 0);
+    int quantidade = temEstoque ? 1 : 0;
 
-    showModalBottomSheet(
+    final itemSelecionado = await showModalBottomSheet<ItemPedidoStruct?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) {
+      builder: (modalContext) {
         return StatefulBuilder(
-          builder: (context, setModalState) {
+          builder: (builderCtx, setModalState) {
             String formatCurrency(double val) {
               return 'R\$ ${val.toStringAsFixed(2).replaceAll('.', ',')}';
             }
@@ -104,7 +110,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
               ),
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom + 24.0,
+                bottom: MediaQuery.of(builderCtx).viewInsets.bottom + 24.0,
                 left: 16.0,
                 right: 16.0,
                 top: 12.0,
@@ -147,7 +153,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                         Text(
                           'Cód. ${produto.codigo}',
                           style: TextStyle(
-                            color: AppTheme.of(context).primary,
+                            color: AppTheme.of(builderCtx).primary,
                             fontWeight: FontWeight.bold,
                             fontSize: 12.0,
                           ),
@@ -181,16 +187,21 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                             const SizedBox(width: 4.0),
                             const Text('Estoque disponível: ', style: TextStyle(color: Colors.grey, fontSize: 12.0)),
                             Text(
-                              '${produto.saldoEstoque.toInt()}',
+                              validaEstoque
+                                  ? functions.formatQuantity(
+                                      produto.saldoEstoque,
+                                      unidade: produto.unidade,
+                                    )
+                                  : 'Ilimitado',
                               style: TextStyle(
-                                color: produto.saldoEstoque > 0 ? AppTheme.of(context).primary : Colors.red,
+                                color: (!validaEstoque || produto.saldoEstoque > 0) ? AppTheme.of(builderCtx).primary : Colors.red,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12.0,
                               ),
                             ),
                           ],
                         ),
-                        if (produto.saldoEstoque <= 0) ...[
+                        if (validaEstoque && produto.saldoEstoque <= 0) ...[
                           const SizedBox(height: 12.0),
                           const Row(
                             children: [
@@ -229,7 +240,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                         constraints: const BoxConstraints(minWidth: 64.0),
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          border: Border.all(color: AppTheme.of(context).primary),
+                          border: Border.all(color: AppTheme.of(builderCtx).primary),
                           borderRadius: BorderRadius.circular(8.0),
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 12.0),
@@ -246,7 +257,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                         ),
                         child: IconButton(
                           icon: const Icon(Icons.add, color: Colors.white),
-                          onPressed: quantidade < produto.saldoEstoque
+                          onPressed: (!validaEstoque || quantidade < produto.saldoEstoque)
                               ? () => setModalState(() => quantidade++)
                               : null,
                           constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
@@ -265,7 +276,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                       Text(
                         formatCurrency(produto.preco * quantidade),
                         style: TextStyle(
-                          color: AppTheme.of(context).primary,
+                          color: AppTheme.of(builderCtx).primary,
                           fontWeight: FontWeight.bold,
                           fontSize: 20.0,
                         ),
@@ -282,7 +293,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                             padding: const EdgeInsets.symmetric(vertical: 16.0),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
                           ),
-                          onPressed: () => Navigator.of(context).pop(),
+                          onPressed: () => Navigator.of(modalContext).pop(null),
                           child: const Text('Cancelar', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
                         ),
                       ),
@@ -290,13 +301,13 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                       Expanded(
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.of(context).primary,
+                            backgroundColor: AppTheme.of(builderCtx).primary,
                             padding: const EdgeInsets.symmetric(vertical: 16.0),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
                           ),
                           onPressed: quantidade > 0
                               ? () {
-                                  Navigator.of(context).pop(); // Close modal
+                                  final mul = (produto.mulver != 0) ? produto.mulver : 1.0;
                                   final item = ItemPedidoStruct(
                                     codigoProduto: produto.codigo,
                                     descricao: produto.descricao,
@@ -304,8 +315,11 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                     precoUnitario: produto.preco,
                                     quantidade: quantidade.toDouble(),
                                     totalItem: produto.preco * quantidade,
+                                    mulver: mul,
+                                    unidadeComercial: quantidade.toDouble() * mul,
+                                    embalagem: produto.unidade,
                                   );
-                                  context.pop(item);
+                                  Navigator.of(modalContext).pop(item);
                                 }
                               : null,
                           icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white, size: 20.0),
@@ -321,6 +335,10 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
         );
       },
     );
+
+    if (itemSelecionado != null && mounted) {
+      Navigator.of(context).pop(itemSelecionado);
+    }
   }
 
   @override
@@ -423,52 +441,42 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                             ),
                             textInputAction: TextInputAction.search,
                             obscureText: false,
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               labelText: 'Produto',
                               hintText: 'Pesquise por código ou descrição...',
                               enabledBorder: OutlineInputBorder(
                                 borderSide: BorderSide(
-                                  color: Color(0x00000000),
+                                  color: AppTheme.of(context).alternate,
                                   width: 1.0,
                                 ),
-                                borderRadius: BorderRadius.only(
-                                  topLeft: Radius.circular(4.0),
-                                  topRight: Radius.circular(4.0),
-                                ),
+                                borderRadius: BorderRadius.circular(8.0),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderSide: BorderSide(
-                                  color: Color(0x00000000),
-                                  width: 1.0,
+                                  color: AppTheme.of(context).primary,
+                                  width: 2.0,
                                 ),
-                                borderRadius: BorderRadius.only(
-                                  topLeft: Radius.circular(4.0),
-                                  topRight: Radius.circular(4.0),
-                                ),
+                                borderRadius: BorderRadius.circular(8.0),
                               ),
                               errorBorder: OutlineInputBorder(
                                 borderSide: BorderSide(
-                                  color: Color(0x00000000),
+                                  color: AppTheme.of(context).error,
                                   width: 1.0,
                                 ),
-                                borderRadius: BorderRadius.only(
-                                  topLeft: Radius.circular(4.0),
-                                  topRight: Radius.circular(4.0),
-                                ),
+                                borderRadius: BorderRadius.circular(8.0),
                               ),
                               focusedErrorBorder: OutlineInputBorder(
                                 borderSide: BorderSide(
-                                  color: Color(0x00000000),
-                                  width: 1.0,
+                                  color: AppTheme.of(context).error,
+                                  width: 2.0,
                                 ),
-                                borderRadius: BorderRadius.only(
-                                  topLeft: Radius.circular(4.0),
-                                  topRight: Radius.circular(4.0),
-                                ),
+                                borderRadius: BorderRadius.circular(8.0),
                               ),
                               filled: true,
+                              fillColor: AppTheme.of(context).secondaryBackground,
                               prefixIcon: Icon(
                                 Icons.search,
+                                color: AppTheme.of(context).secondaryText,
                               ),
                             ),
                             style: const TextStyle(),
@@ -1698,7 +1706,7 @@ side: BorderSide(
                                                                     .start,
                                                             children: [
                                                               Text(
-                                                                'Estoque',
+                                                                'Disponível',
                                                                 style: AppTheme.of(
                                                                         context)
                                                                     .bodySmall
@@ -1730,10 +1738,11 @@ side: BorderSide(
                                                               Text(
                                                                 valueOrDefault<
                                                                     String>(
-                                                                  listaProdutoItem
-                                                                      .estoqueAtual
-                                                                      .toString(),
-                                                                  '0,00',
+                                                                  functions.formatQuantity(
+                                                                    listaProdutoItem.saldoEstoque,
+                                                                    unidade: listaProdutoItem.unidade,
+                                                                  ),
+                                                                  '0',
                                                                 ),
                                                                 style: AppTheme.of(
                                                                         context)

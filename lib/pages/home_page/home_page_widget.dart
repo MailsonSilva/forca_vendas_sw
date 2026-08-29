@@ -3,6 +3,7 @@ import '/components/modal_cliente/modal_cliente_widget.dart';
 import '/components/modal_pedidos/modal_pedidos_widget.dart';
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
+import '/action_code/index.dart';
 import '/index.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -71,7 +72,41 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                       AppTheme.of(context).headlineMedium.fontStyle,
                 ),
           ),
-          actions: const [],
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.logout_rounded, color: Colors.white),
+              tooltip: 'Sair da conta',
+              onPressed: () async {
+                final bool? confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Sair do Sistema'),
+                    content: const Text(
+                        'Deseja realmente encerrar a sessão e realizar o logout?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancelar'),
+                      ),
+                      ElevatedButton(
+                        style:
+                            ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Sair',
+                            style: TextStyle(color: Colors.white)),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  await logoutVendedor();
+                  if (context.mounted) {
+                    context.goNamed(LoginPageWidget.routeName);
+                  }
+                }
+              },
+            ),
+          ],
           centerTitle: true,
           elevation: 2.0,
         ),

@@ -47,7 +47,7 @@ void main() {
     expect(xml, contains('pac00_pacrep="71"'));
     expect(xml, contains('pac00_paccod="32504"'));
     expect(xml, contains('pac00_pacqtd="1"'));
-    expect(xml, contains('pac00_pactot="1500.500"'));
+    expect(xml, contains('pac00_pactot="1500.50"'));
     expect(xml, contains('pac00_clicod="1542"'));
     expect(xml, contains('pac00_lincod="5"'));
     expect(xml, contains('pac00_placod="3"'));
@@ -60,8 +60,8 @@ void main() {
     expect(xml, contains('pac01_paccod="32504"'));
     expect(xml, contains('pac01_pacitm="1"'));
     expect(xml, contains('pac01_procod="78945"'));
-    expect(xml, contains('pac01_qtd="10.000"'));
-    expect(xml, contains('pac01_pco="150.050"'));
+    expect(xml, contains('pac01_qtd="10.00"'));
+    expect(xml, contains('pac01_pco="150.05"'));
     expect(xml, contains('<cot00/>'));
   });
 

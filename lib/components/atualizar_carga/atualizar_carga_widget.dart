@@ -117,48 +117,45 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
   }
 
   Future<void> _startDownload() async {
+    final String empresa = AppState().empresa_codigo.trim().isEmpty
+        ? 'DINIZ'
+        : AppState().empresa_codigo.trim();
+    final String vendedor = AppState().vendedor_codigo > 0
+        ? AppState().vendedor_codigo.toString()
+        : '1';
+
     safeSetState(() {
       _dbStatus = 'baixando';
-      _dbProgress = 0.0;
-      _dbText = 'Registrando task de download...';
-    });
-
-    await BackgroundSyncService.instance.startDbSync(
-      empresaCodigo: AppState().empresa_codigo,
-      vendedorCodigo: AppState().vendedor_codigo.toString(),
-    );
-    _startPolling();
-  }
-
-  Future<void> _startUpload() async {
-    safeSetState(() {
-      _dbStatus = 'baixando';
-      _dbProgress = 0.0;
-      _dbText = 'Subindo carga...';
+      _dbProgress = 0.2;
+      _dbText = 'Conectando ao FTP...';
     });
 
     try {
-      final result = await actions.enviarArquivosPendentesFtp(
-        enviarClientes: _model.uploadClientes,
-        enviarPedidos: _model.uploadPedidos,
-      );
       safeSetState(() {
-        _dbStatus = result!.success ? 'complete' : 'error';
+        _dbProgress = 0.5;
+        _dbText = 'Baixando base de dados $empresa ($vendedor)...';
+      });
+
+      final result = await actions.downloadDatabaseFromFtp(empresa, vendedor);
+
+      safeSetState(() {
+        _dbStatus = result.success ? 'complete' : 'error';
         _dbProgress = 1.0;
         _dbText = result.message;
       });
+
       if (appNavigatorKey.currentContext != null) {
         ScaffoldMessenger.of(appNavigatorKey.currentContext!).showSnackBar(
           SnackBar(
-            content: Text(result!.message),
+            content: Text(result.message),
             backgroundColor:
                 result.success ? const Color(0xFF5CB85C) : Colors.red,
           ),
         );
       }
-      // Reload pending list
+
       await _carregarPendentes();
-      // Reset after brief display
+
       await Future.delayed(const Duration(seconds: 2));
       if (mounted) {
         safeSetState(() {
@@ -171,7 +168,7 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
       safeSetState(() {
         _dbStatus = 'error';
         _dbProgress = 0.0;
-        _dbText = 'Erro ao subir carga';
+        _dbText = 'Erro ao baixar carga: $e';
       });
     }
   }
@@ -467,89 +464,28 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
               ),
             ),
 
-            // ── Footer: Checkboxes + Action Buttons ──────────────────────────
+            // ── Footer: Action Button (Apenas Baixar Carga) ──────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 16.0),
-              child: Column(
-                children: [
-                  // Upload scope checkboxes
-                  if (!isBusy)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        Checkbox(
-                          value: _model.uploadClientes,
-                          onChanged: (v) =>
-                              setState(() => _model.uploadClientes = v!),
-                          activeColor: AppTheme.of(context).primary,
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        Text('Clientes',
-                            style: AppTheme.of(context).bodyMedium),
-                        const SizedBox(width: 16.0),
-                        Checkbox(
-                          value: _model.uploadPedidos,
-                          onChanged: (v) =>
-                              setState(() => _model.uploadPedidos = v!),
-                          activeColor: AppTheme.of(context).primary,
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        Text('Pedidos',
-                            style: AppTheme.of(context).bodyMedium),
-                      ],
+              child: SizedBox(
+                width: double.infinity,
+                height: 48.0,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.of(context).primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
                     ),
-                  if (!isBusy) const SizedBox(height: 8.0),
-
-                  // Two filled action buttons side by side
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 44.0,
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.of(context).primary,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8.0),
-                              ),
-                              elevation: 0,
-                            ),
-                            onPressed: isBusy ? null : _startDownload,
-                            icon: const Icon(Icons.cloud_download_outlined,
-                                size: 18.0),
-                            label: const Text('Baixar Carga'),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8.0),
-                      Expanded(
-                        child: SizedBox(
-                          height: 44.0,
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  AppTheme.of(context).secondary,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8.0),
-                              ),
-                              elevation: 0,
-                            ),
-                            onPressed: isBusy ? null : _startUpload,
-                            icon: const Icon(Icons.cloud_upload_outlined,
-                                size: 18.0),
-                            label: const Text('Subir Carga'),
-                          ),
-                        ),
-                      ),
-                    ],
+                    elevation: 0,
                   ),
-                ],
+                  onPressed: isBusy ? null : _startDownload,
+                  icon: const Icon(Icons.cloud_download_outlined, size: 20.0),
+                  label: const Text(
+                    'Baixar Carga',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15.0),
+                  ),
+                ),
               ),
             ),
           ],

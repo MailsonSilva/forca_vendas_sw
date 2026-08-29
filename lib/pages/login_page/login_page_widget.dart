@@ -34,6 +34,8 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
 
     // On page load action.
     SchedulerBinding.instance.addPostFrameCallback((_) async {
+      AppState().codFilialAtiva = 0;
+      AppState().filialAtivaDes = '';
       _model.dbExists = await actions.checkDatabaseExists();
       AppState().is_first_access = !_model.dbExists!;
       safeSetState(() {});
@@ -304,10 +306,11 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                             AppState().vendedor_equipe = _model
                                                 .firstAccessLogin!.vendedorEquipe;
                                             safeSetState(() {});
-                                            AppState().empresa_codigo = _model
-                                                .empresaCodigoFieldTextController
-                                                .text;
-                                            safeSetState(() {});
+                                            final empTxt = _model.empresaCodigoFieldTextController.text.trim();
+                                            if (empTxt.isNotEmpty) {
+                                              AppState().empresa_codigo = empTxt;
+                                              safeSetState(() {});
+                                            }
                                             AppState().is_loading = false;
                                             safeSetState(() {});
 
@@ -378,10 +381,11 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                           AppState().vendedor_equipe =
                                               _model.offlineLogin!.vendedorEquipe;
                                           safeSetState(() {});
-                                          AppState().empresa_codigo = _model
-                                              .empresaCodigoFieldTextController
-                                              .text;
-                                          safeSetState(() {});
+                                          final empTxt = _model.empresaCodigoFieldTextController.text.trim();
+                                          if (empTxt.isNotEmpty) {
+                                            AppState().empresa_codigo = empTxt;
+                                            safeSetState(() {});
+                                          }
                                           AppState().is_loading = false;
                                           safeSetState(() {});
 

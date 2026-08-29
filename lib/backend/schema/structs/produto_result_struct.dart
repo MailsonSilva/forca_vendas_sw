@@ -33,6 +33,13 @@ class ProdutoResultStruct extends BaseStruct {
     String? marca,
     String? codbar,
     List<String>? fotosProduto,
+    // Fase A3 — PRD pro00_* (compat defaults)
+    double? mulver,
+    double? pcomin,
+    double? pcomax,
+    double? commax,
+    int? codtrb,
+    bool? freadpco,
   })  : _codigo = codigo,
         _descricao = descricao,
         _unidade = unidade,
@@ -46,7 +53,13 @@ class ProdutoResultStruct extends BaseStruct {
         _fabricante = fabricante,
         _marca = marca,
         _codbar = codbar,
-        _fotosProduto = fotosProduto;
+        _fotosProduto = fotosProduto,
+        _mulver = mulver,
+        _pcomin = pcomin,
+        _pcomax = pcomax,
+        _commax = commax,
+        _codtrb = codtrb,
+        _freadpco = freadpco;
 
   // "codigo" field.
   String? _codigo;
@@ -163,6 +176,42 @@ class ProdutoResultStruct extends BaseStruct {
 
   bool hasFotosProduto() => _fotosProduto != null;
 
+  // "mulver" field — PRD pro00_mulver (conversão caixas).
+  double? _mulver;
+  double get mulver => _mulver ?? 1.0;
+  set mulver(double? val) => _mulver = val;
+  bool hasMulver() => _mulver != null;
+
+  // "pcomin" field — PRD pro00_pcomin (preço mínimo).
+  double? _pcomin;
+  double get pcomin => _pcomin ?? 0.0;
+  set pcomin(double? val) => _pcomin = val;
+  bool hasPcomin() => _pcomin != null;
+
+  // "pcomax" field — PRD pro00_pcomax (preço máximo).
+  double? _pcomax;
+  double get pcomax => _pcomax ?? 999999.0;
+  set pcomax(double? val) => _pcomax = val;
+  bool hasPcomax() => _pcomax != null;
+
+  // "commax" field — PRD pro00_commax (comissão/desconto máx).
+  double? _commax;
+  double get commax => _commax ?? 100.0;
+  set commax(double? val) => _commax = val;
+  bool hasCommax() => _commax != null;
+
+  // "codtrb" field — PRD pro00_codtrb (tributação ICMS-ST).
+  int? _codtrb;
+  int get codtrb => _codtrb ?? 0;
+  set codtrb(int? val) => _codtrb = val;
+  bool hasCodtrb() => _codtrb != null;
+
+  // "freadpco" field — PRD freadpco (permite editar preço).
+  bool? _freadpco;
+  bool get freadpco => _freadpco ?? true;
+  set freadpco(bool? val) => _freadpco = val;
+  bool hasFreadpco() => _freadpco != null;
+
   static ProdutoResultStruct fromMap(Map<String, dynamic> data) =>
       ProdutoResultStruct(
         codigo: data['codigo'] as String?,
@@ -179,6 +228,12 @@ class ProdutoResultStruct extends BaseStruct {
         marca: data['marca'] as String?,
         codbar: data['codbar'] as String?,
         fotosProduto: getDataList(data['fotosProduto']),
+        mulver: castToType<double>(data['mulver']),
+        pcomin: castToType<double>(data['pcomin']),
+        pcomax: castToType<double>(data['pcomax']),
+        commax: castToType<double>(data['commax']),
+        codtrb: castToType<int>(data['codtrb']),
+        freadpco: data['freadpco'] as bool?,
       );
 
   static ProdutoResultStruct? maybeFromMap(dynamic data) => data is Map
@@ -200,6 +255,12 @@ class ProdutoResultStruct extends BaseStruct {
         'marca': _marca,
         'codbar': _codbar,
         'fotosProduto': _fotosProduto,
+        'mulver': _mulver,
+        'pcomin': _pcomin,
+        'pcomax': _pcomax,
+        'commax': _commax,
+        'codtrb': _codtrb,
+        'freadpco': _freadpco,
       }.withoutNulls;
 
   @override
@@ -260,6 +321,30 @@ class ProdutoResultStruct extends BaseStruct {
           _fotosProduto,
           ParamType.String,
           isList: true,
+        ),
+        'mulver': serializeParam(
+          _mulver,
+          ParamType.double,
+        ),
+        'pcomin': serializeParam(
+          _pcomin,
+          ParamType.double,
+        ),
+        'pcomax': serializeParam(
+          _pcomax,
+          ParamType.double,
+        ),
+        'commax': serializeParam(
+          _commax,
+          ParamType.double,
+        ),
+        'codtrb': serializeParam(
+          _codtrb,
+          ParamType.int,
+        ),
+        'freadpco': serializeParam(
+          _freadpco,
+          ParamType.bool,
         ),
       }.withoutNulls;
 
@@ -335,6 +420,36 @@ class ProdutoResultStruct extends BaseStruct {
           ParamType.String,
           true,
         ),
+        mulver: deserializeParam(
+          data['mulver'],
+          ParamType.double,
+          false,
+        ),
+        pcomin: deserializeParam(
+          data['pcomin'],
+          ParamType.double,
+          false,
+        ),
+        pcomax: deserializeParam(
+          data['pcomax'],
+          ParamType.double,
+          false,
+        ),
+        commax: deserializeParam(
+          data['commax'],
+          ParamType.double,
+          false,
+        ),
+        codtrb: deserializeParam(
+          data['codtrb'],
+          ParamType.int,
+          false,
+        ),
+        freadpco: deserializeParam(
+          data['freadpco'],
+          ParamType.bool,
+          false,
+        ),
       );
 
   @override
@@ -357,7 +472,13 @@ class ProdutoResultStruct extends BaseStruct {
         fabricante == other.fabricante &&
         marca == other.marca &&
         codbar == other.codbar &&
-        listEquality.equals(fotosProduto, other.fotosProduto);
+        listEquality.equals(fotosProduto, other.fotosProduto) &&
+        mulver == other.mulver &&
+        pcomin == other.pcomin &&
+        pcomax == other.pcomax &&
+        commax == other.commax &&
+        codtrb == other.codtrb &&
+        freadpco == other.freadpco;
   }
 
   @override
@@ -375,7 +496,13 @@ class ProdutoResultStruct extends BaseStruct {
         fabricante,
         marca,
         codbar,
-        fotosProduto
+        fotosProduto,
+        mulver,
+        pcomin,
+        pcomax,
+        commax,
+        codtrb,
+        freadpco
       ]);
 }
 
@@ -393,6 +520,12 @@ ProdutoResultStruct createProdutoResultStruct({
   String? fabricante,
   String? marca,
   String? codbar,
+  double? mulver,
+  double? pcomin,
+  double? pcomax,
+  double? commax,
+  int? codtrb,
+  bool? freadpco,
 }) =>
     ProdutoResultStruct(
       codigo: codigo,
@@ -408,4 +541,10 @@ ProdutoResultStruct createProdutoResultStruct({
       fabricante: fabricante,
       marca: marca,
       codbar: codbar,
+      mulver: mulver,
+      pcomin: pcomin,
+      pcomax: pcomax,
+      commax: commax,
+      codtrb: codtrb,
+      freadpco: freadpco,
     );

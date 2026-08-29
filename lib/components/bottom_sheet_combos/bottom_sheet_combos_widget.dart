@@ -135,11 +135,31 @@ class _BottomSheetCombosWidgetState extends State<BottomSheetCombosWidget> {
       );
       return;
     }
+    // PRD 47: Combo inválida
+    if (_model.listaItensCombo.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Combo inválida'), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
 
     int qtdCombo = int.tryParse(_model.txtQtdCombosController!.text) ?? 1;
     if (qtdCombo <= 0) qtdCombo = 1;
 
-    // Validação estrita de estoque
+    // PRD 47: Quantidade máxima excedida (se cmb00_qtdmax existir)
+    final maxRaw = _model.listaCombos.firstWhere(
+      (c) => c['cmb00_codcmb']?.toString() == _model.selectedComboId,
+      orElse: () => {},
+    )['cmb00_qtdmax'] ?? _model.listaCombos.firstWhere((c) => c['cmb00_codcmb']?.toString() == _model.selectedComboId, orElse: () => {})['cmb00_maxqtd'];
+    final maxQtd = maxRaw is num ? maxRaw.toInt() : int.tryParse(maxRaw?.toString() ?? '') ?? 999999;
+    if (qtdCombo > maxQtd) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Quantidade máxima excedida'), backgroundColor: Colors.orangeAccent),
+      );
+      return;
+    }
+
+    // Validação estrita de estoque — PRD 47 Estoque insuficiente
     for (var item in _model.listaItensCombo) {
       final double proqtd = (item['cmb01_proqtd'] as num).toDouble();
       final double saldo = (item['saldo'] as num?)?.toDouble() ?? 0.0;

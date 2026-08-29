@@ -48,7 +48,12 @@ class CargaRegistryService {
 
   Future<String> _resolvePath() async {
     if (manifestPath != null) return manifestPath!;
-    final dir = await getTemporaryDirectory();
+    Directory dir;
+    try {
+      dir = await getTemporaryDirectory();
+    } catch (_) {
+      dir = Directory.systemTemp;
+    }
     return p.join(dir.path, 'carga_manifest.json');
   }
 

@@ -196,6 +196,11 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
               ParamType.int,
             ),
           ),
+        ),
+        AppRoute(
+          name: GerarPacotePageWidget.routeName,
+          path: GerarPacotePageWidget.routePath,
+          builder: (context, params) => const GerarPacotePageWidget(),
         )
       ].map((r) => r.toRoute(appStateNotifier)).toList(),
     );

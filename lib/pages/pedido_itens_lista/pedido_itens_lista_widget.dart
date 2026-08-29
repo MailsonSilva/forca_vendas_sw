@@ -1,5 +1,6 @@
-﻿import 'dart:async';
+import 'dart:async';
 import '/action_code/index.dart';
+import '/functions/proximo_numero_pedido.dart';
 import '/backend/schema/structs/index.dart';
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
@@ -7,11 +8,11 @@ import '/index.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'pedido_itens_lista_model.dart';
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart' as path_pkg;
 import '/functions/resolver_cod_filial.dart';
+import '/data/services/local_sales_database_service.dart';
 import '/components/bottom_sheet_selecao_bonificacao/bottom_sheet_selecao_bonificacao_widget.dart';
 import '/components/bottom_sheet_combos/bottom_sheet_combos_widget.dart';
+import '/components/modal_agente_cobrador/modal_agente_cobrador_widget.dart';
 export 'pedido_itens_lista_model.dart';
 
 class PedidoItensListaWidget extends StatefulWidget {
@@ -58,6 +59,8 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
   String? _currentPlanoDescricao;
   String? _currentLinhaCodigo;
   String? _currentLinhaDescricao;
+  bool _pedidoDigitado = false; // PRD C2 — trava grid quando sttdig==DIGITADO
+  bool _chkBonFrcVen = false; // PRD C3 — chk_bonfrcven
 
   @override
   void initState() {
@@ -70,11 +73,108 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
 
     // Trigger initial search for all products
     _searchProducts('');
+    _carregarSttDig();
+    _carregarItensExistentes();
+  }
+
+  Future<void> _carregarItensExistentes() async {
+    final pedId = widget.pedidoId ?? 0;
+    if (pedId == 0) return;
+    try {
+      // Usa o singleton ativo — sem abrir conexão descartável read-only
+      final db = await LocalSalesDatabaseService.getDatabase();
+      final tHeader = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='pckvendig010'");
+      if (tHeader.isEmpty) return;
+      final rows = await db.rawQuery('SELECT * FROM pckvendig010 WHERE ped10_numped = ?', [pedId]);
+      if (rows.isNotEmpty && _model.carrinhoItens.isEmpty) {
+        final List<ItemPedidoStruct> carregados = [];
+        for (final r in rows) {
+          final isBon = (r['ped10_sttbon'] == 1 || r['ped10_flgbon'] == 1 || r['ped10_bonificado'] == 1);
+          final qtd = (r['ped10_qtdped'] is num) ? (r['ped10_qtdped'] as num).toDouble() : (double.tryParse(r['ped10_qtdped']?.toString() ?? '') ?? 0.0);
+          final qtdBon = (r['ped10_qtdbon'] is num) ? (r['ped10_qtdbon'] as num).toDouble() : (double.tryParse(r['ped10_qtdbon']?.toString() ?? '') ?? 0.0);
+          final pco = (r['ped10_pcosub'] is num) ? (r['ped10_pcosub'] as num).toDouble() : (double.tryParse(r['ped10_pcosub']?.toString() ?? '') ?? 0.0);
+          final tot = (r['ped10_totprd'] is num) ? (r['ped10_totprd'] as num).toDouble() : (double.tryParse(r['ped10_totprd']?.toString() ?? '') ?? 0.0);
+
+          carregados.add(ItemPedidoStruct(
+            codigoProduto: r['ped10_codprd']?.toString() ?? '',
+            descricao: r['ped10_descri']?.toString() ?? '',
+            unidade: r['ped10_unidpri']?.toString() ?? 'UN',
+            quantidade: isBon ? 0.0 : qtd,
+            precoUnitario: pco,
+            totalItem: tot,
+            isBonificacao: isBon,
+            quantidadeBonificada: isBon ? qtdBon : 0.0,
+            codigoCombo: r['ped10_codcmb']?.toString() ?? '',
+            unidadeComercial: isBon ? qtdBon : qtd,
+            mulver: 1.0,
+          ));
+        }
+        if (mounted) {
+          safeSetState(() {
+            _model.carrinhoItens = carregados;
+            _model.recalcularTotais();
+          });
+        }
+      }
+    } catch (e) {
+      print('Erro ao carregar itens existentes do pedido: $e');
+    }
+  }
+
+  Future<void> _autoSalvarCarrinho() async {
+    if (_pedidoDigitado) return; // Não sobrescreve pedido finalizado
+    final pedId = widget.pedidoId ?? 0;
+    final cliCod = widget.clienteCodigo ?? 0;
+    if (pedId == 0 || cliCod == 0) return;
+    try {
+      await salvarCarrinhoPedido(
+        pedidoId: pedId,
+        clienteCodigo: cliCod,
+        linhaCodigo: _currentLinhaCodigo,
+        planoCodigo: _currentPlanoCodigo,
+        carrinhoItens: _model.carrinhoItens,
+        bonfrcven: _chkBonFrcVen ? 1 : 0,
+      );
+    } catch (e) {
+      print('Erro auto-save carrinho: $e');
+    }
+  }
+
+  Future<void> _carregarSttDig() async {
+    try {
+      // Usa o singleton ativo — sem abrir conexão descartável read-only
+      final db = await LocalSalesDatabaseService.getDatabase();
+      final cols = await db.rawQuery('PRAGMA table_info(pckvendig000)');
+      final cn = cols.map((r) => r['name'].toString().toLowerCase()).toSet();
+      if (cn.contains('ped00_sttdig')) {
+        final rows = await db.rawQuery('SELECT ped00_sttdig FROM pckvendig000 WHERE ped00_numped = ? LIMIT 1', [widget.pedidoId ?? 0]);
+        if (rows.isNotEmpty) {
+          final v = rows.first['ped00_sttdig'];
+          final iv = v is num ? v.toInt() : int.tryParse(v.toString()) ?? 0;
+          if (iv == 1) {
+            if (mounted) setState(() => _pedidoDigitado = true);
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  bool _isEdicaoBloqueada() {
+    if (_pedidoDigitado) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pedido já digitado — reabertura necessária para edição. (TODO PedidosRascunhosPageWidget)')),
+      );
+      return true;
+    }
+    return false;
   }
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    if (!_pedidoDigitado) {
+      _autoSalvarCarrinho();
+    }
     _model.dispose();
     super.dispose();
   }
@@ -85,7 +185,9 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
     });
 
     try {
-      // Calls existing buscaProduto action
+      // Calls existing buscaProduto action with active filial and active price table
+      final int tabId = int.tryParse(_currentPlanoCodigo ?? widget.planoCodigo ?? '0') ?? 0;
+      final int filial = AppState().codFilialAtiva != 0 ? AppState().codFilialAtiva : 1;
       final results = await buscaProduto(
         query,
         0,
@@ -95,8 +197,9 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
         null,
         false,
         false,
-        1, // filial
+        filial,
         'Todas',
+        tabId,
       );
 
       safeSetState(() {
@@ -119,16 +222,17 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
   }
 
   Future<double> _getSaldoEstoque(String codigoProduto) async {
+    // PRD B4: respeita ven00_chkest — se 0, estoque não é validado
+    if (AppState().ven_chkest == 0) return 999999.0;
     double saldo = 0.0;
     try {
-      final dbPath = path_pkg.join(await getDatabasesPath(), 'dbforcacad001.db');
-      final db = await openDatabase(dbPath);
+      // Usa o singleton ativo — sem abrir conexão descartável
+      final db = await LocalSalesDatabaseService.getDatabase();
       final results = await db.rawQuery(
         "SELECT (COALESCE(pro00_qtdest, 0) - COALESCE(pro00_qtdpen, 0)) AS saldo "
         "FROM estpro00 WHERE pro00_codpro = ? AND pro00_codfil = ?",
         [codigoProduto, resolverCodFilial(AppState().empresa_codigo) ?? 1]
       );
-      await db.close();
       if (results.isNotEmpty) {
         final val = results.first['saldo'];
         if (val is num) {
@@ -142,6 +246,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
   }
 
   Future<void> _incrementarQuantidade(ProdutoResultStruct p) async {
+    if (_isEdicaoBloqueada()) return;
     final existing = _findCartItem(p.codigo);
     final saldo = await _getSaldoEstoque(p.codigo);
     if (!mounted) return;
@@ -167,11 +272,27 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
       return;
     }
 
+    // PRD B6: ValidePCOValues antes de incrementar
+    {
+      final res = await validarProduto(p.preco, saldo,
+          pcomin: p.pcomin, pcomax: p.pcomax, commax: p.commax, freadpco: p.freadpco);
+      if (!res.valido) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(res.mensagem), backgroundColor: Colors.orangeAccent),
+        );
+        return;
+      }
+    }
+
     safeSetState(() {
       if (existing != null) {
         existing.quantidade = existing.quantidade + 1.0;
         existing.totalItem = existing.quantidade * existing.precoUnitario;
+        // PRD B4: recalcula unidade comercial = qtd * mulver
+        existing.unidadeComercial = existing.quantidade * (existing.mulver != 0 ? existing.mulver : 1.0);
       } else {
+        final mul = p.mulver != 0 ? p.mulver : 1.0;
         _model.carrinhoItens.add(ItemPedidoStruct(
           codigoProduto: p.codigo,
           descricao: p.descricao,
@@ -179,13 +300,18 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
           precoUnitario: p.preco,
           quantidade: 1.0,
           totalItem: p.preco,
+          mulver: mul,
+          unidadeComercial: 1.0 * mul,
+          embalagem: p.unidade,
         ));
       }
       _model.recalcularTotais();
     });
+    unawaited(_autoSalvarCarrinho());
   }
 
   void _decrementarQuantidade(ProdutoResultStruct p) {
+    if (_isEdicaoBloqueada()) return;
     final existing = _findCartItem(p.codigo);
     if (existing == null) return;
 
@@ -193,20 +319,24 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
       if (existing.quantidade > 1.0) {
         existing.quantidade = existing.quantidade - 1.0;
         existing.totalItem = existing.quantidade * existing.precoUnitario;
+        existing.unidadeComercial = existing.quantidade * (existing.mulver != 0 ? existing.mulver : 1.0);
       } else {
         _model.carrinhoItens.remove(existing);
       }
       _model.recalcularTotais();
     });
+    unawaited(_autoSalvarCarrinho());
   }
 
   void _removerItem(ProdutoResultStruct p) {
+    if (_isEdicaoBloqueada()) return;
     final existing = _findCartItem(p.codigo);
     if (existing != null) {
       safeSetState(() {
         _model.carrinhoItens.remove(existing);
         _model.recalcularTotais();
       });
+      unawaited(_autoSalvarCarrinho());
     }
   }
 
@@ -214,94 +344,222 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
     return 'R\$ ${val.toStringAsFixed(2).replaceAll('.', ',')}';
   }
 
-  Future<void> _finalizarSelecao() async {
-    if (_model.totalItens <= 0) return;
+  Future<String?> _obterAgentePadraoCliente() async {
+    try {
+      final cli = await carregarClienteOffline(widget.clienteCodigo ?? 0);
+      final cod = cli?.cli00Codage;
+      if (cod != null && cod != 0) return cod.toString();
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> _fluxoConcluirVenda() async {
+    if (_model.carrinhoItens.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Carrinho vazio! Adicione itens antes de concluir.'),
+          backgroundColor: Colors.orangeAccent,
+        ),
+      );
+      return;
+    }
+
+    // ── Passo A: Determina pedidoId definitivo e salva carrinho no SQLite ────────
+    // Garante que pckvendig000 e pckvendig010 contenham o cabeçalho e os itens
+    // com o pedidoId exato ANTES de abrir o modal do cobrador.
+    final int pedidoIdDefinitivo = (widget.pedidoId != null && widget.pedidoId != 0)
+        ? widget.pedidoId!
+        : (AppState().pedido_numero != 0 ? AppState().pedido_numero : await obterProximoNumeroPedido());
+
+    print('[_fluxoConcluirVenda] PRE-SAVE carrinho pedido #$pedidoIdDefinitivo itens=${_model.carrinhoItens.length}');
+    final preSaveOk = await salvarCarrinhoPedido(
+      pedidoId: pedidoIdDefinitivo,
+      clienteCodigo: widget.clienteCodigo ?? 0,
+      linhaCodigo: _currentLinhaCodigo,
+      planoCodigo: _currentPlanoCodigo,
+      carrinhoItens: _model.carrinhoItens,
+      bonfrcven: _chkBonFrcVen ? 1 : 0,
+    );
+    if (!preSaveOk) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Falha ao salvar o carrinho. Tente novamente.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    // ── Passo B: Abre modal do cobrador aguardando seleção ───────────────────────
+    final agentePre = await _obterAgentePadraoCliente();
+    if (!mounted) return;
+    final String? agenteSelecionado = await showModalBottomSheet<String?>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ModalAgenteCobradorWidget(
+        agentePreSelecionado: agentePre,
+      ),
+    );
+    if (!mounted) return;
+    // Se o usuário fechou o modal no 'X' ou cancelou: aborta o fluxo sem gravar
+    if (agenteSelecionado == null) {
+      return;
+    }
+
+    // ── Passo C: Conclui venda passando o mesmo pedidoId que foi pré-salvo ───────
+    await _finalizarSelecao(
+      pedidoIdDefinitivo,
+      agenteSelecionado.isEmpty ? null : agenteSelecionado,
+    );
+  }
+
+
+
+  Future<void> _finalizarSelecao(int pedidoIdDefinitivo, [String? codAgenteSelecionado]) async {
+    if (_model.carrinhoItens.isEmpty) return;
 
     safeSetState(() {
       _model.isLoading = true;
     });
 
-    final success = await concluirVendaProcess(
-      pedidoId: widget.pedidoId ?? 0,
-      clienteCodigo: widget.clienteCodigo ?? 0,
-      linhaCodigo: _currentLinhaCodigo,
-      planoCodigo: _currentPlanoCodigo,
-      carrinhoItens: _model.carrinhoItens,
-    );
+    final int effectivePedidoId = pedidoIdDefinitivo;
+    final int effectiveClienteCodigo = widget.clienteCodigo ?? 0;
+    final int? codAgtInt = int.tryParse(codAgenteSelecionado ?? '');
 
-    safeSetState(() {
-      _model.isLoading = false;
-    });
+    try {
+      final success = await concluirVendaProcess(
+        pedidoId: effectivePedidoId,
+        clienteCodigo: effectiveClienteCodigo,
+        linhaCodigo: _currentLinhaCodigo,
+        planoCodigo: _currentPlanoCodigo,
+        carrinhoItens: _model.carrinhoItens,
+        codAgenteCobrador: codAgtInt,
+        bonfrcven: _chkBonFrcVen ? 1 : 0,
+      );
 
-    if (!mounted) return;
+      safeSetState(() {
+        _model.isLoading = false;
+      });
 
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Venda realizada com sucesso!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      context.pushNamed(
-        PedidoResumoWidget.routeName,
-        queryParameters: {
-          'pedidoId': (widget.pedidoId ?? 0).toString(),
-        },
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Erro ao concluir a venda no SQLite local. Tente novamente.'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      if (!mounted) return;
+
+      if (success) {
+        // PRD C2 doPEDPost: trava grid localmente após DIGITADO
+        if (mounted) setState(() => _pedidoDigitado = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Venda realizada com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        context.pushNamed(
+          PedidoResumoWidget.routeName,
+          queryParameters: {
+            'pedidoId': effectivePedidoId.toString(),
+          },
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Erro ao concluir a venda no SQLite local. Tente novamente.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } catch (e, stack) {
+      print('ERRO GRAVACAO PEDIDO: $e \n $stack');
+      safeSetState(() {
+        _model.isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao concluir a venda: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     }
   }
+
   Future<void> _abrirModalBusca() async {
+    if (_isEdicaoBloqueada()) return;
+    final filtro = _model.searchController.text.trim();
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const BuscaProdutoPageWidget(isSelectionMode: true),
+        builder: (context) => BuscaProdutoPageWidget(
+          isSelectionMode: true,
+          filtroInicial: filtro.isNotEmpty ? filtro : null,
+        ),
       ),
     );
+
     if (result != null && result is ItemPedidoStruct) {
       final saldo = await _getSaldoEstoque(result.codigoProduto);
       if (!mounted) return;
+
       final existing = _findCartItem(result.codigoProduto);
       final currentQty = existing != null ? existing.quantidade : 0.0;
       final newQty = currentQty + result.quantidade;
 
-      if (newQty > saldo) {
+      if (saldo <= 0.0) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Estoque insuficiente! Saldo disponível: ${saldo.toInt()}, no carrinho: ${currentQty.toInt()}'),
+            content: Text('Estoque indisponível para este produto (${result.descricao})'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
+      double qtdAdicionar = result.quantidade;
+
+      if (newQty > saldo) {
+        final allowedQty = saldo - currentQty;
+        if (allowedQty <= 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Estoque máximo atingido! Saldo disponível: ${saldo.toInt()}, no carrinho: ${currentQty.toInt()}'),
+              backgroundColor: Colors.orangeAccent,
+            ),
+          );
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Estoque insuficiente para a quantidade total! Adicionando apenas ${allowedQty.toInt()} un.'),
             backgroundColor: Colors.orangeAccent,
           ),
         );
-        final allowedQty = saldo - currentQty;
-        if (allowedQty <= 0) return;
-        safeSetState(() {
-          if (existing != null) {
-            existing.quantidade = saldo;
-            existing.totalItem = existing.quantidade * existing.precoUnitario;
-          } else {
-            result.quantidade = allowedQty;
-            result.totalItem = allowedQty * result.precoUnitario;
-            _model.carrinhoItens.add(result);
-          }
-          _model.recalcularTotais();
-        });
-      } else {
-        safeSetState(() {
-          if (existing != null) {
-            existing.quantidade = newQty;
-            existing.totalItem = existing.quantidade * existing.precoUnitario;
-          } else {
-            _model.carrinhoItens.add(result);
-          }
-          _model.recalcularTotais();
-        });
+        qtdAdicionar = allowedQty;
       }
+
+      safeSetState(() {
+        if (existing != null) {
+          existing.quantidade += qtdAdicionar;
+          existing.totalItem = existing.quantidade * existing.precoUnitario;
+          existing.unidadeComercial = existing.quantidade * (existing.mulver != 0 ? existing.mulver : 1.0);
+        } else {
+          final mul = (result.mulver != 0) ? result.mulver : 1.0;
+          result.quantidade = qtdAdicionar;
+          result.totalItem = result.quantidade * result.precoUnitario;
+          result.mulver = mul;
+          result.unidadeComercial = result.quantidade * mul;
+          _model.carrinhoItens.add(result);
+        }
+        _model.recalcularTotais();
+      });
+      unawaited(_autoSalvarCarrinho());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${result.descricao} adicionado ao pedido!'),
+          backgroundColor: const Color(0xFF2E7D32),
+          duration: const Duration(seconds: 2),
+        ),
+      );
     }
   }
 
@@ -432,6 +690,22 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                         ),
                       ],
                     ),
+                    // PRD C3 — chk_bonfrcven só se ven00_gerbonfor==1
+                    if (AppState().ven_gerbonfor == 1) ...[
+                      const SizedBox(height: 8.0),
+                      Row(
+                        children: [
+                          const Icon(Icons.card_giftcard, size: 16, color: Colors.orange),
+                          const SizedBox(width: 4.0),
+                          const Text('Bonificação Força Venda', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          const Spacer(),
+                          Switch(
+                            value: _chkBonFrcVen,
+                            onChanged: _pedidoDigitado ? null : (v) => setState(() => _chkBonFrcVen = v),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -551,7 +825,12 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(item.unidade, style: const TextStyle(color: Colors.grey, fontSize: 14.0)),
+                                      Text(
+                                        item.mulver != 1.0 && item.mulver != 0
+                                            ? '${item.unidade} (${item.unidadeComercial.toStringAsFixed(0)} un)'
+                                            : item.unidade,
+                                        style: const TextStyle(color: Colors.grey, fontSize: 14.0),
+                                      ),
                                       Text(
                                         item.isBonificacao ? 'R\$ 0,00' : _formatCurrency(item.precoUnitario),
                                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.0),
@@ -640,7 +919,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                               focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0), borderSide: BorderSide(color: AppTheme.of(context).primary)),
                               contentPadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 0.0),
                             ),
-                            onSubmitted: (_) => _abrirModalBusca(),
+                            onSubmitted: (val) => _abrirModalBusca(),
                           ),
                         ),
                         const SizedBox(width: 8.0),
@@ -724,16 +1003,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                 iconColor: const Color(0xFF2E7D32),
                 onTap: () {
                   Navigator.pop(context);
-                  if (_model.carrinhoItens.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Carrinho vazio! Adicione itens antes de concluir.'),
-                        backgroundColor: Colors.orangeAccent,
-                      ),
-                    );
-                    return;
-                  }
-                  _finalizarSelecao();
+                  _fluxoConcluirVenda();
                 },
               ),
               const SizedBox(height: 12.0),
@@ -758,6 +1028,19 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                   );
 
                   if (novosItens != null && novosItens.isNotEmpty) {
+                    if (!context.mounted) return;
+                    final confirma = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Confirmar inclusão'),
+                        content: const Text('Deseja incluir os produtos na digitação?'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Não')),
+                          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Sim')),
+                        ],
+                      ),
+                    );
+                    if (confirma != true) return;
                     setState(() {
                       _model.carrinhoItens.addAll(novosItens);
                     });
@@ -804,6 +1087,19 @@ carrinhoItens: _model.carrinhoItens,
                   );
 
                   if (novosItens != null && novosItens.isNotEmpty) {
+                    if (!context.mounted) return;
+                    final confirma = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Confirmar inclusão'),
+                        content: const Text('Deseja incluir os produtos na digitação?'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Não')),
+                          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Sim')),
+                        ],
+                      ),
+                    );
+                    if (confirma != true) return;
                     setState(() {
                       _model.carrinhoItens.addAll(novosItens);
                     });
@@ -940,11 +1236,19 @@ carrinhoItens: _model.carrinhoItens,
     });
 
     try {
-      final dbPath = path_pkg.join(await getDatabasesPath(), 'dbforcacad001.db');
-      final db = await openDatabase(dbPath);
-      await db.rawDelete('DELETE FROM pckvendig000 WHERE ped00_numped = ?', [widget.pedidoId ?? 0]);
+      // Usa o singleton ativo — sem abrir conexão descartável
+      final db = await LocalSalesDatabaseService.getDatabase();
+      // PRD C2 doPEDAbort: rollback sttdig e DELETE WHERE numped sempre (nunca sem WHERE)
+      try {
+        final cols = await db.rawQuery('PRAGMA table_info(pckvendig000)');
+        final cn = cols.map((r) => r['name'].toString().toLowerCase()).toSet();
+        if (cn.contains('ped00_sttdig')) {
+          await db.rawUpdate('UPDATE pckvendig000 SET ped00_sttdig = 0 WHERE ped00_numped = ?', [widget.pedidoId ?? 0]);
+        }
+      } catch (_) {}
       await db.rawDelete('DELETE FROM pckvendig010 WHERE ped10_numped = ?', [widget.pedidoId ?? 0]);
-      await db.close();
+      await db.rawDelete('DELETE FROM pckvendig000 WHERE ped00_numped = ?', [widget.pedidoId ?? 0]);
+      // Não fechar 'db' — é conexão singleton ativa da sessão do app.
     } catch (e) {
       print('Erro ao limpar tabelas temporarias: $e');
     }
@@ -1126,8 +1430,8 @@ carrinhoItens: _model.carrinhoItens,
 
   Future<void> _salvarPlanoAlterado(String planoCodigo) async {
     try {
-      final dbPath = path_pkg.join(await getDatabasesPath(), 'dbforcacad001.db');
-      final db = await openDatabase(dbPath);
+      // Usa o singleton ativo — sem abrir conexão descartável
+      final db = await LocalSalesDatabaseService.getDatabase();
       final List<Map<String, dynamic>> columns = await db.rawQuery('PRAGMA table_info(pckvendig000)');
       final colNames = columns.map((r) => r['name']?.toString().toLowerCase()).toSet();
       String colName = 'ped00_codpla';
@@ -1139,7 +1443,7 @@ carrinhoItens: _model.carrinhoItens,
         'UPDATE pckvendig000 SET $colName = ? WHERE ped00_numped = ?',
         [plaVal, widget.pedidoId ?? 0]
       );
-      await db.close();
+      // Não fechar 'db' — é conexão singleton ativa da sessão do app.
       print('Plano atualizado com sucesso no cabeçalho SQLite do pedido.');
     } catch (e) {
       print('Erro ao persistir plano alterado no SQLite: $e');

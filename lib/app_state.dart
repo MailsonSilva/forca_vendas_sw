@@ -55,6 +55,24 @@ class AppState extends ChangeNotifier {
     _safeInit(() {
       _pastaUpload0 = prefs.getString(_pastaUploadKey) ?? _pastaUpload0;
     });
+    _safeInit(() {
+      _codFilialAtiva = prefs.getInt(_codFilialAtivaKey) ?? _codFilialAtiva;
+    });
+    _safeInit(() {
+      _filialAtivaDes = prefs.getString(_filialAtivaDesKey) ?? _filialAtivaDes;
+    });
+    _safeInit(() {
+      _ven_chkage = prefs.getInt(_venChkageKey) ?? _ven_chkage;
+    });
+    _safeInit(() {
+      _ven_ignlimfis = prefs.getInt(_venIgnlimfisKey) ?? _ven_ignlimfis;
+    });
+    _safeInit(() {
+      _ven_maxitmdig = prefs.getInt(_venMaxitmdigKey) ?? _ven_maxitmdig;
+    });
+    _safeInit(() {
+      _ven_passet = prefs.getString(_venPassetKey) ?? _ven_passet;
+    });
   }
 
   void update(VoidCallback callback) {
@@ -231,6 +249,80 @@ class AppState extends ChangeNotifier {
   set pastaUpload0(String value) {
     _pastaUpload0 = value;
     prefs.setString(_pastaUploadKey, value);
+  }
+
+  /// PRD B4 — ven00_chkest (controla validação de estoque)
+  int _ven_chkest = 1;
+  int get ven_chkest => _ven_chkest;
+  set ven_chkest(int value) {
+    _ven_chkest = value;
+  }
+
+  /// PRD C3 — ven00_gerbonfor (permite bonificação força de venda)
+  int _ven_gerbonfor = 0;
+  int get ven_gerbonfor => _ven_gerbonfor;
+  set ven_gerbonfor(int value) {
+    _ven_gerbonfor = value;
+  }
+
+  /// PRD 1 §1.5 — filial ativa selecionada no login quando count(cadfil00) > 1
+  static const _codFilialAtivaKey = 'app_cod_filial_ativa';
+  static const _filialAtivaDesKey = 'app_filial_ativa_des';
+  static const _venChkageKey = 'app_ven_chkage';
+  static const _venIgnlimfisKey = 'app_ven_ignlimfis';
+  static const _venMaxitmdigKey = 'app_ven_maxitmdig';
+  static const _venPassetKey = 'app_ven_passet';
+
+  int _codFilialAtiva = 0;
+  int get codFilialAtiva => _codFilialAtiva;
+  set codFilialAtiva(int value) {
+    _codFilialAtiva = value;
+    try { prefs.setInt(_codFilialAtivaKey, value); } catch (_) {}
+    notifyListeners();
+  }
+
+  String _filialAtivaDes = '';
+  String get filialAtivaDes => _filialAtivaDes;
+  set filialAtivaDes(String value) {
+    _filialAtivaDes = value;
+    try { prefs.setString(_filialAtivaDesKey, value); } catch (_) {}
+    notifyListeners();
+  }
+
+  /// ven00_chkage (obrigatoriedade de agente cobrador)
+  int _ven_chkage = 0;
+  int get ven_chkage => _ven_chkage;
+  set ven_chkage(int value) {
+    _ven_chkage = value;
+    try { prefs.setInt(_venChkageKey, value); } catch (_) {}
+    notifyListeners();
+  }
+
+  /// ven00_ignlimfis (permissão para ignorar limite de crédito)
+  int _ven_ignlimfis = 0;
+  int get ven_ignlimfis => _ven_ignlimfis;
+  set ven_ignlimfis(int value) {
+    _ven_ignlimfis = value;
+    try { prefs.setInt(_venIgnlimfisKey, value); } catch (_) {}
+    notifyListeners();
+  }
+
+  /// ven00_maxitmdig (teto máximo de itens por pedido)
+  int _ven_maxitmdig = 0;
+  int get ven_maxitmdig => _ven_maxitmdig;
+  set ven_maxitmdig(int value) {
+    _ven_maxitmdig = value;
+    try { prefs.setInt(_venMaxitmdigKey, value); } catch (_) {}
+    notifyListeners();
+  }
+
+  /// ven00_passet (senha de supervisor para desbloqueio)
+  String _ven_passet = '';
+  String get ven_passet => _ven_passet;
+  set ven_passet(String value) {
+    _ven_passet = value;
+    try { prefs.setString(_venPassetKey, value); } catch (_) {}
+    notifyListeners();
   }
 }
 

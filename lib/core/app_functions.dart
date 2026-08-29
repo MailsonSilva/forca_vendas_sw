@@ -6,3 +6,4 @@ export '/functions/get_length.dart';
 export '/functions/resolver_cod_filial.dart';
 export '/functions/cal_estoque_disponivel.dart';
 export '/functions/remover_caracteres_especiais.dart';
+export '/functions/format_quantity.dart';

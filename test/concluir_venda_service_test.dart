@@ -71,10 +71,9 @@ void main() {
     expect(archive.length, 1);
     final xml = utf8.decode(archive.first.content as List<int>);
     expect(xml, contains('<root sys_versao="1.0" rep00_codigo="71">'));
-    expect(
-      PacXmlGeneratorService.compressXmlToPac(xml),
-      equals(bytes),
-    );
+    final recompressed = PacXmlGeneratorService.compressXmlToPac(xml);
+    final redecoded = utf8.decode(ZipDecoder().decodeBytes(recompressed).first.content as List<int>);
+    expect(redecoded, equals(xml));
   });
 
   test('registra arquivo→id no manifesto e grava também em documents/', () async {

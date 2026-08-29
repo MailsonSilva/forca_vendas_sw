@@ -30,7 +30,12 @@ class PedidoItensListaModel extends AppModel<PedidoItensListaWidget> {
 
   // Helper method to recalculate totals reatively
   void recalcularTotais() {
-    totalItens = carrinhoItens.fold(0, (sum, item) => sum + (item.quantidade.toInt()));
+    totalItens = carrinhoItens.fold(0, (sum, item) {
+      final q = item.isBonificacao ? item.quantidadeBonificada : item.quantidade;
+      return sum + (q > 0 ? (q < 1 ? 1 : q.round()) : 0);
+    });
     valorTotal = carrinhoItens.fold(0.0, (sum, item) => sum + item.totalItem);
   }
+
+  double get totalGeral => valorTotal;
 }

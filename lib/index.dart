@@ -23,4 +23,6 @@ export '/pages/pedido_itens_lista/pedido_itens_lista_widget.dart'
     show PedidoItensListaWidget;
 export '/pages/pedido_resumo/pedido_resumo_widget.dart'
     show PedidoResumoWidget;
+export '/pages/gerar_pacote/gerar_pacote_page_widget.dart'
+    show GerarPacotePageWidget;
 

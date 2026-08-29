@@ -426,6 +426,15 @@ class _BottomSheetSelecaoBonificacaoWidgetState
                                       IconButton(
                                         icon: const Icon(Icons.add_circle_outline, color: Colors.green),
                                         onPressed: () {
+                                          // PRD 48: bon00_venmax
+                                          final venmaxRaw = _model.selectedRegra?['bon00_venmax'] ?? _model.selectedRegra?['bon00_qtdmax'] ?? _model.selectedRegra?['bon00_maxbon'];
+                                          final venmax = venmaxRaw is num ? venmaxRaw.toDouble() : double.tryParse(venmaxRaw?.toString() ?? '') ?? 999999;
+                                          if (qtd + 1 > venmax) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(content: Text("Você está excedendo o nº máximo de bonificações.")),
+                                            );
+                                            return;
+                                          }
                                           if (qtd < estoque) {
                                             setState(() {
                                               _model.quantidadesDigitadas[productCode] = qtd + 1;

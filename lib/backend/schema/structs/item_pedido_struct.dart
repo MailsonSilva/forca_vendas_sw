@@ -34,6 +34,11 @@ class ItemPedidoStruct extends BaseStruct {
 
     /// ItemPedido.codigo_combo
     String? codigoCombo,
+
+    // Fase A2 — PRD dig01_*: embalagem/mulver (compat: defaults 1.0/vazio)
+    double? mulver,
+    double? unidadeComercial,
+    String? embalagem,
   })  : _codigoProduto = codigoProduto,
         _descricao = descricao,
         _unidade = unidade,
@@ -42,7 +47,10 @@ class ItemPedidoStruct extends BaseStruct {
         _totalItem = totalItem,
         _isBonificacao = isBonificacao,
         _quantidadeBonificada = quantidadeBonificada,
-        _codigoCombo = codigoCombo;
+        _codigoCombo = codigoCombo,
+        _mulver = mulver,
+        _unidadeComercial = unidadeComercial,
+        _embalagem = embalagem;
 
   // "codigo_produto" field.
   String? _codigoProduto;
@@ -114,6 +122,24 @@ class ItemPedidoStruct extends BaseStruct {
 
   bool hasCodigoCombo() => _codigoCombo != null;
 
+  // "mulver" field — PRD pro00_mulver / cadproemb02.
+  double? _mulver;
+  double get mulver => _mulver ?? 1.0;
+  set mulver(double? val) => _mulver = val;
+  bool hasMulver() => _mulver != null;
+
+  // "unidade_comercial" field — PRD pro00_unidade = txtqtd * mulver.
+  double? _unidadeComercial;
+  double get unidadeComercial => _unidadeComercial ?? quantidade;
+  set unidadeComercial(double? val) => _unidadeComercial = val;
+  bool hasUnidadeComercial() => _unidadeComercial != null;
+
+  // "embalagem" field — índice cadproemb02.
+  String? _embalagem;
+  String get embalagem => _embalagem ?? '';
+  set embalagem(String? val) => _embalagem = val;
+  bool hasEmbalagem() => _embalagem != null;
+
   static ItemPedidoStruct fromMap(Map<String, dynamic> data) =>
       ItemPedidoStruct(
         codigoProduto: data['codigo_produto'] as String?,
@@ -125,6 +151,9 @@ class ItemPedidoStruct extends BaseStruct {
         isBonificacao: data['is_bonificacao'] as bool?,
         quantidadeBonificada: castToType<double>(data['quantidade_bonificada']),
         codigoCombo: data['codigo_combo'] as String?,
+        mulver: castToType<double>(data['mulver']),
+        unidadeComercial: castToType<double>(data['unidade_comercial']),
+        embalagem: data['embalagem'] as String?,
       );
 
   static ItemPedidoStruct? maybeFromMap(dynamic data) => data is Map
@@ -141,6 +170,9 @@ class ItemPedidoStruct extends BaseStruct {
         'is_bonificacao': _isBonificacao,
         'quantidade_bonificada': _quantidadeBonificada,
         'codigo_combo': _codigoCombo,
+        'mulver': _mulver,
+        'unidade_comercial': _unidadeComercial,
+        'embalagem': _embalagem,
       }.withoutNulls;
 
   @override
@@ -179,6 +211,18 @@ class ItemPedidoStruct extends BaseStruct {
         ),
         'codigo_combo': serializeParam(
           _codigoCombo,
+          ParamType.String,
+        ),
+        'mulver': serializeParam(
+          _mulver,
+          ParamType.double,
+        ),
+        'unidade_comercial': serializeParam(
+          _unidadeComercial,
+          ParamType.double,
+        ),
+        'embalagem': serializeParam(
+          _embalagem,
           ParamType.String,
         ),
       }.withoutNulls;
@@ -230,6 +274,21 @@ class ItemPedidoStruct extends BaseStruct {
           ParamType.String,
           false,
         ),
+        mulver: deserializeParam(
+          data['mulver'],
+          ParamType.double,
+          false,
+        ),
+        unidadeComercial: deserializeParam(
+          data['unidade_comercial'],
+          ParamType.double,
+          false,
+        ),
+        embalagem: deserializeParam(
+          data['embalagem'],
+          ParamType.String,
+          false,
+        ),
       );
 
   @override
@@ -246,7 +305,10 @@ class ItemPedidoStruct extends BaseStruct {
         totalItem == other.totalItem &&
         isBonificacao == other.isBonificacao &&
         quantidadeBonificada == other.quantidadeBonificada &&
-        codigoCombo == other.codigoCombo;
+        codigoCombo == other.codigoCombo &&
+        mulver == other.mulver &&
+        unidadeComercial == other.unidadeComercial &&
+        embalagem == other.embalagem;
   }
 
   @override
@@ -259,7 +321,10 @@ class ItemPedidoStruct extends BaseStruct {
         totalItem,
         isBonificacao,
         quantidadeBonificada,
-        codigoCombo
+        codigoCombo,
+        mulver,
+        unidadeComercial,
+        embalagem
       ]);
 }
 
@@ -273,6 +338,9 @@ ItemPedidoStruct createItemPedidoStruct({
   bool? isBonificacao,
   double? quantidadeBonificada,
   String? codigoCombo,
+  double? mulver,
+  double? unidadeComercial,
+  String? embalagem,
 }) =>
     ItemPedidoStruct(
       codigoProduto: codigoProduto,
@@ -284,4 +352,7 @@ ItemPedidoStruct createItemPedidoStruct({
       isBonificacao: isBonificacao,
       quantidadeBonificada: quantidadeBonificada,
       codigoCombo: codigoCombo,
+      mulver: mulver,
+      unidadeComercial: unidadeComercial,
+      embalagem: embalagem,
     );

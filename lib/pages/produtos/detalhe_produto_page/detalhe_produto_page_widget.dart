@@ -4,6 +4,7 @@ import '/core/app_icon_button.dart';
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
 import '/action_code/index.dart' as actions;
+import '/core/app_functions.dart' as functions;
 import '/widgets/index.dart' as custom_widgets;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -581,13 +582,13 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                                   bgTint: const Color(0x1A00C2FF),
                                                   label: 'Atual',
                                                   textColor:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .primaryText,
                                                   value: valueOrDefault<String>(
-                                                    _model.produtoResult
-                                                        ?.estoqueAtual
-                                                        .toString(),
+                                                    functions.formatQuantity(
+                                                      _model.produtoResult?.estoqueAtual,
+                                                      unidade: _model.produtoResult?.unidade,
+                                                    ),
                                                     '0',
                                                   ),
                                                   bg: const Color(0x1A10B981),
@@ -612,9 +613,10 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                                               context)
                                                           .primaryText,
                                                   value: valueOrDefault<String>(
-                                                    _model.produtoResult
-                                                        ?.estoquePendente
-                                                        .toString(),
+                                                    functions.formatQuantity(
+                                                      _model.produtoResult?.estoquePendente,
+                                                      unidade: _model.produtoResult?.unidade,
+                                                    ),
                                                     '0',
                                                   ),
                                                   bg: const Color(0x1A10B981),
@@ -639,9 +641,10 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                                               context)
                                                           .success,
                                                   value: valueOrDefault<String>(
-                                                    _model.produtoResult
-                                                        ?.saldoEstoque
-                                                        .toString(),
+                                                    functions.formatQuantity(
+                                                      _model.produtoResult?.saldoEstoque,
+                                                      unidade: _model.produtoResult?.unidade,
+                                                    ),
                                                     '0',
                                                   ),
                                                   bg: const Color(0x1A10B981),
@@ -651,7 +654,7 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                                 ),
                                               ),
                                             ),
-                                          ].divide(const SizedBox(width: 16.0)),
+                                          ].divide(const SizedBox(width: 8.0)),
                                         ),
                                       ].divide(const SizedBox(height: 16.0)),
                                     ),

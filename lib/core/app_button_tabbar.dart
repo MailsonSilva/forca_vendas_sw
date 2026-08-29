@@ -487,12 +487,13 @@ class _AppButtonTabBarState extends State<AppButtonTabBar>
 
   @override
   void dispose() {
-    _indicatorPainter!.dispose();
+    _indicatorPainter?.dispose();
     if (_controllerIsValid) {
       _controller!.animation!.removeListener(_handleTabControllerAnimationTick);
       _controller!.removeListener(_handleTabControllerTick);
     }
     _controller = null;
+    _animationController.dispose();
     // We don't own the _controller Animation, so it's not disposed here.
     super.dispose();
   }

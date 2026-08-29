@@ -2,6 +2,7 @@ import '/core/app_theme.dart';
 import '/core/app_util.dart';
 import '/core/app_widgets.dart';
 import '/action_code/index.dart' as actions;
+import '/functions/format_quantity.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -293,7 +294,10 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
                               ),
                         ),
                         Text(
-                          widget.saldoDisponivel!.toString(),
+                          formatQuantity(
+                            widget.saldoDisponivel,
+                            unidade: widget.unidadeProduto,
+                          ),
                           style: AppTheme.of(context)
                               .bodyMedium
                               .override(

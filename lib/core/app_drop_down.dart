@@ -153,6 +153,7 @@ class _AppDropDownState<T> extends State<AppDropDown<T>> {
     } else {
       controller.removeListener(_listener);
     }
+    _textEditingController.dispose();
     _focusNode.dispose();
     super.dispose();
   }

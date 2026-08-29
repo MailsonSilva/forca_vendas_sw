@@ -71,4 +71,11 @@ class FtpPathBuilder {
   static String getFileNameCliente(int codRep, int codCli) {
     return 'c$codRep-$codCli.xml';
   }
+
+  /// PRD 1 §5A — nomenclatura c<rep>-<milissegundos>.xml via retornaMil().
+  /// Quando cliente novo (cli00_codigo==0), usa milissegundos curtos para evitar colisão.
+  static String getFileNameClienteMil(int codRep, {int? ms}) {
+    final mil = ms ?? DateTime.now().millisecondsSinceEpoch % 100000;
+    return 'c$codRep-$mil.xml';
+  }
 }

@@ -84,8 +84,31 @@ class SalesDatabaseRepository {
       throw const FormatException('Arquivo acesso invalido.');
     }
 
-    final rawConfig = decoded[companyCode];
-    if (rawConfig is! Map<String, dynamic>) {
+    Map<String, dynamic>? rawConfig;
+    final cleanCode = companyCode.trim();
+
+    if (cleanCode.isNotEmpty && decoded.containsKey(cleanCode)) {
+      rawConfig = decoded[cleanCode] as Map<String, dynamic>?;
+    } else if (cleanCode.isNotEmpty) {
+      for (final k in decoded.keys) {
+        if (k.toString().toUpperCase() == cleanCode.toUpperCase()) {
+          rawConfig = decoded[k] as Map<String, dynamic>?;
+          break;
+        }
+      }
+    }
+
+    // Fallback: se não encontrou ou companyCode estava vazio, tenta a primeira empresa configurada
+    if (rawConfig == null && decoded.isNotEmpty) {
+      for (final v in decoded.values) {
+        if (v is Map<String, dynamic> && v.containsKey('caminho_download')) {
+          rawConfig = v;
+          break;
+        }
+      }
+    }
+
+    if (rawConfig == null) {
       throw StateError('Empresa nao encontrada no acesso.');
     }
 

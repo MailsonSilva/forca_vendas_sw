@@ -25,3 +25,19 @@ export '/action_code/salvar_carrinho_pedido.dart'
     show salvarCarrinhoPedido;
 export '/action_code/concluir_venda_process.dart'
     show concluirVendaProcess;
+export '/action_code/carregar_agentes_cobrador.dart'
+    show carregarAgentesCobrador;
+export '/action_code/carregar_pedido_resumo.dart'
+    show carregarPedidoResumo, PedidoResumoData;
+export '/action_code/listar_pedidos_pendentes.dart'
+    show
+        listarPedidosPendentes,
+        PedidoPendente,
+        listarPedidosHistorico,
+        PedidoHistoricoItem,
+        excluirPedidoLocal,
+        clonarPedidoLocal;
+export '/action_code/gerar_pacote.dart' show gerarPacote;
+export '/action_code/contar_filiais.dart'
+    show contarFiliais, FiliaisResult, FilialInfo;
+export '/action_code/do_maintenance.dart' show doMaintenance, logoutVendedor;

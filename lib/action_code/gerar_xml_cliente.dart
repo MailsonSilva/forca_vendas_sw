@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import '../data/services/cliente_xml_generator_service.dart';
+import '../functions/retorna_mil.dart';
 import '../services/carga_registry_service.dart';
 import '../services/ftp_path_builder.dart';
 
@@ -34,15 +35,13 @@ Future<String?> gerarXmlCliente(
         ClienteXmlGeneratorService.build(clienteData, codigoVendedor);
 
     // Nomenclatura legada do guia:
-    //   inclusão (cli00_codigo == 0) → c{codRep}-{ms}.xml
+    //   inclusão (cli00_codigo == 0) → c{codRep}-{retornaMil()}.xml (5 dígitos)
     //   edição                      → c{codRep}-{cli00_codigo}.xml
     final int codRep = int.tryParse(codigoVendedor.trim()) ?? 0;
     final int codCliInt = clienteData.cli00Codigo;
+    final int milId = retornaMil();
     final String fileName = codCliInt == 0
-        ? FtpPathBuilder.getFileNameCliente(
-            codRep,
-            DateTime.now().millisecondsSinceEpoch,
-          )
+        ? FtpPathBuilder.getFileNameClienteMil(codRep, ms: milId)
         : FtpPathBuilder.getFileNameCliente(codRep, codCliInt);
 
     final directory = await getTemporaryDirectory();
@@ -52,7 +51,7 @@ Future<String?> gerarXmlCliente(
     await CargaRegistryService().registrar(CargaRegistro(
       arquivo: fileName,
       tipo: TipoCarga.cliente,
-      id: codCliInt == 0 ? DateTime.now().millisecondsSinceEpoch : codCliInt,
+      id: codCliInt == 0 ? milId : codCliInt,
     ));
 
     return file.path;

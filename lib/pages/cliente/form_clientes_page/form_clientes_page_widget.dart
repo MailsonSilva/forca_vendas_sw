@@ -3978,11 +3978,17 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                         flex: 1,
                         child: AppButtonWidget(
                           onPressed: () async {
+                            final cod = widget.clienteCodigo?.toString() ??
+                                (_model.clienteResult?.cli00Codigo != null && _model.clienteResult!.cli00Codigo > 0
+                                    ? _model.clienteResult!.cli00Codigo.toString()
+                                    : (_model.cliData?.cli00Codigo != null && _model.cliData!.cli00Codigo > 0
+                                        ? _model.cliData!.cli00Codigo.toString()
+                                        : ''));
                             context.pushNamed(
                               ExtratoClientePageWidget.routeName,
                               queryParameters: {
                                 'codigoCliente': serializeParam(
-                                  '',
+                                  cod,
                                   ParamType.String,
                                 ),
                               }.withoutNulls,
