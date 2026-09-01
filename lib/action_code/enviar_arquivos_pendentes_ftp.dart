@@ -26,7 +26,11 @@ import '../services/ftp_upload_service.dart';
 ///
 /// Retorna `UploadPendenteResultStruct` com a lista de `ItemUploadStruct`
 /// por arquivo (nome, sucesso, mensagem, bytesEnviados) para a UI detalhar.
-Future<UploadPendenteResultStruct> enviarArquivosPendentesFtp({bool enviarClientes = true, bool enviarPedidos = true}) async {
+Future<UploadPendenteResultStruct> enviarArquivosPendentesFtp({
+  bool enviarClientes = true,
+  bool enviarPedidos = true,
+  List<String>? arquivosSelecionados,
+}) async {
   final List<ItemUploadStruct> itens = [];
   try {
     final String empresa = AppState().empresa_codigo.trim().isEmpty
@@ -49,6 +53,7 @@ Future<UploadPendenteResultStruct> enviarArquivosPendentesFtp({bool enviarClient
       codigoEquipe: codigoEquipe,
       enviarClientes: enviarClientes,
       enviarPedidos: enviarPedidos,
+      arquivosSelecionados: arquivosSelecionados,
       registros: registros,
       onProgress: (nome, index, total, arquivoProgress) {
         AppState().update(() {

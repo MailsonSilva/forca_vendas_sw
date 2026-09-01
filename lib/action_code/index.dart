@@ -20,13 +20,13 @@ export '/action_code/enviar_arquivos_pendentes_ftp.dart'
 export '/action_code/listar_arquivos_pendentes.dart'
     show listarArquivosPendentes;
 export '/action_code/obter_dados_pedido_novo.dart'
-    show obterDadosPedidoNovo, DadosPedidoNovoResult;
+    show obterDadosPedidoNovo, carregarPlanosDisponiveisCliente, DadosPedidoNovoResult;
 export '/action_code/salvar_carrinho_pedido.dart'
     show salvarCarrinhoPedido;
 export '/action_code/concluir_venda_process.dart'
     show concluirVendaProcess;
 export '/action_code/carregar_agentes_cobrador.dart'
-    show carregarAgentesCobrador;
+    show carregarAgentesCobrador, carregarAgentesCobradoresTipados;
 export '/action_code/carregar_pedido_resumo.dart'
     show carregarPedidoResumo, PedidoResumoData;
 export '/action_code/listar_pedidos_pendentes.dart'

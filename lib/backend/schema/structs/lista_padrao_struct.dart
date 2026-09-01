@@ -9,8 +9,10 @@ class ListaPadraoStruct extends BaseStruct {
   ListaPadraoStruct({
     String? codigo,
     String? descricao,
+    double? vlrmin,
   })  : _codigo = codigo,
-        _descricao = descricao;
+        _descricao = descricao,
+        _vlrmin = vlrmin;
 
   // "codigo" field.
   String? _codigo;
@@ -26,10 +28,18 @@ class ListaPadraoStruct extends BaseStruct {
 
   bool hasDescricao() => _descricao != null;
 
+  // "vlrmin" field — PRD pla00_vlrmin (valor mínimo exigido pelo plano).
+  double? _vlrmin;
+  double get vlrmin => _vlrmin ?? 0.0;
+  set vlrmin(double? val) => _vlrmin = val;
+
+  bool hasVlrmin() => _vlrmin != null;
+
   static ListaPadraoStruct fromMap(Map<String, dynamic> data) =>
       ListaPadraoStruct(
         codigo: data['codigo'] as String?,
         descricao: data['descricao'] as String?,
+        vlrmin: castToType<double>(data['vlrmin']),
       );
 
   static ListaPadraoStruct? maybeFromMap(dynamic data) => data is Map
@@ -39,6 +49,7 @@ class ListaPadraoStruct extends BaseStruct {
   Map<String, dynamic> toMap() => {
         'codigo': _codigo,
         'descricao': _descricao,
+        'vlrmin': _vlrmin,
       }.withoutNulls;
 
   @override
@@ -50,6 +61,10 @@ class ListaPadraoStruct extends BaseStruct {
         'descricao': serializeParam(
           _descricao,
           ParamType.String,
+        ),
+        'vlrmin': serializeParam(
+          _vlrmin,
+          ParamType.double,
         ),
       }.withoutNulls;
 
@@ -65,6 +80,11 @@ class ListaPadraoStruct extends BaseStruct {
           ParamType.String,
           false,
         ),
+        vlrmin: deserializeParam(
+          data['vlrmin'],
+          ParamType.double,
+          false,
+        ),
       );
 
   @override
@@ -74,18 +94,21 @@ class ListaPadraoStruct extends BaseStruct {
   bool operator ==(Object other) {
     return other is ListaPadraoStruct &&
         codigo == other.codigo &&
-        descricao == other.descricao;
+        descricao == other.descricao &&
+        vlrmin == other.vlrmin;
   }
 
   @override
-  int get hashCode => const ListEquality().hash([codigo, descricao]);
+  int get hashCode => const ListEquality().hash([codigo, descricao, vlrmin]);
 }
 
 ListaPadraoStruct createListaPadraoStruct({
   String? codigo,
   String? descricao,
+  double? vlrmin,
 }) =>
     ListaPadraoStruct(
       codigo: codigo,
       descricao: descricao,
+      vlrmin: vlrmin,
     );

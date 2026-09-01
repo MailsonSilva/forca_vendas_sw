@@ -92,24 +92,55 @@ class _PedidosRascunhosPageWidgetState
   }
 
   void _toggleSelectAll() {
+    final elegiveis = _model.pedidos.where((p) => p.podeEmpacotar).map((p) => p.pedidoId).toList();
+    if (elegiveis.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nenhum pedido disponível para empacotar.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
     safeSetState(() {
-      if (_model.selectedPedidos.length == _model.pedidos.length) {
+      final todosElegiveisSelecionados = elegiveis.every((id) => _model.selectedPedidos.contains(id));
+      if (todosElegiveisSelecionados) {
         _model.selectedPedidos.clear();
       } else {
         _model.selectedPedidos.clear();
-        for (final p in _model.pedidos) {
-          _model.selectedPedidos.add(p.pedidoId);
-        }
+        _model.selectedPedidos.addAll(elegiveis);
       }
     });
   }
 
-  void _toggleItemSelection(int pedidoId) {
-    safeSetState(() {
-      if (_model.selectedPedidos.contains(pedidoId)) {
-        _model.selectedPedidos.remove(pedidoId);
+  void _toggleItemSelection(PedidoHistoricoItem item) {
+    if (!item.podeEmpacotar) {
+      String msg;
+      if (item.isEmpacotado) {
+        msg = 'O pedido #${item.pedidoId} já foi incluído no pacote "${item.nomePacote}" e não pode ser re-empacotado.';
+      } else if (item.isTransmitido) {
+        msg = 'O pedido #${item.pedidoId} já foi transmitido ao servidor FTP.';
+      } else if (item.isFaturado) {
+        msg = 'O pedido #${item.pedidoId} já foi faturado no ERP.';
+      } else if (item.isRascunho) {
+        msg = 'O pedido #${item.pedidoId} ainda é um rascunho. Conclua a digitação antes de empacotar.';
       } else {
-        _model.selectedPedidos.add(pedidoId);
+        msg = 'O pedido #${item.pedidoId} não está disponível para empacotamento.';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: Colors.orange.shade800,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    safeSetState(() {
+      if (_model.selectedPedidos.contains(item.pedidoId)) {
+        _model.selectedPedidos.remove(item.pedidoId);
+      } else {
+        _model.selectedPedidos.add(item.pedidoId);
       }
     });
   }
@@ -119,16 +150,16 @@ class _PedidosRascunhosPageWidgetState
 
     List<int> ids = _model.selectedPedidos.toList();
     if (ids.isEmpty) {
-      // Se nada selecionado explicitamente, busca os pendentes de envio
+      // Se nada selecionado explicitamente, busca os pendentes elegíveis para empacotar
       final pendentes = _model.pedidos
-          .where((p) => !p.isTransmitido && !p.isFaturado)
+          .where((p) => p.podeEmpacotar)
           .map((p) => p.pedidoId)
           .toList();
 
       if (pendentes.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Nenhum pedido pendente para empacotar.'),
+            content: Text('Nenhum pedido concluído disponível para empacotar.'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -140,7 +171,7 @@ class _PedidosRascunhosPageWidgetState
         builder: (ctx) => AlertDialog(
           title: const Text('Criar Pacote (.pac)'),
           content: Text(
-            'Nenhum pedido selecionado. Deseja empacotar todos os ${pendentes.length} pedidos pendentes?',
+            'Nenhum pedido selecionado. Deseja empacotar todos os ${pendentes.length} pedidos aguardando pacote?',
           ),
           actions: [
             TextButton(
@@ -173,22 +204,16 @@ class _PedidosRascunhosPageWidgetState
         _model.isLoading = false;
       });
 
-      await showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          icon: const Icon(Icons.inventory_2_rounded, size: 48, color: Colors.green),
-          title: const Text('Pacote Gerado com Sucesso!'),
-          content: Text(
-            'Arquivo "$fileName" gerado com ${ids.length} pedido(s).\n\nOs pedidos estão prontos para envio.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('OK'),
-            ),
-          ],
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Pacote "$fileName" gerado com ${ids.length} pedido(s)! Redirecionando para envio...'),
+          backgroundColor: const Color(0xFF2E7D32),
+          duration: const Duration(seconds: 3),
         ),
       );
+
+      // Redireciona automaticamente para a Tela de Pacotes
+      await context.pushNamed(GerarPacotePageWidget.routeName);
       _carregar();
     } catch (e) {
       if (!mounted) return;
@@ -202,69 +227,32 @@ class _PedidosRascunhosPageWidgetState
     }
   }
 
-  Future<void> _enviarCargaFtp() async {
-    _fecharSpeedDial();
-    safeSetState(() => _model.isLoading = true);
-
-    try {
-      final result = await actions.enviarArquivosPendentesFtp(
-        enviarClientes: true,
-        enviarPedidos: true,
-      );
-      if (!mounted) return;
-      safeSetState(() => _model.isLoading = false);
-
-      if (result.success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result.message),
-            backgroundColor: const Color(0xFF2E7D32),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result.message),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      _carregar();
-    } catch (e) {
-      if (!mounted) return;
-      safeSetState(() => _model.isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao transmitir carga: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
   String _fmt(double v) => 'R\$ ${v.toStringAsFixed(2).replaceAll('.', ',')}';
 
   Color _getStatusColor(PedidoHistoricoItem item) {
     if (item.isFaturado) return const Color(0xFF2E7D32); // Verde
-    if (item.isTransmitido) return const Color(0xFFF57F17); // Amarelo/Âmbar
+    if (item.isTransmitido) return const Color(0xFF0284C7); // Azul/Teal (Transmitido)
     if (item.isInconsistente) return const Color(0xFFD32F2F); // Vermelho
-    if (item.isProntoEnvio) return const Color(0xFFE65100); // Laranja (Pronto)
+    if (item.isEmpacotado) return const Color(0xFFD97706); // Âmbar (Empacotado)
+    if (item.isPendentePacote) return const Color(0xFFE65100); // Laranja (Aguardando Pacote)
     return const Color(0xFF1976D2); // Azul (Em Digitação/Rascunho)
   }
 
   String _getStatusLabel(PedidoHistoricoItem item) {
     if (item.isFaturado) return 'Faturado';
-    if (item.isTransmitido) return 'Transmitido (JEnviado)';
+    if (item.isTransmitido) return 'Transmitido';
     if (item.isInconsistente) return 'Inconsistente';
-    if (item.isProntoEnvio) return 'Pronto p/ Envio';
+    if (item.isEmpacotado) return 'Empacotado';
+    if (item.isPendentePacote) return 'Aguardando Pacote';
     return 'Em Digitação';
   }
 
   IconData _getStatusIcon(PedidoHistoricoItem item) {
     if (item.isFaturado) return Icons.check_circle_rounded;
-    if (item.isTransmitido) return Icons.sync_rounded;
+    if (item.isTransmitido) return Icons.cloud_done_rounded;
     if (item.isInconsistente) return Icons.error_outline_rounded;
-    if (item.isProntoEnvio) return Icons.inventory_2_outlined;
+    if (item.isEmpacotado) return Icons.inventory_2_rounded;
+    if (item.isPendentePacote) return Icons.pending_actions_rounded;
     return Icons.edit_note_rounded;
   }
 
@@ -307,18 +295,36 @@ class _PedidosRascunhosPageWidgetState
     }
   }
 
-  Future<void> _clonarPedido(PedidoHistoricoItem item) async {
+  Future<void> _clonarPedido(int pedidoId) async {
     safeSetState(() => _model.isLoading = true);
-    final novoId = await clonarPedidoLocal(item.pedidoId);
+    final info = await clonarPedidoLocal(pedidoId);
     if (!mounted) return;
     safeSetState(() => _model.isLoading = false);
 
-    if (novoId != null) {
+    if (info != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Pedido clonado com sucesso! Novo pedido #$novoId.'),
-          backgroundColor: Colors.green,
+          content: Text('Pedido #${info.novoPedidoId} clonado com sucesso! Abrindo para edição...'),
+          backgroundColor: const Color(0xFF2E7D32),
         ),
+      );
+
+      // Navega imediatamente para a tela de itens em estado de rascunho
+      await context.pushNamed(
+        PedidoItensListaWidget.routeName,
+        queryParameters: {
+          'pedidoId': info.novoPedidoId.toString(),
+          'clienteCodigo': info.clienteCodigo.toString(),
+          'clienteNome': info.clienteNome,
+          'clienteCnpj': info.clienteCnpj,
+          'clienteCidade': info.clienteCidade,
+          'clienteLimite': info.clienteLimite,
+          'clienteEndereco': info.clienteEndereco,
+          'linhaCodigo': info.linhaCodigo,
+          'linhaDescricao': info.linhaDescricao,
+          'planoCodigo': info.planoCodigo,
+          'planoDescricao': info.planoDescricao,
+        }..removeWhere((k, v) => v == null || v.isEmpty),
       );
       _carregar();
     } else {
@@ -456,9 +462,11 @@ class _PedidosRascunhosPageWidgetState
                           const SizedBox(width: 6.0),
                           _buildStatusChip('Rascunhos', 'rascunho', _model.filtroStatus, const Color(0xFF1976D2)),
                           const SizedBox(width: 6.0),
-                          _buildStatusChip('Prontos', 'pronto', _model.filtroStatus, const Color(0xFFE65100)),
+                          _buildStatusChip('Aguardando Pacote', 'pronto', _model.filtroStatus, const Color(0xFFE65100)),
                           const SizedBox(width: 6.0),
-                          _buildStatusChip('Transmitidos', 'transmitido', _model.filtroStatus, const Color(0xFFF57F17)),
+                          _buildStatusChip('Empacotados', 'empacotado', _model.filtroStatus, const Color(0xFFD97706)),
+                          const SizedBox(width: 6.0),
+                          _buildStatusChip('Transmitidos', 'transmitido', _model.filtroStatus, const Color(0xFF0284C7)),
                           const SizedBox(width: 6.0),
                           _buildStatusChip('Faturados', 'faturado', _model.filtroStatus, const Color(0xFF2E7D32)),
                         ],
@@ -470,45 +478,55 @@ class _PedidosRascunhosPageWidgetState
 
               // ── Barra de Seleção em Lote ────────────────────────────────────
               if (_model.pedidos.isNotEmpty)
-                Container(
-                  color: _model.selectedPedidos.isNotEmpty
-                      ? AppTheme.of(context).primary.withValues(alpha: 0.1)
-                      : AppTheme.of(context).secondaryBackground,
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
+                Builder(
+                  builder: (context) {
+                    final elegiveis = _model.pedidos.where((p) => p.podeEmpacotar).toList();
+                    final allSelected = elegiveis.isNotEmpty && elegiveis.every((p) => _model.selectedPedidos.contains(p.pedidoId));
+                    final hasSome = _model.selectedPedidos.isNotEmpty;
+
+                    return Container(
+                      color: hasSome
+                          ? AppTheme.of(context).primary.withValues(alpha: 0.1)
+                          : AppTheme.of(context).secondaryBackground,
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Checkbox(
-                            value: _model.selectedPedidos.length == _model.pedidos.length && _model.pedidos.isNotEmpty,
-                            tristate: _model.selectedPedidos.isNotEmpty && _model.selectedPedidos.length < _model.pedidos.length,
-                            onChanged: (_) => _toggleSelectAll(),
-                            activeColor: AppTheme.of(context).primary,
-                            visualDensity: VisualDensity.compact,
+                          Row(
+                            children: [
+                              Checkbox(
+                                value: allSelected,
+                                tristate: hasSome && !allSelected,
+                                onChanged: elegiveis.isEmpty ? null : (_) => _toggleSelectAll(),
+                                activeColor: AppTheme.of(context).primary,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              Text(
+                                !hasSome
+                                    ? (elegiveis.isNotEmpty
+                                        ? 'Selecionar pedidos (${elegiveis.length} disponíveis)'
+                                        : 'Nenhum pedido pendente para empacotar')
+                                    : '${_model.selectedPedidos.length} de ${elegiveis.length} selecionado(s)',
+                                style: TextStyle(
+                                  color: hasSome
+                                      ? AppTheme.of(context).primary
+                                      : AppTheme.of(context).secondaryText,
+                                  fontWeight: hasSome ? FontWeight.bold : FontWeight.normal,
+                                  fontSize: 13.0,
+                                ),
+                              ),
+                            ],
                           ),
-                          Text(
-                            _model.selectedPedidos.isEmpty
-                                ? 'Selecionar pedidos para pacote'
-                                : '${_model.selectedPedidos.length} de ${_model.pedidos.length} selecionado(s)',
-                            style: TextStyle(
-                              color: _model.selectedPedidos.isNotEmpty
-                                  ? AppTheme.of(context).primary
-                                  : AppTheme.of(context).secondaryText,
-                              fontWeight: _model.selectedPedidos.isNotEmpty ? FontWeight.bold : FontWeight.normal,
-                              fontSize: 13.0,
+                          if (hasSome)
+                            TextButton.icon(
+                              icon: const Icon(Icons.close_rounded, size: 16.0),
+                              label: const Text('Limpar', style: TextStyle(fontSize: 12.0)),
+                              onPressed: () => safeSetState(() => _model.selectedPedidos.clear()),
                             ),
-                          ),
                         ],
                       ),
-                      if (_model.selectedPedidos.isNotEmpty)
-                        TextButton.icon(
-                          icon: const Icon(Icons.close_rounded, size: 16.0),
-                          label: const Text('Limpar', style: TextStyle(fontSize: 12.0)),
-                          onPressed: () => safeSetState(() => _model.selectedPedidos.clear()),
-                        ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
 
               const Divider(height: 1.0, thickness: 1.0),
@@ -598,12 +616,33 @@ class _PedidosRascunhosPageWidgetState
           ),
           const SizedBox(height: 10.0),
 
-          // Opção 3: Enviar Carga
+          // Opção 3: Clonar Pedido
           _buildSpeedDialItem(
-            icon: Icons.cloud_upload_rounded,
-            label: 'Enviar Carga (FTP)',
-            color: const Color(0xFF059669), // Verde
-            onTap: _enviarCargaFtp,
+            icon: Icons.copy_rounded,
+            label: _model.selectedPedidos.length == 1
+                ? 'Clonar Pedido #${_model.selectedPedidos.first}'
+                : 'Clonar Pedido',
+            color: const Color(0xFF0284C7), // Azul / Celeste
+            onTap: () {
+              _fecharSpeedDial();
+              if (_model.selectedPedidos.length == 1) {
+                _clonarPedido(_model.selectedPedidos.first);
+              } else if (_model.selectedPedidos.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Selecione 1 pedido na lista para clonar.'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Selecione apenas 1 pedido por vez para clonar.'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              }
+            },
           ),
           const SizedBox(height: 12.0),
         ],
@@ -761,14 +800,37 @@ class _PedidosRascunhosPageWidgetState
               children: [
                 Row(
                   children: [
-                    // Checkbox de seleção do pedido
-                    Checkbox(
-                      value: isSelected,
-                      onChanged: (_) => _toggleItemSelection(item.pedidoId),
-                      activeColor: AppTheme.of(context).primary,
-                      visualDensity: VisualDensity.compact,
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
+                    // Checkbox de seleção do pedido (apenas se disponível para empacotar)
+                    if (item.podeEmpacotar)
+                      Checkbox(
+                        value: isSelected,
+                        onChanged: (_) => _toggleItemSelection(item),
+                        activeColor: AppTheme.of(context).primary,
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      )
+                    else
+                      Tooltip(
+                        message: item.isEmpacotado
+                            ? 'Já incluído no pacote ${item.nomePacote}'
+                            : item.isRascunho
+                                ? 'Pedido em digitação'
+                                : 'Pedido já transmitido',
+                        child: InkWell(
+                          onTap: () => _toggleItemSelection(item),
+                          borderRadius: BorderRadius.circular(4.0),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+                            child: Icon(
+                              item.isEmpacotado
+                                  ? Icons.lock_outline_rounded
+                                  : Icons.lock_clock_rounded,
+                              size: 16.0,
+                              color: item.isEmpacotado ? const Color(0xFFD97706) : Colors.grey.shade400,
+                            ),
+                          ),
+                        ),
+                      ),
                     const SizedBox(width: 4.0),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
@@ -978,9 +1040,16 @@ class _PedidosRascunhosPageWidgetState
                             queryParameters: {
                               'pedidoId': item.pedidoId.toString(),
                               'clienteCodigo': item.clienteCodigo.toString(),
+                              'clienteNome': item.clienteNome,
+                              'clienteCnpj': item.clienteCnpj,
+                              'clienteCidade': item.clienteCidade,
+                              'clienteLimite': item.clienteLimite,
+                              'clienteEndereco': item.clienteEndereco,
                               'linhaCodigo': item.linhaCodigo,
+                              'linhaDescricao': item.linhaDescricao,
                               'planoCodigo': item.planoCodigo,
-                            },
+                              'planoDescricao': item.planoDescricao,
+                            }..removeWhere((k, v) => v == null || v.isEmpty),
                           );
                           _carregar();
                         },
@@ -990,7 +1059,7 @@ class _PedidosRascunhosPageWidgetState
                     IconButton(
                       icon: const Icon(Icons.copy_outlined, size: 18.0, color: Colors.teal),
                       tooltip: 'Clonar Pedido',
-                      onPressed: () => _clonarPedido(item),
+                      onPressed: () => _clonarPedido(item.pedidoId),
                     ),
 
                     // Ação: Excluir (se rascunho)

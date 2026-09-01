@@ -8,9 +8,13 @@ class ModalAgenteCobradorWidget extends StatefulWidget {
   const ModalAgenteCobradorWidget({
     super.key,
     this.agentePreSelecionado,
+    this.clienteCodigo,
+    this.planoCodigo,
   });
 
   final String? agentePreSelecionado;
+  final int? clienteCodigo;
+  final int? planoCodigo;
 
   @override
   State<ModalAgenteCobradorWidget> createState() => _ModalAgenteCobradorWidgetState();
@@ -30,7 +34,10 @@ class _ModalAgenteCobradorWidgetState extends State<ModalAgenteCobradorWidget> {
   }
 
   Future<void> _carregar() async {
-    final lista = await carregarAgentesCobrador();
+    final lista = await carregarAgentesCobrador(
+      clienteCodigo: widget.clienteCodigo,
+      planoCodigo: widget.planoCodigo,
+    );
     if (!mounted) return;
     setState(() {
       _agentes = lista;
@@ -126,7 +133,7 @@ class _ModalAgenteCobradorWidgetState extends State<ModalAgenteCobradorWidget> {
                     children: [
                       const Icon(Icons.person_off_outlined, size: 48, color: Colors.grey),
                       const SizedBox(height: 12),
-                      Text('Nenhum agente cobrador encontrado.\nSerá usado o vendedor logado.',
+                      Text('Nenhum agente cobrador homologado para este cliente e plano.\nSerá usado o vendedor logado.',
                           textAlign: TextAlign.center,
                           style: AppTheme.of(context).bodyMedium),
                       const SizedBox(height: 16),

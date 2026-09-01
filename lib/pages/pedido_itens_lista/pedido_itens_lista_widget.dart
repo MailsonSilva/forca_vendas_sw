@@ -5,6 +5,7 @@ import '/backend/schema/structs/index.dart';
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
 import '/index.dart';
+import '/domain/services/valide_pco_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'pedido_itens_lista_model.dart';
@@ -59,8 +60,15 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
   String? _currentPlanoDescricao;
   String? _currentLinhaCodigo;
   String? _currentLinhaDescricao;
+  String? _clienteNome;
+  int? _clienteCodigo;
+  String? _clienteCnpj;
+  String? _clienteCidade;
+  String? _clienteLimite;
+  String? _clienteEndereco;
   bool _pedidoDigitado = false; // PRD C2 — trava grid quando sttdig==DIGITADO
   bool _chkBonFrcVen = false; // PRD C3 — chk_bonfrcven
+  bool _carregandoItens = true; // Impede auto-save prematuro durante carga inicial
 
   @override
   void initState() {
@@ -70,42 +78,216 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
     _currentPlanoDescricao = widget.planoDescricao;
     _currentLinhaCodigo = widget.linhaCodigo;
     _currentLinhaDescricao = widget.linhaDescricao;
+    _clienteNome = widget.clienteNome;
+    _clienteCodigo = widget.clienteCodigo;
+    _clienteCnpj = widget.clienteCnpj;
+    _clienteCidade = widget.clienteCidade;
+    _clienteLimite = widget.clienteLimite;
+    _clienteEndereco = widget.clienteEndereco;
+
+    if (widget.pedidoId != null && widget.pedidoId != 0) {
+      AppState().pedido_numero = widget.pedidoId!;
+    }
 
     // Trigger initial search for all products
     _searchProducts('');
-    _carregarSttDig();
-    _carregarItensExistentes();
+    _inicializarDadosPedido();
+  }
+
+  Future<void> _inicializarDadosPedido() async {
+    _carregandoItens = true;
+    try {
+      await _carregarDadosPedidoECliente();
+      await _carregarSttDig();
+      await _carregarItensExistentes();
+    } finally {
+      if (mounted) {
+        setState(() => _carregandoItens = false);
+      } else {
+        _carregandoItens = false;
+      }
+    }
+  }
+
+  Future<void> _carregarDadosPedidoECliente() async {
+    final pedId = widget.pedidoId ?? 0;
+    if (pedId == 0) return;
+    try {
+      final db = await LocalSalesDatabaseService.getDatabase();
+      final rows = await db.rawQuery(
+        'SELECT * FROM pckvendig000 WHERE ped00_numped = ? LIMIT 1',
+        [pedId],
+      );
+      if (rows.isNotEmpty) {
+        final r = rows.first;
+        final cliCod = (r['ped00_codcli'] is num) ? (r['ped00_codcli'] as num).toInt() : (int.tryParse(r['ped00_codcli']?.toString() ?? '') ?? 0);
+        final cliDes = r['ped00_clides']?.toString() ?? '';
+        final linCod = r['ped00_codlin']?.toString() ?? '';
+        final linDes = r['ped00_lindes']?.toString() ?? '';
+        final plaCod = r['ped00_codpla']?.toString() ?? '';
+        final plaDes = r['ped00_plades']?.toString() ?? '';
+
+        if ((_clienteCodigo == null || _clienteCodigo == 0) && cliCod != 0) {
+          _clienteCodigo = cliCod;
+        }
+        if ((_clienteNome == null || _clienteNome!.isEmpty) && cliDes.isNotEmpty) {
+          _clienteNome = cliDes;
+        }
+        if ((_currentLinhaCodigo == null || _currentLinhaCodigo!.isEmpty) && linCod.isNotEmpty) {
+          _currentLinhaCodigo = linCod;
+        }
+        if ((_currentLinhaDescricao == null || _currentLinhaDescricao!.isEmpty) && linDes.isNotEmpty) {
+          _currentLinhaDescricao = linDes;
+        }
+        if ((_currentPlanoCodigo == null || _currentPlanoCodigo!.isEmpty) && plaCod.isNotEmpty) {
+          _currentPlanoCodigo = plaCod;
+        }
+        if ((_currentPlanoDescricao == null || _currentPlanoDescricao!.isEmpty) && plaDes.isNotEmpty) {
+          _currentPlanoDescricao = plaDes;
+        }
+
+        // Se linhaDescricao ainda estiver vazia mas linhaCodigo estiver presente, busca em cadlin00
+        if ((_currentLinhaDescricao == null || _currentLinhaDescricao!.isEmpty) && (_currentLinhaCodigo != null && _currentLinhaCodigo!.isNotEmpty)) {
+          try {
+            final lr = await db.rawQuery('SELECT lin00_descri FROM cadlin00 WHERE lin00_codigo = ? LIMIT 1', [_currentLinhaCodigo]);
+            if (lr.isNotEmpty) {
+              _currentLinhaDescricao = lr.first['lin00_descri']?.toString() ?? '';
+            }
+          } catch (_) {}
+        }
+
+        // Se planoDescricao ainda estiver vazia mas planoCodigo estiver presente, busca em cadpla00
+        if ((_currentPlanoDescricao == null || _currentPlanoDescricao!.isEmpty) && (_currentPlanoCodigo != null && _currentPlanoCodigo!.isNotEmpty)) {
+          try {
+            final pr = await db.rawQuery('SELECT pla00_descri FROM cadpla00 WHERE pla00_codigo = ? LIMIT 1', [_currentPlanoCodigo]);
+            if (pr.isNotEmpty) {
+              _currentPlanoDescricao = pr.first['pla00_descri']?.toString() ?? '';
+            }
+          } catch (_) {}
+        }
+
+        // Busca dados cadastrais completos do cliente em cadcli00
+        final effectiveCli = _clienteCodigo ?? cliCod;
+        if (effectiveCli != 0) {
+          try {
+            final cr = await db.rawQuery('SELECT * FROM cadcli00 WHERE cli00_codigo = ? LIMIT 1', [effectiveCli]);
+            if (cr.isNotEmpty) {
+              final cMap = cr.first;
+              if (_clienteNome == null || _clienteNome!.isEmpty) {
+                _clienteNome = cMap['cli00_descri']?.toString() ?? cMap['cli00_fantasi']?.toString() ?? cMap['cli00_fantas']?.toString() ?? cMap['descri']?.toString() ?? '';
+              }
+              if (_clienteCnpj == null || _clienteCnpj!.isEmpty) {
+                _clienteCnpj = cMap['cli00_cpfcnp']?.toString() ?? cMap['cli00_cgc']?.toString() ?? cMap['cli00_cpf']?.toString() ?? cMap['cli00_cnpj']?.toString() ?? cMap['cpfcnp']?.toString() ?? '';
+              }
+              if (_clienteCidade == null || _clienteCidade!.isEmpty) {
+                final cid = cMap['cli00_ciddes']?.toString() ?? cMap['cli00_cidade']?.toString() ?? cMap['cli00_cidcod']?.toString() ?? cMap['cidade']?.toString() ?? '';
+                final uf = cMap['cli00_estsgl']?.toString() ?? cMap['cli00_uf']?.toString() ?? cMap['uf']?.toString() ?? '';
+                if (cid.isNotEmpty && uf.isNotEmpty) {
+                  _clienteCidade = '$cid - $uf';
+                } else if (cid.isNotEmpty) {
+                  _clienteCidade = cid;
+                }
+              }
+              if (_clienteEndereco == null || _clienteEndereco!.isEmpty) {
+                final end = cMap['cli00_endere']?.toString() ?? cMap['cli00_endereco']?.toString() ?? cMap['endereco']?.toString() ?? '';
+                final num = cMap['cli00_endnum']?.toString() ?? cMap['numero']?.toString() ?? '';
+                final bai = cMap['cli00_bairro']?.toString() ?? cMap['bairro']?.toString() ?? '';
+                String fullEnd = end;
+                if (num.isNotEmpty) fullEnd += ', $num';
+                if (bai.isNotEmpty) fullEnd += ' - $bai';
+                _clienteEndereco = fullEnd;
+              }
+              if (_clienteLimite == null || _clienteLimite!.isEmpty) {
+                final limVal = cMap['cli00_crelim'] ?? cMap['cli00_limite'] ?? cMap['cli00_limcre'] ?? cMap['limite'];
+                final lim = (limVal is num) ? limVal.toDouble() : (double.tryParse(limVal?.toString() ?? '') ?? 0.0);
+                if (lim > 0) {
+                  _clienteLimite = lim.toStringAsFixed(2).replaceAll('.', ',');
+                }
+              }
+            }
+          } catch (_) {}
+        }
+        if (mounted) setState(() {});
+      }
+    } catch (e) {
+      print('Erro ao carregar dados do pedido e cliente: $e');
+    }
   }
 
   Future<void> _carregarItensExistentes() async {
     final pedId = widget.pedidoId ?? 0;
     if (pedId == 0) return;
     try {
-      // Usa o singleton ativo — sem abrir conexão descartável read-only
       final db = await LocalSalesDatabaseService.getDatabase();
       final tHeader = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='pckvendig010'");
       if (tHeader.isEmpty) return;
-      final rows = await db.rawQuery('SELECT * FROM pckvendig010 WHERE ped10_numped = ?', [pedId]);
-      if (rows.isNotEmpty && _model.carrinhoItens.isEmpty) {
+
+      final cols = await db.rawQuery('PRAGMA table_info(pckvendig010)');
+      final colNames = cols.map((r) => r['name']?.toString().toLowerCase()).toSet();
+
+      String colNum = 'ped10_numped';
+      for (final c in ['ped10_numped', 'ped10_pedcod', 'ped10_codmov', 'numped']) {
+        if (colNames.contains(c)) { colNum = c; break; }
+      }
+
+      final rows = await db.rawQuery('SELECT * FROM pckvendig010 WHERE $colNum = ?', [pedId]);
+      if (rows.isNotEmpty) {
         final List<ItemPedidoStruct> carregados = [];
         for (final r in rows) {
           final isBon = (r['ped10_sttbon'] == 1 || r['ped10_flgbon'] == 1 || r['ped10_bonificado'] == 1);
           final qtd = (r['ped10_qtdped'] is num) ? (r['ped10_qtdped'] as num).toDouble() : (double.tryParse(r['ped10_qtdped']?.toString() ?? '') ?? 0.0);
           final qtdBon = (r['ped10_qtdbon'] is num) ? (r['ped10_qtdbon'] as num).toDouble() : (double.tryParse(r['ped10_qtdbon']?.toString() ?? '') ?? 0.0);
-          final pco = (r['ped10_pcosub'] is num) ? (r['ped10_pcosub'] as num).toDouble() : (double.tryParse(r['ped10_pcosub']?.toString() ?? '') ?? 0.0);
-          final tot = (r['ped10_totprd'] is num) ? (r['ped10_totprd'] as num).toDouble() : (double.tryParse(r['ped10_totprd']?.toString() ?? '') ?? 0.0);
+          final pco = (r['ped10_pcosub'] is num)
+              ? (r['ped10_pcosub'] as num).toDouble()
+              : (r['ped10_prcuni'] is num)
+                  ? (r['ped10_prcuni'] as num).toDouble()
+                  : (r['ped10_vlruni'] is num)
+                      ? (r['ped10_vlruni'] as num).toDouble()
+                      : (double.tryParse(r['ped10_pcosub']?.toString() ?? r['ped10_prcuni']?.toString() ?? r['ped10_vlruni']?.toString() ?? '') ?? 0.0);
+
+          double tot = (r['ped10_totprd'] is num)
+              ? (r['ped10_totprd'] as num).toDouble()
+              : (r['ped10_totite'] is num)
+                  ? (r['ped10_totite'] as num).toDouble()
+                  : (r['ped10_valtot'] is num)
+                      ? (r['ped10_valtot'] as num).toDouble()
+                      : (double.tryParse(r['ped10_totprd']?.toString() ?? r['ped10_totite']?.toString() ?? r['ped10_valtot']?.toString() ?? '') ?? 0.0);
+
+          if (tot == 0.0 && !isBon && qtd > 0 && pco > 0) {
+            tot = qtd * pco;
+          }
+
+          String codPrd = r['ped10_codprd']?.toString() ?? r['ped10_codpro']?.toString() ?? r['ped10_procod']?.toString() ?? '';
+          String descri = r['ped10_descri']?.toString() ?? r['ped10_descricao']?.toString() ?? r['ped10_prodes']?.toString() ?? '';
+          String unid = r['ped10_unidpri']?.toString() ?? r['ped10_unidade']?.toString() ?? r['ped10_unimed']?.toString() ?? 'UN';
+
+          // Se descrição estiver vazia, busca em cadpro00
+          if (descri.isEmpty && codPrd.isNotEmpty) {
+            try {
+              final pr = await db.rawQuery('SELECT * FROM cadpro00 WHERE pro00_codigo = ? OR CAST(pro00_codigo AS TEXT) = ? LIMIT 1', [codPrd, codPrd]);
+              if (pr.isNotEmpty) {
+                descri = pr.first['pro00_descri']?.toString() ?? pr.first['descri']?.toString() ?? '';
+                if (unid == 'UN') {
+                  final u = pr.first['pro00_unimed']?.toString() ?? pr.first['pro00_unidade']?.toString() ?? '';
+                  if (u.isNotEmpty) unid = u;
+                }
+              }
+            } catch (_) {}
+          }
+
+          final codCmb = r['ped10_codcmb']?.toString() ?? r['ped10_combo']?.toString() ?? '';
 
           carregados.add(ItemPedidoStruct(
-            codigoProduto: r['ped10_codprd']?.toString() ?? '',
-            descricao: r['ped10_descri']?.toString() ?? '',
-            unidade: r['ped10_unidpri']?.toString() ?? 'UN',
+            codigoProduto: codPrd,
+            descricao: descri,
+            unidade: unid.isNotEmpty ? unid : 'UN',
             quantidade: isBon ? 0.0 : qtd,
             precoUnitario: pco,
-            totalItem: tot,
+            totalItem: isBon ? 0.0 : tot,
             isBonificacao: isBon,
-            quantidadeBonificada: isBon ? qtdBon : 0.0,
-            codigoCombo: r['ped10_codcmb']?.toString() ?? '',
-            unidadeComercial: isBon ? qtdBon : qtd,
+            quantidadeBonificada: isBon ? (qtdBon > 0 ? qtdBon : qtd) : 0.0,
+            codigoCombo: codCmb,
+            unidadeComercial: isBon ? (qtdBon > 0 ? qtdBon : qtd) : qtd,
             mulver: 1.0,
           ));
         }
@@ -122,9 +304,9 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
   }
 
   Future<void> _autoSalvarCarrinho() async {
-    if (_pedidoDigitado) return; // Não sobrescreve pedido finalizado
+    if (_carregandoItens || _pedidoDigitado) return; // Não sobrescreve se ainda estiver carregando ou pedido concluído
     final pedId = widget.pedidoId ?? 0;
-    final cliCod = widget.clienteCodigo ?? 0;
+    final cliCod = _clienteCodigo ?? widget.clienteCodigo ?? 0;
     if (pedId == 0 || cliCod == 0) return;
     try {
       await salvarCarrinhoPedido(
@@ -153,6 +335,8 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
           final iv = v is num ? v.toInt() : int.tryParse(v.toString()) ?? 0;
           if (iv == 1) {
             if (mounted) setState(() => _pedidoDigitado = true);
+          } else {
+            if (mounted) setState(() => _pedidoDigitado = false);
           }
         }
       }
@@ -172,7 +356,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
   @override
   void dispose() {
     _debounceTimer?.cancel();
-    if (!_pedidoDigitado) {
+    if (!_carregandoItens && !_pedidoDigitado) {
       _autoSalvarCarrinho();
     }
     _model.dispose();
@@ -344,6 +528,183 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
     return 'R\$ ${val.toStringAsFixed(2).replaceAll('.', ',')}';
   }
 
+  /// PRD Seção 1 — Edição interativa do preço unitário com validação de faixas (pcomin/pcomax)
+  Future<void> _exibirDialogEdicaoPreco(ItemPedidoStruct item) async {
+    if (_isEdicaoBloqueada()) return;
+    if (item.isBonificacao) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não é permitido alterar o preço de um item bonificado.'),
+          backgroundColor: Colors.orangeAccent,
+        ),
+      );
+      return;
+    }
+
+    final int tabId = int.tryParse(_currentPlanoCodigo ?? widget.planoCodigo ?? '0') ?? 0;
+    final faixa = await ValidePcoService.obterFaixasPreco(
+      item.codigoProduto,
+      codTabela: tabId,
+    );
+
+    if (!faixa.freadpco) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Representante sem permissão para alteração de preços!'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
+    final precoController = TextEditingController(
+      text: item.precoUnitario > 0 ? item.precoUnitario.toStringAsFixed(2) : '',
+    );
+    String? erroValidacao;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+              title: Row(
+                children: [
+                  Icon(Icons.edit_note_rounded, color: AppTheme.of(context).primary),
+                  const SizedBox(width: 8),
+                  const Text('Editar Preço Unitário', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${item.codigoProduto} - ${item.descricao}',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F4F8),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Preço Mínimo:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text(
+                                faixa.pcomin > 0 ? _formatCurrency(faixa.pcomin) : 'Livre',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Preço Máximo:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text(
+                                faixa.pcomax < 999999 ? _formatCurrency(faixa.pcomax) : 'Livre',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: precoController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        labelText: 'Novo Preço Unitário (R\$)',
+                        prefixText: 'R\$ ',
+                        errorText: erroValidacao,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onChanged: (val) {
+                        if (erroValidacao != null) {
+                          setDialogState(() => erroValidacao = null);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.of(context).primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () {
+                    final cleanText = precoController.text.trim().replaceAll(',', '.');
+                    final novoPreco = double.tryParse(cleanText);
+
+                    if (novoPreco == null || novoPreco <= 0) {
+                      setDialogState(() {
+                        erroValidacao = 'Informe um preço válido maior que zero.';
+                      });
+                      return;
+                    }
+
+                    final res = ValidePcoService.validePCOValues(
+                      pcomin: faixa.pcomin,
+                      pcomax: faixa.pcomax,
+                      commax: faixa.commax,
+                      digpco: novoPreco,
+                      destot: 0.0,
+                      freadpco: faixa.freadpco,
+                      isEdicaoManual: true,
+                    );
+
+                    if (!res.valido) {
+                      setDialogState(() {
+                        erroValidacao = res.mensagem;
+                      });
+                      return;
+                    }
+
+                    // Preço válido! Atualiza item e totais
+                    safeSetState(() {
+                      item.precoUnitario = novoPreco;
+                      item.totalItem = item.quantidade * novoPreco;
+                      _model.recalcularTotais();
+                    });
+                    unawaited(_autoSalvarCarrinho());
+                    Navigator.pop(dialogCtx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Preço atualizado para ${_formatCurrency(novoPreco)}!'),
+                        backgroundColor: const Color(0xFF2E7D32),
+                      ),
+                    );
+                  },
+                  child: const Text('Salvar Preço', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<String?> _obterAgentePadraoCliente() async {
     try {
       final cli = await carregarClienteOffline(widget.clienteCodigo ?? 0);
@@ -364,6 +725,37 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
       return;
     }
 
+    // ── Validação de Valor Mínimo do Plano (pla00_vlrmin - Seção 2.3) ─────────────
+    final int plaId = int.tryParse(_currentPlanoCodigo ?? widget.planoCodigo ?? '0') ?? 0;
+    if (plaId > 0) {
+      try {
+        final db = await LocalSalesDatabaseService.getDatabase();
+        final colsPla = await db.rawQuery('PRAGMA table_info(cadpla00)');
+        final plaColNames = colsPla.map((r) => r['name'].toString().toLowerCase()).toSet();
+        if (plaColNames.contains('pla00_vlrmin')) {
+          final rPla = await db.rawQuery('SELECT pla00_vlrmin FROM cadpla00 WHERE pla00_codigo = ? LIMIT 1', [plaId]);
+          if (rPla.isNotEmpty && rPla.first['pla00_vlrmin'] != null) {
+            final vMin = (rPla.first['pla00_vlrmin'] is num)
+                ? (rPla.first['pla00_vlrmin'] as num).toDouble()
+                : (double.tryParse(rPla.first['pla00_vlrmin'].toString()) ?? 0.0);
+            if (vMin > 0 && _model.valorTotal < vMin) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Valor total do pedido inferior ao valor mínimo exigido pelo plano de pagamento (Mínimo: ${_formatCurrency(vMin)})!'),
+                  backgroundColor: Colors.redAccent,
+                  duration: const Duration(seconds: 4),
+                ),
+              );
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        print('Erro ao checar valor minimo do plano: $e');
+      }
+    }
+
     // ── Passo A: Determina pedidoId definitivo e salva carrinho no SQLite ────────
     // Garante que pckvendig000 e pckvendig010 contenham o cabeçalho e os itens
     // com o pedidoId exato ANTES de abrir o modal do cobrador.
@@ -374,7 +766,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
     print('[_fluxoConcluirVenda] PRE-SAVE carrinho pedido #$pedidoIdDefinitivo itens=${_model.carrinhoItens.length}');
     final preSaveOk = await salvarCarrinhoPedido(
       pedidoId: pedidoIdDefinitivo,
-      clienteCodigo: widget.clienteCodigo ?? 0,
+      clienteCodigo: _clienteCodigo ?? widget.clienteCodigo ?? 0,
       linhaCodigo: _currentLinhaCodigo,
       planoCodigo: _currentPlanoCodigo,
       carrinhoItens: _model.carrinhoItens,
@@ -391,7 +783,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
       return;
     }
 
-    // ── Passo B: Abre modal do cobrador aguardando seleção ───────────────────────
+    // ── Passo B: Abre modal do cobrador aguardando seleção com filtragem estrita ──
     final agentePre = await _obterAgentePadraoCliente();
     if (!mounted) return;
     final String? agenteSelecionado = await showModalBottomSheet<String?>(
@@ -400,6 +792,8 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
       backgroundColor: Colors.transparent,
       builder: (context) => ModalAgenteCobradorWidget(
         agentePreSelecionado: agentePre,
+        clienteCodigo: _clienteCodigo ?? widget.clienteCodigo,
+        planoCodigo: int.tryParse(_currentPlanoCodigo ?? widget.planoCodigo ?? ''),
       ),
     );
     if (!mounted) return;
@@ -425,7 +819,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
     });
 
     final int effectivePedidoId = pedidoIdDefinitivo;
-    final int effectiveClienteCodigo = widget.clienteCodigo ?? 0;
+    final int effectiveClienteCodigo = _clienteCodigo ?? widget.clienteCodigo ?? 0;
     final int? codAgtInt = int.tryParse(codAgenteSelecionado ?? '');
 
     try {
@@ -589,7 +983,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                 ),
               ),
               Text(
-                '${widget.clienteNome ?? 'Sem Cliente'} - Cód. ${widget.clienteCodigo ?? ''}',
+                '${(_clienteNome != null && _clienteNome!.isNotEmpty ? _clienteNome! : widget.clienteNome ?? 'Sem Cliente')} - Cód. ${_clienteCodigo ?? widget.clienteCodigo ?? ''}',
                 style: GoogleFonts.inter(
                   color: Colors.white70,
                   fontSize: 12.0,
@@ -625,7 +1019,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                         const SizedBox(width: 8.0),
                         Expanded(
                           child: Text(
-                            widget.clienteNome ?? '',
+                            (_clienteNome != null && _clienteNome!.isNotEmpty) ? _clienteNome! : (widget.clienteNome ?? ''),
                             style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14.0),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -637,7 +1031,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                       children: [
                         const Icon(Icons.description_outlined, color: Colors.grey, size: 16),
                         const SizedBox(width: 8.0),
-                        Text(widget.clienteCnpj ?? '', style: const TextStyle(color: Colors.grey, fontSize: 13.0)),
+                        Text((_clienteCnpj != null && _clienteCnpj!.isNotEmpty) ? _clienteCnpj! : (widget.clienteCnpj ?? ''), style: const TextStyle(color: Colors.grey, fontSize: 13.0)),
                       ],
                     ),
                     const SizedBox(height: 4.0),
@@ -647,7 +1041,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                         const SizedBox(width: 8.0),
                         Expanded(
                           child: Text(
-                            widget.clienteCidade ?? '',
+                            (_clienteCidade != null && _clienteCidade!.isNotEmpty) ? _clienteCidade! : (widget.clienteCidade ?? ''),
                             style: const TextStyle(color: Colors.grey, fontSize: 13.0),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -655,11 +1049,29 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                         ),
                       ],
                     ),
+                    if ((_clienteEndereco != null && _clienteEndereco!.isNotEmpty) || (widget.clienteEndereco != null && widget.clienteEndereco!.isNotEmpty)) ...[
+                      const SizedBox(height: 4.0),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.home_outlined, color: Colors.grey, size: 16),
+                          const SizedBox(width: 8.0),
+                          Expanded(
+                            child: Text(
+                              (_clienteEndereco != null && _clienteEndereco!.isNotEmpty) ? _clienteEndereco! : (widget.clienteEndereco ?? ''),
+                              style: const TextStyle(color: Colors.grey, fontSize: 13.0),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const Divider(height: 16.0, color: Color(0xFFE0E3E7)),
                     Row(
                       children: [
                         Text('Limite: ', style: TextStyle(color: AppTheme.of(context).primary, fontWeight: FontWeight.bold, fontSize: 14.0)),
-                        Text('R\$ ${widget.clienteLimite ?? "0,00"}', style: TextStyle(color: AppTheme.of(context).primary, fontWeight: FontWeight.bold, fontSize: 14.0)),
+                        Text('R\$ ${(_clienteLimite != null && _clienteLimite!.isNotEmpty) ? _clienteLimite! : (widget.clienteLimite ?? "0,00")}', style: TextStyle(color: AppTheme.of(context).primary, fontWeight: FontWeight.bold, fontSize: 14.0)),
                       ],
                     ),
                     const Divider(height: 16.0, color: Color(0xFFE0E3E7)),
@@ -831,9 +1243,29 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                                             : item.unidade,
                                         style: const TextStyle(color: Colors.grey, fontSize: 14.0),
                                       ),
-                                      Text(
-                                        item.isBonificacao ? 'R\$ 0,00' : _formatCurrency(item.precoUnitario),
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.0),
+                                      InkWell(
+                                        onTap: () => _exibirDialogEdicaoPreco(item),
+                                        borderRadius: BorderRadius.circular(6.0),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                item.isBonificacao ? 'R\$ 0,00' : _formatCurrency(item.precoUnitario),
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 14.0,
+                                                  color: item.isBonificacao ? Colors.black87 : AppTheme.of(context).primary,
+                                                ),
+                                              ),
+                                              if (!item.isBonificacao && !_pedidoDigitado) ...[
+                                                const SizedBox(width: 4),
+                                                Icon(Icons.edit_outlined, size: 14, color: AppTheme.of(context).primary),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -1266,10 +1698,11 @@ carrinhoItens: _model.carrinhoItens,
   List<ListaPadraoStruct> _planos = [];
 
   Future<void> _loadPlanos() async {
-    if (_planos.isNotEmpty) return;
     try {
-      final result = await obterDadosPedidoNovo();
-      _planos = result.planos;
+      final result = await carregarPlanosDisponiveisCliente(
+        clienteCodigo: widget.clienteCodigo,
+      );
+      _planos = result;
     } catch (e) {
       print('Erro ao carregar planos: $e');
     }
@@ -1402,7 +1835,9 @@ carrinhoItens: _model.carrinhoItens,
                                         ),
                                   ),
                                   subtitle: Text(
-                                    'Código: ${p.codigo}',
+                                    p.vlrmin > 0
+                                        ? 'Código: ${p.codigo} • Mínimo: ${_formatCurrency(p.vlrmin)}'
+                                        : 'Código: ${p.codigo}',
                                     style: AppTheme.of(context).bodyMedium,
                                   ),
                                   trailing: isSelected ? Icon(Icons.check_circle_rounded, color: AppTheme.of(context).primary) : null,

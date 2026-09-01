@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:sqflite/sqflite.dart';
 import '../data/services/local_sales_database_service.dart';
 
@@ -13,47 +12,42 @@ import '../data/services/local_sales_database_service.dart';
 /// existir ou ocorrer erro, retorna `1` sem lançar exceção.
 Future<int> obterProximoNumeroPedido({String? dbPath}) async {
   try {
-    final List<String> pathsToCheck = [];
-    if (dbPath != null) {
-      pathsToCheck.add(dbPath);
-    } else {
-      pathsToCheck.addAll(await LocalSalesDatabaseService.getTargetDatabasePaths());
-    }
+    final bool isCustom = dbPath != null;
+    final db = isCustom
+        ? await openDatabase(dbPath)
+        : await LocalSalesDatabaseService.getDatabase();
 
-    int maxFound = 0;
-    for (final path in pathsToCheck) {
-      if (!await File(path).exists()) continue;
-      try {
-        final db = await openDatabase(path, readOnly: true);
-        try {
-          final t = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='pckvendig000'");
-          if (t.isEmpty) continue;
+    try {
+      final t = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='pckvendig000'",
+      );
+      if (t.isEmpty) return 1;
 
-          final cols = await db.rawQuery('PRAGMA table_info(pckvendig000)');
-          final colNames = cols.map((r) => r['name']?.toString().toLowerCase()).toSet();
-          String colNum = 'ped00_numped';
-          for (final c in ['ped00_numped', 'ped00_pedcod', 'ped00_codmov']) {
-            if (colNames.contains(c.toLowerCase())) {
-              colNum = c;
-              break;
-            }
-          }
-
-          final result = await db.rawQuery(
-            'SELECT IFNULL(MAX($colNum), 0) AS maxval FROM pckvendig000',
-          );
-          if (result.isNotEmpty) {
-            final val = result.first['maxval'];
-            final n = (val is num) ? val.toInt() : (int.tryParse(val?.toString() ?? '') ?? 0);
-            if (n > maxFound) maxFound = n;
-          }
-        } finally {
-          await db.close();
+      final cols = await db.rawQuery('PRAGMA table_info(pckvendig000)');
+      final colNames = cols.map((r) => r['name']?.toString().toLowerCase()).toSet();
+      String colNum = 'ped00_numped';
+      for (final c in ['ped00_numped', 'ped00_pedcod', 'ped00_codmov']) {
+        if (colNames.contains(c.toLowerCase())) {
+          colNum = c;
+          break;
         }
-      } catch (_) {}
-    }
+      }
 
-    return maxFound + 1;
+      final result = await db.rawQuery(
+        'SELECT IFNULL(MAX($colNum), 0) AS maxval FROM pckvendig000',
+      );
+      if (result.isNotEmpty) {
+        final val = result.first['maxval'];
+        final n = (val is num) ? val.toInt() : (int.tryParse(val?.toString() ?? '') ?? 0);
+        return n + 1;
+      }
+
+      return 1;
+    } finally {
+      if (isCustom) {
+        await db.close();
+      }
+    }
   } catch (e) {
     print('Erro ao obter proximo numero pedido: $e');
     return 1;

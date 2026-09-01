@@ -1,8 +1,68 @@
+import 'dart:io';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:intl/intl.dart';
 import '/app_state.dart';
 import '/data/services/local_sales_database_service.dart';
 import '/functions/proximo_numero_pedido.dart';
+
+class PedidoClonadoInfo {
+  PedidoClonadoInfo({
+    required this.novoPedidoId,
+    required this.clienteCodigo,
+    required this.clienteNome,
+    required this.linhaCodigo,
+    required this.planoCodigo,
+    required this.linhaDescricao,
+    required this.planoDescricao,
+    this.clienteCnpj = '',
+    this.clienteCidade = '',
+    this.clienteLimite = '',
+    this.clienteEndereco = '',
+    this.clienteFantasia = '',
+  });
+
+  final int novoPedidoId;
+  final int clienteCodigo;
+  final String clienteNome;
+  final String linhaCodigo;
+  final String planoCodigo;
+  final String linhaDescricao;
+  final String planoDescricao;
+  final String clienteCnpj;
+  final String clienteCidade;
+  final String clienteLimite;
+  final String clienteEndereco;
+  final String clienteFantasia;
+}
+
+class PacoteItem {
+  PacoteItem({
+    required this.nomeArquivo,
+    required this.totalPedidos,
+    required this.pedidosIds,
+    required this.data,
+    required this.sttEnv,
+    required this.tamanhoBytes,
+    required this.totalValor,
+    required this.existeEmTemp,
+    required this.caminhoArquivo,
+  });
+
+  final String nomeArquivo;
+  final int totalPedidos;
+  final List<int> pedidosIds;
+  final String data;
+  final int sttEnv; // 1 = Pendente / Empacotado, 2 = Enviado / Confirmado
+  final int tamanhoBytes;
+  final double totalValor;
+  final bool existeEmTemp;
+  final String caminhoArquivo;
+
+  bool get isPendente => sttEnv == 1 || existeEmTemp;
+  bool get isEnviado => sttEnv == 2 && !existeEmTemp;
+}
 
 class PedidoPendente {
   PedidoPendente({
@@ -43,6 +103,10 @@ class PedidoHistoricoItem {
     required this.sttDig,
     required this.sttEnv,
     required this.nomePacote,
+    this.clienteCnpj = '',
+    this.clienteCidade = '',
+    this.clienteLimite = '',
+    this.clienteEndereco = '',
   });
 
   final int pedidoId;
@@ -65,13 +129,21 @@ class PedidoHistoricoItem {
   final int sttDig; // 0 = Rascunho / Em Digitação, 1 = Digitado / Concluído
   final int sttEnv; // 0 = Digitado / Rascunho, 1 = Empacotado, 2 = Transmitido (JEnviado), 3 = Recebido / Faturado
   final String nomePacote;
+  final String clienteCnpj;
+  final String clienteCidade;
+  final String clienteLimite;
+  final String clienteEndereco;
 
   bool get isRascunho => sttDig == 0;
-  bool get isProntoEnvio => sttDig == 1 && sttEnv < 2;
-  bool get isEmpacotado => sttEnv == 1;
+  bool get isPendentePacote => sttDig == 1 && (sttEnv == 0 || nomePacote.isEmpty);
+  bool get isEmpacotado => sttDig == 1 && sttEnv == 1 && nomePacote.isNotEmpty;
   bool get isTransmitido => sttEnv == 2;
   bool get isFaturado => sttEnv == 3;
   bool get isInconsistente => sttEnv >= 4;
+
+  /// Indica se o pedido está concluído e livre para ser incluído em um novo pacote
+  bool get podeEmpacotar => sttDig == 1 && sttEnv == 0 && nomePacote.isEmpty;
+  bool get isProntoEnvio => isPendentePacote;
 }
 
 /// Consulta pedidos pendentes para a tela de Geração de Pacotes (.pac)
@@ -124,10 +196,12 @@ Future<List<PedidoPendente>> listarPedidosPendentes() async {
           final id = _getInt(r, ['ped00_numped', 'ped00_pedcod', 'ped00_codmov', 'numped', 'pedcod', 'codmov']);
           if (id == 0 || seenIds.contains(id)) continue;
 
+          final sDig = _getInt(r, ['ped00_sttdig', 'ped00_status', 'ped00_sitped', 'sttdig', 'status']);
           final sEnv = _getInt(r, ['ped00_sttenv', 'ped00_enviado', 'ped00_flgenv', 'sttenv', 'enviado']);
+          final pac = _getString(r, ['ped00_pacstr', 'ped00_pacote', 'pacstr', 'pacote']).trim();
 
-          // Exibe pedidos pendentes de transmissão (sttenv < 2)
-          if (sEnv < 2) {
+          // Exibe apenas pedidos concluídos (sttdig == 1) e que ainda NÃO foram empacotados (sttenv == 0 e pac vazio)
+          if (sDig == 1 && sEnv == 0 && pac.isEmpty) {
             seenIds.add(id);
             rows.add(r);
           }
@@ -348,9 +422,9 @@ Future<List<PedidoHistoricoItem>> listarPedidosHistorico({
       // Filtro de status
       if (filtroStatus == 'rascunho' && sDig != 0) {
         continue;
-      } else if (filtroStatus == 'pronto' && (sDig == 0 || sEnv >= 2)) {
+      } else if ((filtroStatus == 'pronto' || filtroStatus == 'pendente') && (sDig == 0 || sEnv >= 1 || pacStr.isNotEmpty)) {
         continue;
-      } else if (filtroStatus == 'empacotado' && sEnv != 1) {
+      } else if (filtroStatus == 'empacotado' && (sEnv != 1 || pacStr.isEmpty)) {
         continue;
       } else if (filtroStatus == 'transmitido' && sEnv != 2) {
         continue;
@@ -360,15 +434,45 @@ Future<List<PedidoHistoricoItem>> listarPedidosHistorico({
         continue;
       }
 
-      // Resolve descrições locais
+      // Resolve descrições locais e dados do cliente
       String cliNome = _getString(m, ['ped00_clides', 'clides']);
       String cliFantasia = '';
-      if (cliNome.isEmpty && cliCod != 0) {
+      String cliCnpj = '';
+      String cliCidade = '';
+      String cliLimite = '';
+      String cliEndereco = '';
+
+      if (cliCod != 0) {
         try {
           final cr = await db.rawQuery('SELECT * FROM cadcli00 WHERE cli00_codigo = ? LIMIT 1', [cliCod]);
           if (cr.isNotEmpty) {
-            cliNome = _getString(cr.first, ['cli00_descri', 'cli00_fantasi', 'cli00_fantas', 'descri', 'nome']);
-            cliFantasia = _getString(cr.first, ['cli00_fantasi', 'cli00_fantas', 'fantasia', 'fantas']);
+            final cMap = cr.first;
+            if (cliNome.isEmpty) {
+              cliNome = _getString(cMap, ['cli00_descri', 'descri', 'cli00_fantasi', 'cli00_fantas', 'nome']);
+            }
+            cliFantasia = _getString(cMap, ['cli00_fantasi', 'cli00_fantas', 'fantasia', 'fantas']);
+            cliCnpj = _getString(cMap, ['cli00_cpfcnp', 'cli00_cgc', 'cli00_cpf', 'cli00_cnpj', 'cpfcnp', 'cgc', 'cpf', 'cnpj']);
+            
+            final cid = _getString(cMap, ['cli00_ciddes', 'cli00_cidade', 'cli00_cidcod', 'cidade']);
+            final uf = _getString(cMap, ['cli00_estsgl', 'cli00_uf', 'uf']);
+            if (cid.isNotEmpty && uf.isNotEmpty) {
+              cliCidade = '$cid - $uf';
+            } else if (cid.isNotEmpty) {
+              cliCidade = cid;
+            }
+
+            final end = _getString(cMap, ['cli00_endere', 'cli00_endereco', 'endereco']);
+            final num = _getString(cMap, ['cli00_endnum', 'numero']);
+            final bai = _getString(cMap, ['cli00_bairro', 'bairro']);
+            String fullEnd = end;
+            if (num.isNotEmpty) fullEnd += ', $num';
+            if (bai.isNotEmpty) fullEnd += ' - $bai';
+            cliEndereco = fullEnd;
+
+            final lim = _getDouble(cMap, ['cli00_crelim', 'cli00_limite', 'cli00_limcre', 'crelim', 'limite', 'limcre']);
+            if (lim > 0) {
+              cliLimite = lim.toStringAsFixed(2).replaceAll('.', ',');
+            }
           }
         } catch (_) {}
       }
@@ -471,6 +575,10 @@ Future<List<PedidoHistoricoItem>> listarPedidosHistorico({
         sttDig: sDig,
         sttEnv: sEnv,
         nomePacote: pacStr,
+        clienteCnpj: cliCnpj,
+        clienteCidade: cliCidade,
+        clienteLimite: cliLimite,
+        clienteEndereco: cliEndereco,
       ));
     }
 
@@ -523,10 +631,8 @@ String _getString(Map<String, dynamic> map, List<String> candidateKeys, [String 
 
 /// Exclui um pedido e seus itens do SQLite local
 Future<bool> excluirPedidoLocal(int pedidoId) async {
-  Database? db;
   try {
-    final dbPath = await LocalSalesDatabaseService.getDatabasePath();
-    db = await openDatabase(dbPath);
+    final db = await LocalSalesDatabaseService.getDatabase();
 
     await db.transaction((txn) async {
       try {
@@ -541,56 +647,380 @@ Future<bool> excluirPedidoLocal(int pedidoId) async {
   } catch (e) {
     print('Erro ao excluir pedido: $e');
     return false;
-  } finally {
-    if (db != null && db.isOpen) {
-      await db.close();
-    }
   }
 }
 
-/// Clona um pedido criando um novo número incremental
-Future<int?> clonarPedidoLocal(int pedidoOrigemId) async {
-  Database? db;
+/// Clona um pedido criando um novo número incremental e copiando cabeçalho + itens em rascunho (em aberto)
+Future<PedidoClonadoInfo?> clonarPedidoLocal(int pedidoOrigemId) async {
   try {
-    final dbPath = await LocalSalesDatabaseService.getDatabasePath();
-    db = await openDatabase(dbPath);
+    final db = await LocalSalesDatabaseService.getDatabase();
+    final novoId = await obterProximoNumeroPedido();
 
-    final novoId = await obterProximoNumeroPedido(dbPath: dbPath);
+    // 1. Identifica colunas de pckvendig000 e busca pedido original
+    final headerCols = await db.rawQuery('PRAGMA table_info(pckvendig000)');
+    final headerColNames = headerCols.map((r) => r['name']?.toString().toLowerCase()).toSet();
 
+    String colNum0 = 'ped00_numped';
+    for (final c in ['ped00_numped', 'ped00_pedcod', 'ped00_codmov', 'numped']) {
+      if (headerColNames.contains(c)) { colNum0 = c; break; }
+    }
+
+    final headerRows = await db.rawQuery('SELECT * FROM pckvendig000 WHERE $colNum0 = ? LIMIT 1', [pedidoOrigemId]);
+    if (headerRows.isEmpty) {
+      print('Erro clonar: pedido original #$pedidoOrigemId não encontrado no SQLite');
+      return null;
+    }
+
+    final origHeader = Map<String, dynamic>.from(headerRows.first);
+
+    // Identifica campos do cliente, linha e plano
+    final cliCod = _getInt(origHeader, ['ped00_codcli', 'ped00_clicod', 'codcli']);
+    String cliNome = _getString(origHeader, ['ped00_clides', 'clides']);
+    final linCod = _getString(origHeader, ['ped00_codlin', 'ped00_lincod', 'codlin']);
+    String linDes = _getString(origHeader, ['ped00_lindes', 'lindes']);
+    final plaCod = _getString(origHeader, ['ped00_codpla', 'ped00_codpag', 'codpla', 'codpag']);
+    String plaDes = _getString(origHeader, ['ped00_plades', 'plades']);
+
+    String cliCnpj = '';
+    String cliCidade = '';
+    String cliLimite = '';
+    String cliEndereco = '';
+    String cliFantasia = '';
+
+    // Busca detalhes completos do cliente em cadcli00
+    if (cliCod != 0) {
+      try {
+        final cr = await db.rawQuery('SELECT * FROM cadcli00 WHERE cli00_codigo = ? LIMIT 1', [cliCod]);
+        if (cr.isNotEmpty) {
+          final cMap = cr.first;
+          if (cliNome.isEmpty) {
+            cliNome = _getString(cMap, ['cli00_descri', 'descri', 'cli00_fantasi', 'cli00_fantas', 'nome']);
+          }
+          cliFantasia = _getString(cMap, ['cli00_fantasi', 'cli00_fantas', 'fantasia']);
+          cliCnpj = _getString(cMap, ['cli00_cpfcnp', 'cli00_cgc', 'cli00_cpf', 'cli00_cnpj', 'cpfcnp', 'cgc', 'cpf', 'cnpj']);
+          
+          final cid = _getString(cMap, ['cli00_ciddes', 'cli00_cidade', 'cli00_cidcod', 'cidade']);
+          final uf = _getString(cMap, ['cli00_estsgl', 'cli00_uf', 'uf']);
+          if (cid.isNotEmpty && uf.isNotEmpty) {
+            cliCidade = '$cid - $uf';
+          } else if (cid.isNotEmpty) {
+            cliCidade = cid;
+          }
+
+          final end = _getString(cMap, ['cli00_endere', 'cli00_endereco', 'endereco']);
+          final num = _getString(cMap, ['cli00_endnum', 'numero']);
+          final bai = _getString(cMap, ['cli00_bairro', 'bairro']);
+          String fullEnd = end;
+          if (num.isNotEmpty) fullEnd += ', $num';
+          if (bai.isNotEmpty) fullEnd += ' - $bai';
+          cliEndereco = fullEnd;
+
+          final lim = _getDouble(cMap, ['cli00_crelim', 'cli00_limite', 'cli00_limcre', 'crelim', 'limite', 'limcre']);
+          if (lim > 0) {
+            cliLimite = lim.toStringAsFixed(2).replaceAll('.', ',');
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (linDes.isEmpty && linCod.isNotEmpty) {
+      try {
+        final lr = await db.rawQuery('SELECT lin00_descri FROM cadlin00 WHERE lin00_codigo = ? LIMIT 1', [int.tryParse(linCod) ?? 0]);
+        if (lr.isNotEmpty) linDes = _getString(lr.first, ['lin00_descri', 'descri']);
+      } catch (_) {}
+    }
+
+    if (plaDes.isEmpty && plaCod.isNotEmpty) {
+      try {
+        final pr = await db.rawQuery('SELECT pla00_descri FROM cadpla00 WHERE pla00_codigo = ? LIMIT 1', [int.tryParse(plaCod) ?? 0]);
+        if (pr.isNotEmpty) plaDes = _getString(pr.first, ['pla00_descri', 'descri']);
+      } catch (_) {}
+    }
+
+    // 2. Busca itens do pedido original
+    final itemCols = await db.rawQuery('PRAGMA table_info(pckvendig010)');
+    final itemColNames = itemCols.map((r) => r['name']?.toString().toLowerCase()).toSet();
+
+    String colNum10 = 'ped10_numped';
+    for (final c in ['ped10_numped', 'ped10_pedcod', 'ped10_codmov', 'numped']) {
+      if (itemColNames.contains(c)) { colNum10 = c; break; }
+    }
+
+    final itemsRows = await db.rawQuery('SELECT * FROM pckvendig010 WHERE $colNum10 = ?', [pedidoOrigemId]);
+
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    // 3. Monta cabeçalho clonado
+    final cloneHeader = Map<String, dynamic>.from(origHeader);
+    for (final c in ['ped00_numped', 'ped00_pedcod', 'ped00_codmov', 'numped', 'pedcod', 'codmov']) {
+      if (cloneHeader.containsKey(c)) cloneHeader[c] = novoId;
+    }
+    cloneHeader['ped00_numped'] = novoId;
+
+    // Status: 0 = Em Aberto / Rascunho / Em Digitação
+    for (final c in ['ped00_sttdig', 'ped00_status', 'ped00_sitped', 'sttdig', 'status']) {
+      if (cloneHeader.containsKey(c)) cloneHeader[c] = 0;
+    }
+    cloneHeader['ped00_sttdig'] = 0;
+
+    // Status envio: 0 = Não enviado / Aguardando Pacote
+    for (final c in ['ped00_sttenv', 'ped00_enviado', 'ped00_flgenv', 'sttenv', 'enviado']) {
+      if (cloneHeader.containsKey(c)) cloneHeader[c] = 0;
+    }
+    cloneHeader['ped00_sttenv'] = 0;
+
+    // Limpa identificador de pacote
+    for (final c in ['ped00_pacstr', 'ped00_pacote', 'pacstr', 'pacote']) {
+      if (cloneHeader.containsKey(c)) cloneHeader[c] = '';
+    }
+
+    // Atualiza datas
+    for (final c in ['ped00_datsys', 'ped00_datemi', 'ped00_datcad', 'datsys', 'datemi', 'datcad']) {
+      if (cloneHeader.containsKey(c)) cloneHeader[c] = todayStr;
+    }
+
+    if (cliNome.isNotEmpty && cloneHeader.containsKey('ped00_clides')) cloneHeader['ped00_clides'] = cliNome;
+    if (linDes.isNotEmpty && cloneHeader.containsKey('ped00_lindes')) cloneHeader['ped00_lindes'] = linDes;
+    if (plaDes.isNotEmpty && cloneHeader.containsKey('ped00_plades')) cloneHeader['ped00_plades'] = plaDes;
+
+    // 4. Executa inserção atômica
     await db.transaction((txn) async {
-      // 1. Clona cabeçalho
-      final headerRows = await txn.rawQuery('SELECT * FROM pckvendig000 WHERE ped00_numped = ? LIMIT 1', [pedidoOrigemId]);
-      if (headerRows.isNotEmpty) {
-        final map = Map<String, dynamic>.from(headerRows.first);
-        map['ped00_numped'] = novoId;
-        map['ped00_datsys'] = DateFormat('yyyy-MM-dd').format(DateTime.now());
-        map['ped00_sttdig'] = 0; // Rascunho
-        map['ped00_sttenv'] = 0; // Não enviado
-        if (map.containsKey('ped00_pacstr')) map['ped00_pacstr'] = '';
+      final hCols = cloneHeader.keys.join(', ');
+      final hPlaceholders = List.filled(cloneHeader.length, '?').join(', ');
+      await txn.rawInsert(
+        'INSERT OR REPLACE INTO pckvendig000 ($hCols) VALUES ($hPlaceholders)',
+        cloneHeader.values.toList(),
+      );
 
-        final cols = map.keys.join(', ');
-        final placeholders = List.filled(map.length, '?').join(', ');
-        await txn.rawInsert('INSERT INTO pckvendig000 ($cols) VALUES ($placeholders)', map.values.toList());
-      }
-
-      // 2. Clona itens
-      final itemsRows = await txn.rawQuery('SELECT * FROM pckvendig010 WHERE ped10_numped = ?', [pedidoOrigemId]);
       for (final itemMap in itemsRows) {
         final im = Map<String, dynamic>.from(itemMap);
+        for (final c in ['ped10_numped', 'ped10_pedcod', 'ped10_codmov', 'numped', 'pedcod', 'codmov']) {
+          if (im.containsKey(c)) im[c] = novoId;
+        }
         im['ped10_numped'] = novoId;
-        final cols = im.keys.join(', ');
-        final placeholders = List.filled(im.length, '?').join(', ');
-        await txn.rawInsert('INSERT INTO pckvendig010 ($cols) VALUES ($placeholders)', im.values.toList());
+
+        // Garante consistência de colunas canônicas
+        final codP = _getString(im, ['ped10_codprd', 'ped10_codpro', 'ped10_procod', 'codprd', 'codpro']);
+        final desP = _getString(im, ['ped10_descri', 'ped10_descricao', 'ped10_prodes', 'descri', 'prodes']);
+        final uniP = _getString(im, ['ped10_unidpri', 'ped10_unidade', 'ped10_unimed', 'unidpri', 'unimed']);
+        final qtdP = _getDouble(im, ['ped10_qtdped', 'ped10_qtd', 'ped10_quantidade', 'qtdped', 'qtd']);
+        final pcoP = _getDouble(im, ['ped10_pcosub', 'ped10_prcuni', 'ped10_vlruni', 'ped10_preco', 'pcosub', 'vlruni']);
+        final totP = _getDouble(im, ['ped10_totprd', 'ped10_totite', 'ped10_valtot', 'ped10_vlrtot', 'totprd']);
+
+        if (im.containsKey('ped10_codprd') && (im['ped10_codprd'] == null || im['ped10_codprd'] == '')) im['ped10_codprd'] = codP;
+        if (im.containsKey('ped10_descri') && (im['ped10_descri'] == null || im['ped10_descri'] == '')) im['ped10_descri'] = desP;
+        if (im.containsKey('ped10_unidpri') && (im['ped10_unidpri'] == null || im['ped10_unidpri'] == '')) im['ped10_unidpri'] = uniP.isNotEmpty ? uniP : 'UN';
+        if (im.containsKey('ped10_qtdped') && (_getDouble(im, ['ped10_qtdped']) == 0.0)) im['ped10_qtdped'] = qtdP;
+        if (im.containsKey('ped10_pcosub') && (_getDouble(im, ['ped10_pcosub']) == 0.0)) im['ped10_pcosub'] = pcoP;
+        if (im.containsKey('ped10_totprd') && (_getDouble(im, ['ped10_totprd']) == 0.0)) im['ped10_totprd'] = totP > 0 ? totP : (qtdP * pcoP);
+
+        final iCols = im.keys.join(', ');
+        final iPlaceholders = List.filled(im.length, '?').join(', ');
+        await txn.rawInsert(
+          'INSERT OR REPLACE INTO pckvendig010 ($iCols) VALUES ($iPlaceholders)',
+          im.values.toList(),
+        );
       }
     });
 
-    return novoId;
-  } catch (e) {
-    print('Erro ao clonar pedido: $e');
+    final info = PedidoClonadoInfo(
+      novoPedidoId: novoId,
+      clienteCodigo: cliCod,
+      clienteNome: cliNome,
+      linhaCodigo: linCod,
+      planoCodigo: plaCod,
+      linhaDescricao: linDes,
+      planoDescricao: plaDes,
+      clienteCnpj: cliCnpj,
+      clienteCidade: cliCidade,
+      clienteLimite: cliLimite,
+      clienteEndereco: cliEndereco,
+      clienteFantasia: cliFantasia,
+    );
+
+    print('[clonarPedidoLocal] Pedido #$pedidoOrigemId clonado com sucesso para #${info.novoPedidoId} (${itemsRows.length} itens, sttdig=0, sttenv=0)');
+    return info;
+  } catch (e, stack) {
+    print('Erro ao clonar pedido: $e\n$stack');
     return null;
-  } finally {
-    if (db != null && db.isOpen) {
-      await db.close();
+  }
+}
+
+/// Consulta estruturada de todos os lotes de pacotes (.pac) no SQLite e disco
+Future<List<PacoteItem>> listarPacotesAgrupados({String filtro = 'todos'}) async {
+  try {
+    final Map<String, PacoteItem> pacotesMap = {};
+
+    // 1. Inspeciona o diretório temporário (fila ativa de envio)
+    final tempDir = await getTemporaryDirectory();
+    final tempFiles = tempDir
+        .listSync()
+        .whereType<File>()
+        .where((f) {
+          final name = p.basename(f.path).toLowerCase();
+          return name.startsWith('p') && name.endsWith('.pac');
+        })
+        .toList();
+
+    for (final tf in tempFiles) {
+      final name = p.basename(tf.path);
+      final stat = tf.statSync();
+      final dateStr = DateFormat('yyyy-MM-dd HH:mm').format(stat.modified);
+      pacotesMap[name] = PacoteItem(
+        nomeArquivo: name,
+        totalPedidos: 0,
+        pedidosIds: [],
+        data: dateStr,
+        sttEnv: 1, // Fila temp = pendente de envio
+        tamanhoBytes: stat.size,
+        totalValor: 0.0,
+        existeEmTemp: true,
+        caminhoArquivo: tf.path,
+      );
     }
+
+    // 2. Inspeciona os registros em SQLite (pckvendig000)
+    try {
+      final db = await LocalSalesDatabaseService.getDatabase();
+      final t = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='pckvendig000'",
+      );
+      if (t.isNotEmpty) {
+        final cols = await db.rawQuery('PRAGMA table_info(pckvendig000)');
+        final colNames = cols.map((r) => r['name']?.toString().toLowerCase()).toSet();
+
+        String? colPac;
+        for (final c in ['ped00_pacstr', 'ped00_pacote', 'pacstr', 'pacote']) {
+          if (colNames.contains(c)) { colPac = c; break; }
+        }
+
+        if (colPac != null) {
+          final rows = await db.rawQuery('''
+            SELECT 
+              $colPac as pac_nome,
+              MIN(ped00_sttenv) as min_sttenv,
+              MAX(ped00_sttenv) as max_sttenv,
+              COUNT(ped00_numped) as total_ped,
+              GROUP_CONCAT(ped00_numped) as ids_str,
+              MAX(ped00_datsys) as max_dat,
+              SUM(ped00_fattot) as sum_fat,
+              SUM(ped00_digtot) as sum_dig
+            FROM pckvendig000 
+            WHERE $colPac IS NOT NULL AND TRIM($colPac) != ''
+            GROUP BY $colPac
+          ''');
+
+          for (final r in rows) {
+            final pacNome = r['pac_nome']?.toString().trim() ?? '';
+            if (pacNome.isEmpty) continue;
+
+            final totalPed = (r['total_ped'] is num) ? (r['total_ped'] as num).toInt() : 0;
+            final idsStr = r['ids_str']?.toString() ?? '';
+            final ids = idsStr.split(',').map((s) => int.tryParse(s.trim()) ?? 0).where((id) => id > 0).toList();
+            final maxDat = r['max_dat']?.toString() ?? '';
+            final sumFat = (r['sum_fat'] is num) ? (r['sum_fat'] as num).toDouble() : 0.0;
+            final sumDig = (r['sum_dig'] is num) ? (r['sum_dig'] as num).toDouble() : 0.0;
+            final totalVal = sumFat > 0 ? sumFat : sumDig;
+            final minEnv = (r['min_sttenv'] is num) ? (r['min_sttenv'] as num).toInt() : 0;
+            final maxEnv = (r['max_sttenv'] is num) ? (r['max_sttenv'] as num).toInt() : 0;
+
+            final bool inTemp = pacotesMap.containsKey(pacNome);
+            // Se está no temp, sttEnv é 1 (Pendente). Se saiu do temp e maxEnv >= 2, é 2 (Enviado).
+            final int sEnv = inTemp ? 1 : (maxEnv >= 2 ? 2 : (minEnv >= 1 ? 1 : 1));
+
+            int sizeBytes = 0;
+            String path = '';
+            if (inTemp) {
+              sizeBytes = pacotesMap[pacNome]!.tamanhoBytes;
+              path = pacotesMap[pacNome]!.caminhoArquivo;
+            } else {
+              try {
+                final docsDir = await getApplicationDocumentsDirectory();
+                final docFile = File(p.join(docsDir.path, pacNome));
+                if (docFile.existsSync()) {
+                  sizeBytes = docFile.lengthSync();
+                  path = docFile.path;
+                }
+              } catch (_) {}
+            }
+
+            pacotesMap[pacNome] = PacoteItem(
+              nomeArquivo: pacNome,
+              totalPedidos: totalPed,
+              pedidosIds: ids,
+              data: maxDat.isNotEmpty ? maxDat : (pacotesMap[pacNome]?.data ?? ''),
+              sttEnv: sEnv,
+              tamanhoBytes: sizeBytes,
+              totalValor: totalVal,
+              existeEmTemp: inTemp,
+              caminhoArquivo: path,
+            );
+          }
+        }
+      }
+    } catch (e) {
+      print('Erro ao consultar pacotes no SQLite: $e');
+    }
+
+    // 3. Inspeciona o diretório de documentos para pacotes históricos transmitidos
+    try {
+      final docsDir = await getApplicationDocumentsDirectory();
+      final docFiles = docsDir
+          .listSync()
+          .whereType<File>()
+          .where((f) {
+            final name = p.basename(f.path).toLowerCase();
+            return name.startsWith('p') && name.endsWith('.pac');
+          })
+          .toList();
+
+      for (final df in docFiles) {
+        final name = p.basename(df.path);
+        if (!pacotesMap.containsKey(name)) {
+          final stat = df.statSync();
+          final dateStr = DateFormat('yyyy-MM-dd HH:mm').format(stat.modified);
+          pacotesMap[name] = PacoteItem(
+            nomeArquivo: name,
+            totalPedidos: 1,
+            pedidosIds: [],
+            data: dateStr,
+            sttEnv: 2, // Se está apenas em documents, foi transmitido
+            tamanhoBytes: stat.size,
+            totalValor: 0.0,
+            existeEmTemp: false,
+            caminhoArquivo: df.path,
+          );
+        }
+      }
+    } catch (_) {}
+
+    var lista = pacotesMap.values.toList();
+
+    // Filtros
+    if (filtro == 'pendentes') {
+      lista = lista.where((p) => p.isPendente).toList();
+    } else if (filtro == 'enviados') {
+      lista = lista.where((p) => p.isEnviado).toList();
+    }
+
+    // Ordena pelo nome do pacote decrescente (ex: p71-10.pac antes de p71-2.pac)
+    lista.sort((a, b) {
+      int getSeq(String name) {
+        try {
+          final clean = name.replaceAll(RegExp(r'[^0-9\-]'), '');
+          final parts = clean.split('-');
+          if (parts.length >= 2) return int.tryParse(parts.last) ?? 0;
+          return int.tryParse(clean) ?? 0;
+        } catch (_) {
+          return 0;
+        }
+      }
+      return getSeq(b.nomeArquivo).compareTo(getSeq(a.nomeArquivo));
+    });
+
+    return lista;
+  } catch (e) {
+    print('Erro em listarPacotesAgrupados: $e');
+    return [];
   }
 }

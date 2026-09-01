@@ -46,6 +46,13 @@ class StatusEnvioDb {
       _marcar('pckvendig000', _candidatasPedido, 'ped00_numped', codMov,
           valorStatus: PedidoSttEnv.enviados.value);
 
+  Future<Database> _getDb() async {
+    if (dbPath != null) {
+      return openDatabase(dbPath!);
+    }
+    return LocalSalesDatabaseService.getDatabase();
+  }
+
   /// PRD 1 §5B — batch JEnviado: UPDATE ... WHERE ped00_numped IN (...) em transação.
   /// Grava sttenv = 2 (PedidoSttEnv.enviados) garantindo que 1 seja exclusivo para empacotado.
   Future<void> marcarPedidosEnviados(List<int> codMovs) async {
@@ -54,9 +61,8 @@ class StatusEnvioDb {
     final ids = codMovs.where((e) => e != 0).toSet().toList();
     if (ids.isEmpty) return;
     try {
-      final path = await _resolveDbPath();
-      if (!await File(path).exists()) return;
-      final db = await openDatabase(path);
+      final bool isCustom = dbPath != null;
+      final db = await _getDb();
       try {
         final columns = await db.rawQuery('PRAGMA table_info(pckvendig000)');
         final colNames = columns.map((r) => r['name']?.toString().toLowerCase()).toSet();
@@ -73,7 +79,42 @@ class StatusEnvioDb {
           );
         });
       } finally {
-        await db.close();
+        if (isCustom) {
+          await db.close();
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// Marca todos os pedidos pertencentes a um pacote como enviados (`PedidoSttEnv.enviados = 2`)
+  /// na tabela `pckvendig000`, identificado por `ped00_pacstr` ou `ped00_pacote`.
+  Future<void> marcarPacoteEnviado(String nomePacote) async {
+    if (nomePacote.trim().isEmpty) return;
+    try {
+      final bool isCustom = dbPath != null;
+      final db = await _getDb();
+      try {
+        final columns = await db.rawQuery('PRAGMA table_info(pckvendig000)');
+        final colNames = columns.map((r) => r['name']?.toString().toLowerCase()).toSet();
+        String? colEnv;
+        for (final c in _candidatasPedido) {
+          if (colNames.contains(c.toLowerCase())) { colEnv = c; break; }
+        }
+        String? colPac;
+        for (final c in ['ped00_pacstr', 'ped00_pacote', 'pacstr', 'pacote']) {
+          if (colNames.contains(c.toLowerCase())) { colPac = c; break; }
+        }
+        if (colEnv == null) return;
+        if (colPac != null) {
+          await db.rawUpdate(
+            'UPDATE pckvendig000 SET $colEnv = ? WHERE $colPac = ?',
+            [PedidoSttEnv.enviados.value, nomePacote.trim()],
+          );
+        }
+      } finally {
+        if (isCustom) {
+          await db.close();
+        }
       }
     } catch (_) {}
   }

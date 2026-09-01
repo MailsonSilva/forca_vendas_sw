@@ -57,6 +57,32 @@ Future<bool> concluirVendaProcess({
       } catch (_) {}
     }
 
+    // 1b. Validação de Valor Mínimo do Plano (pla00_vlrmin - PRD Seção 2.3)
+    final int plaValCheck = int.tryParse(planoCodigo ?? '') ?? 0;
+    if (plaValCheck > 0) {
+      try {
+        final colsPla = await db.rawQuery('PRAGMA table_info(cadpla00)');
+        final plaColNames = colsPla.map((r) => r['name'].toString().toLowerCase()).toSet();
+        if (plaColNames.contains('pla00_vlrmin')) {
+          final rPla = await db.rawQuery('SELECT pla00_vlrmin FROM cadpla00 WHERE pla00_codigo = ? LIMIT 1', [plaValCheck]);
+          if (rPla.isNotEmpty && rPla.first['pla00_vlrmin'] != null) {
+            final vMin = (rPla.first['pla00_vlrmin'] is num)
+                ? (rPla.first['pla00_vlrmin'] as num).toDouble()
+                : (double.tryParse(rPla.first['pla00_vlrmin'].toString()) ?? 0.0);
+            final double totalPedido = carrinhoItens
+                .where((i) => !i.isBonificacao)
+                .fold(0.0, (sum, i) => sum + (i.quantidade * i.precoUnitario));
+            if (vMin > 0 && totalPedido < vMin) {
+              final formattedMin = vMin.toStringAsFixed(2).replaceAll('.', ',');
+              throw Exception('Valor total do pedido inferior ao valor mínimo exigido pelo plano de pagamento (Mínimo: R\$ $formattedMin)!');
+            }
+          }
+        }
+      } catch (e) {
+        if (e.toString().contains('Valor total do pedido inferior')) rethrow;
+      }
+    }
+
     // 2. Parâmetros fiscais dos produtos
     for (final item in carrinhoItens) {
       final pid = item.codigoProduto;
@@ -292,28 +318,25 @@ Future<bool> concluirVendaProcess({
       } catch (_) {}
     }
 
-    // Atualiza pckvendig000: ped00_sttdig = 1 (Fechado) e ped00_sttenv = 1 (Empacotado)
+    // Atualiza pckvendig000: ped00_sttdig = 1 (Digitado/Concluído) e ped00_sttenv = 0 (Aguardando Pacote)
     try {
       await db.rawUpdate(
-        'UPDATE pckvendig000 SET ped00_sttdig = 1, ped00_sttenv = 1 WHERE ped00_numped = ?',
+        'UPDATE pckvendig000 SET ped00_sttdig = 1, ped00_sttenv = 0, ped00_pacstr = "" WHERE ped00_numped = ?',
         [pedidoId],
       );
     } catch (_) {}
 
     print('[concluirVendaProcess] TRANSACAO CONFIRMADA pckvendig000/pckvendig010 pedido #$pedidoId '
-        '(sttDig=${PedidoSttDig.digitado.value}, itens=${itensNoBanco.length}, cobrador=$codAgt)');
+        '(sttDig=${PedidoSttDig.digitado.value}, sttEnv=${PedidoSttEnv.digitado.value}, itens=${itensNoBanco.length}, cobrador=$codAgt)');
 
-    // 7. Gera e salva o arquivo XML localmente (temp/ + documents/) + marca sttenv=1 + pacstr
-    print('[concluirVendaProcess] INICIO GERACAO PAC pedido #$pedidoId');
+    // 7. Persiste totais no cabeçalho SQLite e atualiza estatísticas locais (sem gerar .pac)
     final concluirService = ConcluirVendaService();
-    final fileName = await concluirService.gerarESalvarPedidoLocal(
+    await concluirService.salvarPedidoConcluidoLocal(
       pedido: pedido,
       empresa: empresa,
       codigoEquipe: codEqp,
     );
-    print('[concluirVendaProcess] CONFIRMA PAC pedido #$pedidoId file=$fileName sttenv=1 (empacotado)');
-    print('DEBUG SUCESSO: Pedido $pedidoId concluído com ${itensNoBanco.length} itens e cobrador $codAgt');
-    print('[concluirVendaProcess] OK: arquivo gerado → $fileName. Pedido #$pedidoId pronto para envio FTP.');
+    print('DEBUG SUCESSO: Pedido $pedidoId concluído com ${itensNoBanco.length} itens e cobrador $codAgt (Aguardando Pacote)');
     return true;
   } catch (e, stack) {
     print('>>> ERRO REAL NO CONCLUIR_VENDA_PROCESS: $e \n $stack');

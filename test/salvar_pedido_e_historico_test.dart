@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:forca_de_vendas/action_code/concluir_venda_process.dart';
 import 'package:forca_de_vendas/action_code/carregar_pedido_resumo.dart';
 import 'package:forca_de_vendas/action_code/listar_pedidos_pendentes.dart';
+import 'package:forca_de_vendas/action_code/gerar_pacote.dart';
 import 'package:forca_de_vendas/backend/schema/structs/item_pedido_struct.dart';
 import 'package:forca_de_vendas/app_state.dart';
 
@@ -18,12 +20,22 @@ void main() {
   });
 
   late String dbPath;
+  late Directory tempDir;
   File? backupFile;
   bool hadOriginalDb = false;
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     await AppState().initializePersistedState();
+
+    tempDir = await Directory.systemTemp.createTemp('test_hist_temp_');
+    const MethodChannel channel = MethodChannel('plugins.flutter.io/path_provider');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      channel,
+      (MethodCall methodCall) async {
+        return tempDir.path;
+      },
+    );
 
     final databasesPath = await getDatabasesPath();
     dbPath = p.join(databasesPath, 'dbforcacad001.db');
@@ -117,6 +129,9 @@ void main() {
     try {
       await databaseFactory.deleteDatabase(dbPath);
     } catch (_) {}
+    if (tempDir.existsSync()) {
+      try { tempDir.deleteSync(recursive: true); } catch (_) {}
+    }
     if (hadOriginalDb && backupFile != null && await backupFile!.exists()) {
       try {
         await backupFile!.copy(dbPath);
@@ -156,16 +171,16 @@ void main() {
 
     expect(success, isTrue, reason: 'concluirVendaProcess deve retornar true');
 
-    // 2. Verifica a persistencia direta no SQLite
+    // 2. Verifica a persistencia direta no SQLite: sttdig=1, sttenv=0 (Aguardando Pacote), pacstr=""
     final db = await openDatabase(dbPath, readOnly: true);
     final headerRows = await db.rawQuery('SELECT * FROM pckvendig000 WHERE ped00_numped = ?', [testPedId]);
     expect(headerRows.isNotEmpty, isTrue, reason: 'Cabecalho do pedido deve existir no SQLite');
 
     final h = headerRows.first;
     expect(h['ped00_sttdig'], equals(1), reason: 'sttdig deve ser 1 (Digitado)');
-    expect(h['ped00_sttenv'], equals(1), reason: 'sttenv deve ser 1 (Empacotado/Gerado PAC)');
+    expect(h['ped00_sttenv'], equals(0), reason: 'sttenv deve ser 0 (Aguardando Pacote)');
     expect(h['ped00_codagt'], equals(10), reason: 'codagt deve ser 10 (Agente selecionado)');
-    expect(h['ped00_pacstr'], equals('p71-8801.pac'), reason: 'pacstr deve ser preenchido com nome do .pac');
+    expect(h['ped00_pacstr'] == null || h['ped00_pacstr'] == '', isTrue, reason: 'pacstr deve estar vazio ao concluir venda');
     expect(h['ped00_digtot'], equals(125.0));
 
     final itemRows = await db.rawQuery('SELECT * FROM pckvendig010 WHERE ped10_numped = ?', [testPedId]);
@@ -185,7 +200,7 @@ void main() {
     expect(resumo.valorSubstituicao, equals(9.0));
     expect(resumo.totalFatura, equals(116.0));
 
-    // 4. Verifica listagem no Historico de Pedidos / Extrato (PedidosRascunhosPageWidget / listarPedidosHistorico)
+    // 4. Verifica listagem no Historico de Pedidos (Aguardando Pacote / podeEmpacotar = true)
     final listaHistorico = await listarPedidosHistorico(
       filtroTexto: '',
       filtroStatus: 'todos',
@@ -196,19 +211,93 @@ void main() {
     final itemHistorico = listaHistorico.firstWhere((p) => p.pedidoId == testPedId);
     expect(itemHistorico.pedidoId, equals(testPedId));
     expect(itemHistorico.clienteNome, contains('MERCADO CENTRAL'));
+    expect(itemHistorico.clienteCnpj, equals('12345678000199'));
     expect(itemHistorico.agenteDescricao, contains('BANCO DO BRASIL'));
     expect(itemHistorico.valorProdutos, equals(125.0));
     expect(itemHistorico.valorSubstituicao, equals(9.0));
     expect(itemHistorico.totalFatura, equals(116.0));
-    expect(itemHistorico.sttEnv, equals(1), reason: 'Status deve ser 1 (Empacotado)');
+    expect(itemHistorico.sttEnv, equals(0), reason: 'Status deve ser 0 (Aguardando Pacote)');
     expect(itemHistorico.sttDig, equals(1), reason: 'Status digitacao deve ser 1 (Digitado)');
+    expect(itemHistorico.podeEmpacotar, isTrue, reason: 'Pedido deve estar elegível para empacotar');
 
-    // 5. Verifica se aparece no filtro especifico de 'empacotado'
-    final listaEmpacotados = await listarPedidosHistorico(
+    // 5. Verifica se aparece no filtro especifico de 'pronto' / 'pendente'
+    final listaProntos = await listarPedidosHistorico(
       filtroTexto: '',
-      filtroStatus: 'empacotado',
+      filtroStatus: 'pronto',
       filtroPeriodo: 'todos',
     );
-    expect(listaEmpacotados.any((p) => p.pedidoId == testPedId), isTrue, reason: 'Deve constar no filtro empacotado');
+    expect(listaProntos.any((p) => p.pedidoId == testPedId), isTrue, reason: 'Deve constar no filtro pronto/aguardando pacote');
+
+    // 6. Gera o pacote com o pedido e valida transição de status para Empacotado (sttenv=1)
+    final nomePacote = await gerarPacote(pedidosIds: [testPedId], codRep: 71);
+    expect(nomePacote, contains('.pac'));
+
+    final listaAposPacote = await listarPedidosHistorico(filtroStatus: 'empacotado');
+    expect(listaAposPacote.any((p) => p.pedidoId == testPedId), isTrue);
+    final itemEmpacotado = listaAposPacote.firstWhere((p) => p.pedidoId == testPedId);
+    expect(itemEmpacotado.sttEnv, equals(1));
+    expect(itemEmpacotado.podeEmpacotar, isFalse, reason: 'Pedido empacotado não pode mais ser empacotado');
+
+    // 7. Valida que tentar empacotar novamente o mesmo pedido lança exceção
+    expect(
+      () => gerarPacote(pedidosIds: [testPedId], codRep: 71),
+      throwsException,
+      reason: 'Pedido já empacotado não pode ser re-empacotado',
+    );
+
+    // 8. Fluxo de Clonagem: Clona o pedido #8801
+    final info = await clonarPedidoLocal(testPedId);
+    expect(info, isNotNull);
+    expect(info!.novoPedidoId, isNot(equals(testPedId)));
+    expect(info.clienteCodigo, equals(1542));
+    expect(info.clienteNome, contains('MERCADO CENTRAL'));
+    expect(info.clienteCnpj, equals('12345678000199'));
+
+    final int novoPedId = info.novoPedidoId;
+
+    // Valida que o pedido clonado está em aberto (sttdig=0, sttenv=0) no SQLite
+    final verifyDb = await openDatabase(dbPath, readOnly: true);
+    final cabClonado = await verifyDb.rawQuery('SELECT * FROM pckvendig000 WHERE ped00_numped = ?', [novoPedId]);
+    expect(cabClonado.isNotEmpty, isTrue);
+    expect(cabClonado.first['ped00_sttdig'], equals(0), reason: 'Pedido clonado deve estar em aberto (sttdig=0)');
+    expect(cabClonado.first['ped00_sttenv'], equals(0), reason: 'Pedido clonado deve estar sttenv=0');
+    expect(cabClonado.first['ped00_pacstr'] == null || cabClonado.first['ped00_pacstr'] == '', isTrue);
+
+    // Valida que os itens do pedido original foram copiados para o pedido clonado
+    final itensClonados = await verifyDb.rawQuery('SELECT * FROM pckvendig010 WHERE ped10_numped = ?', [novoPedId]);
+    expect(itensClonados.length, equals(1), reason: 'Itens devem estar presentes no pedido clonado');
+    expect(itensClonados.first['ped10_codprd'], equals('78945'));
+    expect(itensClonados.first['ped10_qtdped'], equals(5.0));
+    await verifyDb.close();
+
+    // 9. Conclui o pedido clonado e valida que os itens e totais são preservados
+    final List<ItemPedidoStruct> itensParaConcluir = itensClonados.map((r) => ItemPedidoStruct(
+      codigoProduto: r['ped10_codprd'].toString(),
+      descricao: 'ARROZ TIPO 1 5KG',
+      unidade: 'UN',
+      quantidade: (r['ped10_qtdped'] as num).toDouble(),
+      precoUnitario: (r['ped10_pcosub'] as num).toDouble(),
+      totalItem: (r['ped10_qtdped'] as num).toDouble() * (r['ped10_pcosub'] as num).toDouble(),
+    )).toList();
+
+    final concluiuClonado = await concluirVendaProcess(
+      pedidoId: novoPedId,
+      clienteCodigo: info.clienteCodigo,
+      linhaCodigo: info.linhaCodigo,
+      planoCodigo: info.planoCodigo,
+      carrinhoItens: itensParaConcluir,
+      codAgenteCobrador: 10,
+    );
+    expect(concluiuClonado, isTrue);
+
+    // Valida que o pedido clonado agora está concluído com itens salvos
+    final dbFinal = await openDatabase(dbPath, readOnly: true);
+    final cabFinal = await dbFinal.rawQuery('SELECT * FROM pckvendig000 WHERE ped00_numped = ?', [novoPedId]);
+    expect(cabFinal.first['ped00_sttdig'], equals(1));
+    expect(cabFinal.first['ped00_sttenv'], equals(0));
+
+    final itensFinal = await dbFinal.rawQuery('SELECT * FROM pckvendig010 WHERE ped10_numped = ?', [novoPedId]);
+    expect(itensFinal.length, equals(1), reason: 'Itens devem permanecer no pedido clonado concluído');
+    await dbFinal.close();
   });
 }

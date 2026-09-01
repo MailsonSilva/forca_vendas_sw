@@ -67,6 +67,216 @@ class ConcluirVendaService {
   final Future<Directory> Function() _getDocumentsDirFn;
   final CargaRegistryService _registry;
 
+  /// Salva e conclui o pedido **apenas localmente no SQLite**, sem gerar pacote (.pac).
+  ///
+  /// O pedido fica gravado com:
+  ///   - `ped00_sttdig = 1` (Digitado / Concluído)
+  ///   - `ped00_sttenv = 0` (Não empacotado / Aguardando inclusão em pacote)
+  ///   - `ped00_pacstr = ''` (Sem vínculo de pacote)
+  Future<int> salvarPedidoConcluidoLocal({
+    required PedidoVenda pedido,
+    required String empresa,
+    required int codigoEquipe,
+  }) async {
+    if (pedido.items.isEmpty) {
+      throw Exception("Não é possível concluir um pedido sem itens.");
+    }
+
+    // 1. Recalcula totais
+    pedido.calcularTotais();
+
+    // 2. Persiste totais no cabeçalho SQLite (pckvendig000) com sttdig=1 e sttenv=0
+    final db = await LocalSalesDatabaseService.getDatabase();
+    try {
+      await db.execute('''
+          CREATE TABLE IF NOT EXISTS pckvendig000 (
+            ped00_numped INTEGER PRIMARY KEY,
+            ped00_codcli INTEGER,
+            ped00_codlin INTEGER,
+            ped00_codpla INTEGER,
+            ped00_codfil INTEGER,
+            ped00_codrep INTEGER,
+            ped00_codagt INTEGER,
+            ped00_digtab INTEGER,
+            ped00_digcob INTEGER,
+            ped00_bonfrcven INTEGER DEFAULT 0,
+            ped00_sttdig INTEGER DEFAULT 0,
+            ped00_sttenv INTEGER DEFAULT 0,
+            ped00_datsys TEXT,
+            ped00_clides TEXT,
+            ped00_lindes TEXT,
+            ped00_plades TEXT,
+            ped00_digtot REAL DEFAULT 0,
+            ped00_fattot REAL DEFAULT 0,
+            ped00_subtot REAL DEFAULT 0,
+            ped00_bontot REAL DEFAULT 0,
+            ped00_destot REAL DEFAULT 0,
+            ped00_pacstr TEXT
+          )
+        ''');
+      await db.execute('''
+          CREATE TABLE IF NOT EXISTS pckvendig010 (
+            ped10_numped INTEGER,
+            ped10_seq INTEGER DEFAULT 1,
+            ped10_codprd TEXT,
+            ped10_descri TEXT,
+            ped10_unidpri TEXT,
+            ped10_qtdped REAL DEFAULT 0,
+            ped10_pcosub REAL DEFAULT 0,
+            ped10_totprd REAL DEFAULT 0,
+            ped10_qtdbon REAL DEFAULT 0,
+            ped10_sttbon INTEGER DEFAULT 0,
+            ped10_codcmb TEXT
+          )
+        ''');
+      try { await db.execute('CREATE VIEW IF NOT EXISTS dig00 AS SELECT * FROM pckvendig000'); } catch (_) {}
+      try { await db.execute('CREATE VIEW IF NOT EXISTS dig01 AS SELECT * FROM pckvendig010'); } catch (_) {}
+
+      await db.execute('''
+          CREATE TABLE IF NOT EXISTS ESTFATCVD00 (
+            fat00_codfil INTEGER,
+            fat00_codmov INTEGER PRIMARY KEY,
+            fat00_codrep INTEGER,
+            fat00_codcli INTEGER,
+            fat00_valtot REAL,
+            fat00_datfat TEXT,
+            fat00_subtot REAL,
+            fat00_destot REAL
+          )
+        ''');
+      await db.execute('''
+          CREATE TABLE IF NOT EXISTS FINCAICVD00 (
+            cai00_codfil INTEGER,
+            cai00_codmov INTEGER PRIMARY KEY,
+            cai00_codcli INTEGER,
+            cai00_valtot REAL,
+            cai00_datmov TEXT,
+            cai00_codpla INTEGER
+          )
+        ''');
+      await db.execute('''
+          CREATE TABLE IF NOT EXISTS ESTPRO00 (
+            pro00_codfil INTEGER,
+            pro00_codpro TEXT,
+            pro00_qtdest REAL DEFAULT 0,
+            pro00_qtdpen REAL DEFAULT 0,
+            PRIMARY KEY (pro00_codfil, pro00_codpro)
+          )
+        ''');
+
+      for (final e in {
+        'ped00_numped': 'INTEGER',
+        'ped00_codcli': 'INTEGER',
+        'ped00_codlin': 'INTEGER',
+        'ped00_codpla': 'INTEGER',
+        'ped00_codfil': 'INTEGER',
+        'ped00_codrep': 'INTEGER',
+        'ped00_codagt': 'INTEGER',
+        'ped00_digagt': 'INTEGER',
+        'ped00_digcob': 'INTEGER',
+        'ped00_digtab': 'INTEGER',
+        'ped00_bonfrcven': 'INTEGER',
+        'ped00_sttdig': 'INTEGER',
+        'ped00_sttenv': 'INTEGER',
+        'ped00_datsys': 'TEXT',
+        'ped00_datemi': 'TEXT',
+        'ped00_clides': 'TEXT',
+        'ped00_lindes': 'TEXT',
+        'ped00_plades': 'TEXT',
+        'ped00_digtot': 'REAL',
+        'ped00_fattot': 'REAL',
+        'ped00_subtot': 'REAL',
+        'ped00_bontot': 'REAL',
+        'ped00_destot': 'REAL',
+        'ped00_pacstr': 'TEXT',
+      }.entries) {
+        try { await db.execute('ALTER TABLE pckvendig000 ADD COLUMN ${e.key} ${e.value}'); } catch (_) {}
+      }
+
+      final List<Map<String, dynamic>> columns =
+          await db.rawQuery('PRAGMA table_info(pckvendig000)');
+      final colNames =
+          columns.map((r) => r['name']?.toString().toLowerCase()).toSet();
+
+      final List<String> updateParts = [];
+      final List<dynamic> binds = [];
+
+      void addUpdate(String col, dynamic val) {
+        if (colNames.contains(col.toLowerCase())) {
+          updateParts.add('$col = ?');
+          binds.add(val);
+        }
+      }
+
+      addUpdate('ped00_bontot', pedido.bontot);
+      addUpdate('ped00_destot', pedido.destot);
+      addUpdate('ped00_subtot', pedido.subtot);
+      addUpdate('ped00_digtot', pedido.digtot);
+      addUpdate('ped00_fattot', pedido.fattot);
+      addUpdate('ped00_datsys', pedido.datSys);
+      if (pedido.clides.isNotEmpty) addUpdate('ped00_clides', pedido.clides);
+      if (pedido.lindes.isNotEmpty) addUpdate('ped00_lindes', pedido.lindes);
+      if (pedido.plades.isNotEmpty) addUpdate('ped00_plades', pedido.plades);
+      if (pedido.codTab != 0) addUpdate('ped00_digtab', pedido.codTab);
+      addUpdate('ped00_bonfrcven', pedido.bonfrcven);
+      addUpdate('ped00_sttdig', 1); // 1 = Digitado/Concluído
+      addUpdate('ped00_status', 1);
+      addUpdate('ped00_sttenv', 0); // 0 = Aguardando Pacote
+      addUpdate('ped00_pacstr', '');
+      addUpdate('ped00_pacote', '');
+      addUpdate('ped00_codfil', pedido.codFil);
+      addUpdate('ped00_codrep', pedido.codRep);
+      addUpdate('ped00_digcob', pedido.tipoAgente);
+      addUpdate('ped00_codagt', pedido.codAgt);
+      addUpdate('ped00_agtcod', pedido.codAgt);
+      addUpdate('ped00_codage', pedido.codAgt);
+      addUpdate('ped00_digagt', pedido.codAgt);
+
+      if (updateParts.isNotEmpty) {
+        String colNum = 'ped00_numped';
+        for (final c in ['ped00_numped', 'numped', 'ped00_codmov', 'codmov', 'ped00_pedcod', 'pedcod', 'id']) {
+          if (colNames.contains(c.toLowerCase())) {
+            colNum = c;
+            break;
+          }
+        }
+        await db.transaction((txn) async {
+          final existing = await txn.rawQuery('SELECT $colNum FROM pckvendig000 WHERE $colNum = ? LIMIT 1', [pedido.codMov]);
+          if (existing.isEmpty) {
+            final insertCols = <String>[colNum];
+            final insertVals = <dynamic>[pedido.codMov];
+            for (int i = 0; i < updateParts.length; i++) {
+              final col = updateParts[i].split('=')[0].trim();
+              if (col.toLowerCase() != colNum.toLowerCase() && !insertCols.any((c) => c.toLowerCase() == col.toLowerCase())) {
+                insertCols.add(col);
+                insertVals.add(binds[i]);
+              }
+            }
+            final placeholders = List.filled(insertCols.length, '?').join(', ');
+            await txn.rawInsert('INSERT OR REPLACE INTO pckvendig000 (${insertCols.join(', ')}) VALUES ($placeholders)', insertVals);
+          } else {
+            final query = 'UPDATE pckvendig000 SET ${updateParts.join(', ')} WHERE $colNum = ?';
+            final bindsWithId = [...binds, pedido.codMov];
+            await txn.rawUpdate(query, bindsWithId);
+          }
+        });
+        print('[ConcluirVendaService] Pedido #${pedido.codMov} salvo localmente no SQLite: sttdig=1, sttenv=0 (Aguardando Pacote).');
+      }
+    } catch (e, stack) {
+      print('>>> ERRO REAL NO salvarPedidoConcluidoLocal: $e \n $stack');
+      throw Exception('Falha ao persistir pedido no SQLite: $e');
+    }
+
+    try {
+      await pedido.doUpdateStatistics();
+      print('[ConcluirVendaService] ESTATISTICAS OK pedido #${pedido.codMov}');
+    } catch (e, stack) {
+      print('>>> AVISO: Falha ao atualizar estatísticas locais: $e \n $stack');
+    }
+
+    return pedido.codMov;
+  }
+
   /// Gera e salva o pedido **localmente** (SQLite + arquivo XML em temp/).
   ///
   /// NÃO realiza upload FTP. O arquivo fica em `getTemporaryDirectory()`

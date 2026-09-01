@@ -40,30 +40,16 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
   String _dbText = '';
   Timer? _pollTimer;
 
-  // ── Collapse/Expand state ─────────────────────────────────────────────────
-  // Por padrão: colapsado = exibe apenas "Pedidos em Espera"
-  bool _detalhesExpandidos = false;
-
   @override
   void setState(VoidCallback callback) {
     super.setState(callback);
     _model.onUpdate();
   }
 
-  Future<void> _carregarPendentes() async {
-    final itens = await actions.listarArquivosPendentes('*');
-    safeSetState(() {
-      _model.arquivos = itens;
-    });
-  }
-
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => AtualizarCargaModel());
-    // Inicializa filtro em 'espera' para mostrar apenas pedidos aguardando envio
-    _model.filtroStatus = 'espera';
-    unawaited(_carregarPendentes());
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final status = await BackgroundSyncService.instance.pollDbSyncStatus();
@@ -89,8 +75,6 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
       await _refreshStatus();
       if (_dbStatus == 'complete' || _dbStatus == 'error') {
         _pollTimer?.cancel();
-        // Reload pending files list after sync completes
-        await _carregarPendentes();
         if (appNavigatorKey.currentContext != null) {
           ScaffoldMessenger.of(appNavigatorKey.currentContext!).showSnackBar(
             SnackBar(
@@ -154,8 +138,6 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
         );
       }
 
-      await _carregarPendentes();
-
       await Future.delayed(const Duration(seconds: 2));
       if (mounted) {
         safeSetState(() {
@@ -178,6 +160,8 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
     context.watch<AppState>();
 
     final bool isBusy = _dbStatus == 'baixando';
+    final String empresa = AppState().empresa_codigo.trim().isEmpty ? 'DINIZ' : AppState().empresa_codigo.trim();
+    final int vendedor = AppState().vendedor_codigo > 0 ? AppState().vendedor_codigo : 1;
 
     return Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
@@ -202,7 +186,7 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
               padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0.0),
               child: Row(
                 children: [
-                  widget.icon!,
+                  widget.icon ?? const Icon(Icons.storage_rounded, color: Color(0xFF3572F7)),
                   const SizedBox(width: 8.0),
                   Expanded(
                     child: Text(
@@ -247,7 +231,7 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
                 child: Text(
                   valueOrDefault<String>(
                     widget.descricao,
-                    'Sincronização de dados com o servidor.',
+                    'Atualização da base de dados e tabelas comerciais com o servidor.',
                   ),
                   maxLines: 2,
                   style: AppTheme.of(context).bodyMedium.override(
@@ -264,8 +248,53 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
               ),
             ),
 
+            // ── Info Card (Empresa & Representante) ───────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 0.0),
+              child: Container(
+                padding: const EdgeInsets.all(12.0),
+                decoration: BoxDecoration(
+                  color: AppTheme.of(context).primaryBackground,
+                  borderRadius: BorderRadius.circular(8.0),
+                  border: Border.all(color: AppTheme.of(context).alternate),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Column(
+                      children: [
+                        Text(
+                          'Empresa',
+                          style: TextStyle(fontSize: 11.0, color: Colors.grey[600]),
+                        ),
+                        const SizedBox(height: 2.0),
+                        Text(
+                          empresa,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.0),
+                        ),
+                      ],
+                    ),
+                    Container(height: 24.0, width: 1.0, color: AppTheme.of(context).alternate),
+                    Column(
+                      children: [
+                        Text(
+                          'Vendedor / Rep',
+                          style: TextStyle(fontSize: 11.0, color: Colors.grey[600]),
+                        ),
+                        const SizedBox(height: 2.0),
+                        Text(
+                          '#$vendedor',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.0),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
             // ── Progress bar ─────────────────────────────────────────────────
-            if (isBusy)
+            if (isBusy || _dbStatus == 'complete' || _dbStatus == 'error')
               Padding(
                 padding:
                     const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 0.0),
@@ -274,7 +303,7 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
                   lineHeight: 20.0,
                   animation: true,
                   animateFromLastPercent: true,
-                  progressColor: AppTheme.of(context).primary,
+                  progressColor: _dbStatus == 'error' ? Colors.red : AppTheme.of(context).primary,
                   backgroundColor: AppTheme.of(context).accent4,
                   center: Text(
                     _dbText,
@@ -297,176 +326,9 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
                 ),
               ),
 
-            // ── Collapse/Expand toggle ───────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 0.0),
-              child: InkWell(
-                onTap: () {
-                  safeSetState(() {
-                    _detalhesExpandidos = !_detalhesExpandidos;
-                    // Ao colapsar volta para 'espera'; ao expandir vai para 'Todos'
-                    if (!_detalhesExpandidos) {
-                      _model.filtroStatus = 'espera';
-                    } else {
-                      _model.filtroStatus = '*';
-                    }
-                  });
-                },
-                borderRadius: BorderRadius.circular(8.0),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                  decoration: BoxDecoration(
-                    color: AppTheme.of(context).accent1,
-                    borderRadius: BorderRadius.circular(8.0),
-                    border: Border.all(
-                      color: AppTheme.of(context).alternate,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            _detalhesExpandidos
-                                ? Icons.inbox_outlined
-                                : Icons.hourglass_top_rounded,
-                            size: 16.0,
-                            color: AppTheme.of(context).primary,
-                          ),
-                          const SizedBox(width: 6.0),
-                          Text(
-                            _detalhesExpandidos
-                                ? 'Todos os arquivos'
-                                : 'Pedidos em Espera',
-                            style: AppTheme.of(context).bodySmall.override(
-                                  font: GoogleFonts.inter(
-                                    fontWeight: FontWeight.w600,
-                                    fontStyle: AppTheme.of(context).bodySmall.fontStyle,
-                                  ),
-                                  color: AppTheme.of(context).primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          Text(
-                            _detalhesExpandidos ? 'Ocultar' : 'Ver detalhes',
-                            style: AppTheme.of(context).bodySmall.override(
-                                  font: GoogleFonts.inter(
-                                    fontStyle: AppTheme.of(context).bodySmall.fontStyle,
-                                  ),
-                                  color: AppTheme.of(context).secondaryText,
-                                ),
-                          ),
-                          const SizedBox(width: 4.0),
-                          AnimatedRotation(
-                            turns: _detalhesExpandidos ? 0.5 : 0.0,
-                            duration: const Duration(milliseconds: 200),
-                            child: Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 18.0,
-                              color: AppTheme.of(context).secondaryText,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // ── Filter chips (visíveis apenas quando expandido) ───────────────
-            if (_detalhesExpandidos)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 0.0),
-                child: Wrap(
-                  spacing: 6.0,
-                  runSpacing: 6.0,
-                  children: [
-                    _FiltroStatusChip(
-                      label: 'Todos',
-                      selected: _model.filtroStatus == '*',
-                      onSelected: () =>
-                          safeSetState(() => _model.filtroStatus = '*'),
-                    ),
-                    _FiltroStatusChip(
-                      label: 'Em espera',
-                      selected: _model.filtroStatus == 'espera',
-                      onSelected: () =>
-                          safeSetState(() => _model.filtroStatus = 'espera'),
-                    ),
-                    _FiltroStatusChip(
-                      label: 'Enviados',
-                      selected: _model.filtroStatus == 'enviados',
-                      onSelected: () =>
-                          safeSetState(() => _model.filtroStatus = 'enviados'),
-                    ),
-                    _FiltroStatusChip(
-                      label: 'Erro',
-                      selected: _model.filtroStatus == 'erro',
-                      onSelected: () =>
-                          safeSetState(() => _model.filtroStatus = 'erro'),
-                    ),
-                  ],
-                ),
-              ),
-
-            // ── File list ────────────────────────────────────────────────────
-            ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 60.0, maxHeight: 220.0),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 0.0),
-                child: _arquivosFiltrados.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Text(
-                            _detalhesExpandidos
-                                ? 'Nenhum arquivo para este status.'
-                                : 'Nenhum arquivo aguardando envio.',
-                            textAlign: TextAlign.center,
-                            style: AppTheme.of(context).bodyMedium.override(
-                                  font: GoogleFonts.inter(
-                                    fontWeight: AppTheme.of(context)
-                                        .bodyMedium
-                                        .fontWeight,
-                                    fontStyle: AppTheme.of(context)
-                                        .bodyMedium
-                                        .fontStyle,
-                                  ),
-                                  color: AppTheme.of(context).secondaryText,
-                                ),
-                          ),
-                        ),
-                      )
-                    : ListView.separated(
-                        padding: EdgeInsets.zero,
-                        shrinkWrap: true,
-                        itemCount: _arquivosFiltrados.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 6.0),
-                        itemBuilder: (context, i) {
-                          final item = _arquivosFiltrados[i];
-                          final enviando = isBusy &&
-                              !item.sucesso &&
-                              item.mensagem != 'Aguardando envio.' &&
-                              item.mensagem != 'Enviado com sucesso.';
-                          return _LinhaArquivo(
-                            item: item,
-                            enviando: enviando,
-                          );
-                        },
-                      ),
-              ),
-            ),
-
             // ── Footer: Action Button (Apenas Baixar Carga) ──────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 16.0),
+              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 16.0),
               child: SizedBox(
                 width: double.infinity,
                 height: 48.0,
@@ -480,10 +342,16 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
                     elevation: 0,
                   ),
                   onPressed: isBusy ? null : _startDownload,
-                  icon: const Icon(Icons.cloud_download_outlined, size: 20.0),
-                  label: const Text(
-                    'Baixar Carga',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15.0),
+                  icon: isBusy
+                      ? const SizedBox(
+                          width: 18.0,
+                          height: 18.0,
+                          child: CircularProgressIndicator(strokeWidth: 2.0, color: Colors.white),
+                        )
+                      : const Icon(Icons.cloud_download_outlined, size: 20.0),
+                  label: Text(
+                    isBusy ? 'Baixando Carga...' : 'Baixar Carga',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15.0),
                   ),
                 ),
               ),
@@ -493,161 +361,5 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
       ),
     );
   }
-
-  List<ItemUploadStruct> get _arquivosEmEspera => _model.arquivos
-      .where((item) => !item.sucesso && !item.mensagem.startsWith('Falha'))
-      .toList();
-
-  List<ItemUploadStruct> get _arquivosFiltrados {
-    switch (_model.filtroStatus) {
-      case 'espera':
-        return _arquivosEmEspera;
-      case 'enviados':
-        return _model.arquivos.where((item) => item.sucesso).toList();
-      case 'erro':
-        return _model.arquivos
-            .where((item) => item.mensagem.startsWith('Falha'))
-            .toList();
-      default:
-        return _model.arquivos;
-    }
-  }
 }
 
-class _FiltroStatusChip extends StatelessWidget {
-  const _FiltroStatusChip({
-    required this.label,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onSelected(),
-      selectedColor: AppTheme.of(context).primary,
-      backgroundColor: AppTheme.of(context).accent1,
-      labelStyle: AppTheme.of(context).bodySmall.override(
-            font: GoogleFonts.inter(
-              fontWeight: FontWeight.w600,
-              fontStyle: AppTheme.of(context).bodySmall.fontStyle,
-            ),
-            color: selected ? Colors.white : AppTheme.of(context).primaryText,
-            letterSpacing: 0.0,
-            fontWeight: FontWeight.w600,
-            fontStyle: AppTheme.of(context).bodySmall.fontStyle,
-          ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8.0),
-      ),
-    );
-  }
-}
-
-class _LinhaArquivo extends StatelessWidget {
-  const _LinhaArquivo({required this.item, required this.enviando});
-
-  final ItemUploadStruct item;
-  final bool enviando;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget leading;
-    Color stateColor;
-
-    if (item.sucesso) {
-      leading = const Icon(Icons.check_circle_rounded, size: 22.0);
-      stateColor = const Color(0xFF2E7D32);
-    } else if (enviando) {
-      leading = const SizedBox(
-        width: 18.0,
-        height: 18.0,
-        child: CircularProgressIndicator(strokeWidth: 2.5),
-      );
-      stateColor = AppTheme.of(context).primary;
-    } else if (item.mensagem.startsWith('Falha')) {
-      leading = const Icon(Icons.error_outline_rounded, size: 22.0);
-      stateColor = const Color(0xFFC62828);
-    } else {
-      leading = const Icon(Icons.hourglass_empty_rounded, size: 22.0);
-      stateColor = AppTheme.of(context).secondaryText;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
-      decoration: BoxDecoration(
-        color: AppTheme.of(context).accent1,
-        borderRadius: BorderRadius.circular(6.0),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.max,
-        children: [
-          ColorFiltered(
-            colorFilter: ColorFilter.mode(stateColor, BlendMode.srcIn),
-            child: leading,
-          ),
-          const SizedBox(width: 8.0),
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.nome,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTheme.of(context).bodyMedium.override(
-                        font: GoogleFonts.inter(
-                          fontWeight: FontWeight.w600,
-                          fontStyle:
-                              AppTheme.of(context).bodyMedium.fontStyle,
-                        ),
-                        fontSize: 13.0,
-                        letterSpacing: 0.0,
-                        fontWeight: FontWeight.w600,
-                        fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
-                      ),
-                ),
-                Text(
-                  item.mensagem,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTheme.of(context).bodySmall.override(
-                        font: GoogleFonts.inter(
-                          fontWeight:
-                              AppTheme.of(context).bodySmall.fontWeight,
-                          fontStyle:
-                              AppTheme.of(context).bodySmall.fontStyle,
-                        ),
-                        color: stateColor,
-                        fontSize: 11.0,
-                        letterSpacing: 0.0,
-                      ),
-                ),
-              ],
-            ),
-          ),
-          if (item.bytesEnviados > 0)
-            Text(
-              '${(item.bytesEnviados / 1024).toStringAsFixed(1)} KB',
-              style: AppTheme.of(context).bodySmall.override(
-                    font: GoogleFonts.inter(
-                      fontWeight: AppTheme.of(context).bodySmall.fontWeight,
-                      fontStyle: AppTheme.of(context).bodySmall.fontStyle,
-                    ),
-                    color: AppTheme.of(context).secondaryText,
-                    fontSize: 11.0,
-                    letterSpacing: 0.0,
-                  ),
-            ),
-        ],
-      ),
-    );
-  }
-}

@@ -1,4 +1,3 @@
-import 'dart:io';
 import '/action_code/index.dart';
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
@@ -6,10 +5,9 @@ import '/functions/proximo_numero_pedido.dart';
 import '/index.dart';
 import '/domain/services/bloqueio_financeiro_service.dart';
 import '/backend/schema/structs/index.dart';
+import '/data/services/local_sales_database_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:path/path.dart' as p;
-import 'package:sqflite/sqflite.dart';
 import 'pedido_novo_inicio_model.dart';
 export 'pedido_novo_inicio_model.dart';
 
@@ -85,36 +83,29 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
     String? desc;
     final codStr = cod.toString();
     try {
-      final dbPath = p.join(await getDatabasesPath(), 'dbforcacad001.db');
-      if (await File(dbPath).exists()) {
-        final db = await openDatabase(dbPath, readOnly: true);
+      final db = await LocalSalesDatabaseService.getDatabase();
+      for (final tbl in ['codage00', 'cadagt00', 'cadage00', 'cadcob00', 'codcob00', 'cadcob000', 'cadage000', 'cadagt000']) {
         try {
-          for (final tbl in ['codage00', 'cadagt00', 'cadage00', 'cadcob00', 'codcob00', 'cadcob000', 'cadage000', 'cadagt000']) {
-            try {
-              final exists = await db.rawQuery(
-                  "SELECT name FROM sqlite_master WHERE type='table' AND lower(name)=?", [tbl]);
-              if (exists.isEmpty) continue;
-              final cols = await db.rawQuery('PRAGMA table_info($tbl)');
-              final cn = cols.map((r) => r['name'].toString().toLowerCase()).toSet();
-              String? codCol;
-              String? descCol;
-              for (final cand in ['age00_codigo', 'agt00_codigo', 'agt00_codage', 'agt00_codagt', 'cob00_codigo', 'cob00_codcob', 'cad00_codigo', 'codigo']) {
-                if (cn.contains(cand)) { codCol = cand; break; }
-              }
-              for (final cand in ['age00_descri', 'agt00_descri', 'agt00_descricao', 'agt00_nome', 'age00_descricao', 'age00_nome', 'cob00_descri', 'cob00_descricao', 'cob00_nome', 'descricao', 'descri', 'nome']) {
-                if (cn.contains(cand)) { descCol = cand; break; }
-              }
-              if (codCol == null || descCol == null) continue;
-              final r = await db.rawQuery('SELECT $descCol as d FROM $tbl WHERE $codCol = ? LIMIT 1', [cod]);
-              if (r.isNotEmpty && r.first['d'] != null) {
-                desc = r.first['d'].toString();
-                break;
-              }
-            } catch (_) {}
+          final exists = await db.rawQuery(
+              "SELECT name FROM sqlite_master WHERE type='table' AND lower(name)=?", [tbl]);
+          if (exists.isEmpty) continue;
+          final cols = await db.rawQuery('PRAGMA table_info($tbl)');
+          final cn = cols.map((r) => r['name'].toString().toLowerCase()).toSet();
+          String? codCol;
+          String? descCol;
+          for (final cand in ['age00_codigo', 'agt00_codigo', 'agt00_codage', 'agt00_codagt', 'cob00_codigo', 'cob00_codcob', 'cad00_codigo', 'codigo']) {
+            if (cn.contains(cand)) { codCol = cand; break; }
           }
-        } finally {
-          await db.close();
-        }
+          for (final cand in ['age00_descri', 'agt00_descri', 'agt00_descricao', 'agt00_nome', 'age00_descricao', 'age00_nome', 'cob00_descri', 'cob00_descricao', 'cob00_nome', 'descricao', 'descri', 'nome']) {
+            if (cn.contains(cand)) { descCol = cand; break; }
+          }
+          if (codCol == null || descCol == null) continue;
+          final r = await db.rawQuery('SELECT $descCol as d FROM $tbl WHERE $codCol = ? LIMIT 1', [cod]);
+          if (r.isNotEmpty && r.first['d'] != null) {
+            desc = r.first['d'].toString();
+            break;
+          }
+        } catch (_) {}
       }
     } catch (_) {}
     if (!mounted) return;
@@ -397,12 +388,31 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                                     });
                                     // PRD 1 §4A — pré-carregamento mandatório cli00_codage
                                     _prefetchAgente(selected);
-                                    Navigator.pop(context);
+
+                                    // PRD Seção 2 — Filtragem cruzada de planos para o cliente selecionado
+                                    final novosPlanos = await carregarPlanosDisponiveisCliente(
+                                      clienteCodigo: selected.cli00Codigo,
+                                    );
+                                    if (mounted) {
+                                      safeSetState(() {
+                                        _model.planos = novosPlanos;
+                                        if (_model.selectedPlano != null) {
+                                          final exists = novosPlanos.any((p) => p.codigo == _model.selectedPlano!.codigo);
+                                          if (!exists) {
+                                            _model.selectedPlano = null;
+                                          }
+                                        }
+                                      });
+                                    }
+
+                                    if (context.mounted) {
+                                      Navigator.pop(context);
+                                    }
 
                                     // Consulta se o cliente possui títulos em atraso (dup00)
                                     final titulos = await BloqueioFinanceiroService.listarTitulosVencidos(selected.cli00Codigo);
-                                    if (titulos.isNotEmpty && context.mounted) {
-                                      await _exibirModalTitulosVencidos(context, titulos, selected.cli00Descri);
+                                    if (titulos.isNotEmpty && mounted) {
+                                      await _exibirModalTitulosVencidos(this.context, titulos, selected.cli00Descri);
                                     }
                                   },
                                 ),
@@ -679,7 +689,9 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                                         ),
                                   ),
                                   subtitle: Text(
-                                    'Código: ${p.codigo}',
+                                    p.vlrmin > 0
+                                        ? 'Código: ${p.codigo} • Mínimo: ${_formatCurrency(p.vlrmin)}'
+                                        : 'Código: ${p.codigo}',
                                     style: AppTheme.of(context).bodyMedium,
                                   ),
                                   trailing: isSelected ? Icon(Icons.check_circle_rounded, color: AppTheme.of(context).primary) : null,

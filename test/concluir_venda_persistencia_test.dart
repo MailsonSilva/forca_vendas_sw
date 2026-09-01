@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -151,22 +150,15 @@ void main() {
         registry: CargaRegistryService(manifestPath: manifestPath),
       );
 
-      final fileName = await service.gerarESalvarPedidoLocal(
+      final pedId = await service.salvarPedidoConcluidoLocal(
         pedido: pedido,
         empresa: 'diniz',
         codigoEquipe: 71,
       );
 
-      // Valida PAC
-      expect(fileName, 'p71-9001.pac');
-      final pacFile = File(p.join(tempDir.path, fileName));
-      expect(await pacFile.exists(), isTrue);
-      final bytes = await pacFile.readAsBytes();
-      expect(bytes.sublist(0, 2), [0x50, 0x4B]); // ZIP magic
-      final archive = ZipDecoder().decodeBytes(bytes);
-      expect(archive.length, 1);
+      expect(pedId, 9001);
 
-      // Valida persistência SQLite: COUNT(*)>0, sttenv=1, pacstr preenchido
+      // Valida persistência SQLite: COUNT(*)>0, sttdig=1, sttenv=0 (Aguardando Pacote), pacstr=''
       await Future.delayed(const Duration(milliseconds: 50));
       final verifyDb = await openDatabase(realPath, readOnly: true);
       final rows = await verifyDb.rawQuery('SELECT COUNT(*) as c FROM pckvendig000');
@@ -175,9 +167,9 @@ void main() {
 
       final row = await verifyDb.rawQuery('SELECT ped00_sttenv, ped00_pacstr, ped00_sttdig FROM pckvendig000 WHERE ped00_numped = ?', [9001]);
       expect(row.isNotEmpty, isTrue);
-      expect(row.first['ped00_sttenv'], equals(1), reason: 'ped00_sttenv deve ser 1 (empacotado) após PAC');
-      expect(row.first['ped00_pacstr'], equals('p71-9001.pac'));
-      expect(row.first['ped00_sttdig'], equals(1));
+      expect(row.first['ped00_sttdig'], equals(1), reason: 'ped00_sttdig deve ser 1 (Digitado/Concluído)');
+      expect(row.first['ped00_sttenv'], equals(0), reason: 'ped00_sttenv deve ser 0 (Aguardando Pacote)');
+      expect(row.first['ped00_pacstr'] == null || row.first['ped00_pacstr'] == '', isTrue);
 
       // Valida que itens ainda existem
       final itens = await verifyDb.rawQuery('SELECT COUNT(*) as c FROM pckvendig010 WHERE ped10_numped = ?', [9001]);
@@ -188,14 +180,10 @@ void main() {
         final vRows = await verifyDb.rawQuery('SELECT COUNT(*) as c FROM dig00');
         expect(vRows.first['c'] as int, equals(count));
       } catch (_) {
-        // Se view não existe, falha o teste — indica regressão de unificação
         fail('VIEW dig00 deve existir e refletir pckvendig000');
       }
 
       await verifyDb.close();
-
-      // Também verifica docs backup
-      expect(await File(p.join(docsDir.path, fileName)).exists(), isTrue);
     } finally {
       // Restaura backup — fecha antes de deletar para liberar lock Windows
       await Future.delayed(const Duration(milliseconds: 100));

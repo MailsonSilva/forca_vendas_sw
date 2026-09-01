@@ -99,4 +99,27 @@ void main() {
     expect(registros.single.id, 32504);
     expect(await File(p.join(docsDir.path, fileName)).exists(), isTrue);
   });
+
+  test('salvarPedidoConcluidoLocal salva apenas no SQLite sem gerar arquivo .pac em temp', () async {
+    final registry = CargaRegistryService(
+      manifestPath: p.join(tempDir.path, 'carga_manifest.json'),
+    );
+    final service = ConcluirVendaService(
+      getTemporaryDirectoryFn: () async => tempDir,
+      getDocumentsDirFn: () async => docsDir,
+      registry: registry,
+    );
+
+    final pedId = await service.salvarPedidoConcluidoLocal(
+      pedido: sample(),
+      empresa: 'diniz',
+      codigoEquipe: 71,
+    );
+
+    expect(pedId, 32504);
+    final pacFile = File(p.join(tempDir.path, 'p71-32504.pac'));
+    expect(await pacFile.exists(), isFalse, reason: 'Nenhum arquivo .pac deve ser criado ao salvar pedido concluído');
+    final registros = await registry.listar();
+    expect(registros.isEmpty, isTrue, reason: 'Manifesto deve continuar vazio');
+  });
 }

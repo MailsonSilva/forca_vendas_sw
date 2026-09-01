@@ -72,6 +72,7 @@ class FtpUploadService {
     required int codigoEquipe,
     bool enviarClientes = true,
     bool enviarPedidos = true,
+    List<String>? arquivosSelecionados,
     List<CargaRegistro>? registros,
     void Function(String nome, int index, int total, double arquivoProgress)?
         onProgress,
@@ -84,10 +85,17 @@ class FtpUploadService {
           .listSync()
           .whereType<File>()
           .where((f) {
-            final nome = p.basename(f.path).toLowerCase();
-            if (nome.startsWith('.')) return false;
+            final nome = p.basename(f.path);
+            final lower = nome.toLowerCase();
+            if (lower.startsWith('.')) return false;
 
-            final tipo = classificarTipoArquivo(nome);
+            if (arquivosSelecionados != null &&
+                arquivosSelecionados.isNotEmpty &&
+                !arquivosSelecionados.contains(nome)) {
+              return false;
+            }
+
+            final tipo = classificarTipoArquivo(lower);
             if (tipo == TipoCarga.cliente && !enviarClientes) return false;
             if (tipo == TipoCarga.pedido && !enviarPedidos) return false;
             return true;
@@ -166,7 +174,7 @@ class FtpUploadService {
             }
 
             // Transporte confirmado (sem exceção) → autoriza o repositório a
-            // marcar JEnviado usando a lista em memória.
+            // marcar JEnviado (sttenv = 2) usando a lista em memória e por pacote.
             final registro = registrosMap[nome];
             if (registro != null) {
               if (registro.tipo == TipoCarga.pedido) {
@@ -174,6 +182,9 @@ class FtpUploadService {
               } else if (registro.tipo == TipoCarga.cliente) {
                 await _statusDb.marcarClienteEnviado(registro.id);
               }
+            }
+            if (tipo == TipoCarga.pedido) {
+              await _statusDb.marcarPacoteEnviado(nome);
             }
 
             itens[i] = ItemUploadStruct(

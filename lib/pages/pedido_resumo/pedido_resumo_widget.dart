@@ -50,28 +50,6 @@ class _PedidoResumoWidgetState extends State<PedidoResumoWidget> {
 
   String _fmt(double v) => 'R\$ ${v.toStringAsFixed(2).replaceAll('.', ',')}';
 
-  Future<void> _onGerarPacote() async {
-    final deseja = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Gerar pacote?'),
-        content: const Text('Deseja empacotar e preparar os pedidos para sincronização FTP agora?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.of(context).primary),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Gerar Pacote', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-    if (!mounted) return;
-    if (deseja == true) {
-      context.pushNamed('GerarPacotePage');
-    }
-  }
-
   Widget _linha(String label, String value, {bool bold = false, Color? color}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -227,34 +205,34 @@ class _PedidoResumoWidgetState extends State<PedidoResumoWidget> {
                         ),
                         const SizedBox(height: 16.0),
 
-                        // Botão 1: Gerar Pacote
+                        // Botão 1: Ver Histórico de Pedidos / Criar Pacote
                         SizedBox(
                           width: double.infinity,
                           height: 48,
                           child: ElevatedButton.icon(
-                            icon: const Icon(Icons.inventory_2_outlined, color: Colors.white),
+                            icon: const Icon(Icons.receipt_long_rounded, color: Colors.white),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.of(context).primary,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
                             ),
-                            onPressed: _onGerarPacote,
-                            label: const Text('Gerar Pacote (.pac)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                            onPressed: () => context.go('/pedidos'),
+                            label: const Text('Ver Histórico de Pedidos (Empacotar)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
                           ),
                         ),
                         const SizedBox(height: 10.0),
 
-                        // Botão 2: Ver Histórico de Pedidos
+                        // Botão 2: Novo Pedido
                         SizedBox(
                           width: double.infinity,
                           height: 46,
                           child: OutlinedButton.icon(
-                            icon: Icon(Icons.history_rounded, color: AppTheme.of(context).primary),
+                            icon: Icon(Icons.add_shopping_cart_rounded, color: AppTheme.of(context).primary),
                             style: OutlinedButton.styleFrom(
                               side: BorderSide(color: AppTheme.of(context).primary),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
                             ),
-                            onPressed: () => context.go('/pedidos'),
-                            label: Text('Ver Histórico de Pedidos', style: TextStyle(color: AppTheme.of(context).primary, fontWeight: FontWeight.bold)),
+                            onPressed: () => context.pushNamed('PedidoNovoInicio'),
+                            label: Text('Digitar Novo Pedido', style: TextStyle(color: AppTheme.of(context).primary, fontWeight: FontWeight.bold)),
                           ),
                         ),
                         const SizedBox(height: 10.0),
