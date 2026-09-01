@@ -61,3 +61,31 @@ enum StatusEnvio {
   /// Valor numérico gravado nas colunas de status do SQLite local.
   final int value;
 }
+
+// ── Status do Pacote (Tpckvenpac00StatePAC) ──────────────────────────────────
+// pvpspNEnviado (0) → pvpspJEnviado (1)
+enum PacoteSttPac {
+  nEnviado(0),
+  jEnviado(1);
+
+  const PacoteSttPac(this.value);
+  final int value;
+
+  static PacoteSttPac fromValue(int v) =>
+      PacoteSttPac.values.firstWhere((e) => e.value == v, orElse: () => PacoteSttPac.nEnviado);
+}
+
+// ── Status de Transmissão do Pacote (Tpckvenpac00StateENV) ───────────────────
+// pvpseNEnviado (0) → pvpseJEnviado (1) → pvpseRetornad (2)
+enum PacoteSttEnv {
+  nEnviado(0),
+  jEnviado(1),
+  retornado(2);
+
+  const PacoteSttEnv(this.value);
+  final int value;
+
+  static PacoteSttEnv fromValue(int v) =>
+      PacoteSttEnv.values.firstWhere((e) => e.value == v, orElse: () => PacoteSttEnv.nEnviado);
+}
+

@@ -4,42 +4,31 @@ Este documento detalha o processo de geração, compactação e envio de arquivo
 
 ---
 
-## 1. 📦 Estrutura do Arquivo XML
+## 1. 📦 Estrutura do Arquivo XML (Suportware)
 
-O XML gerado deve manter a estrutura esperada pelo servidor legado. Abaixo, um exemplo de como deve ser a estrutura base do XML de Vendas/Pedidos:
+O XML gerado mantém a estrutura estrita esperada pela retaguarda ERP:
 
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<PacoteVendas>
-    <Representante>
-        <Codigo>105</Codigo>
-    </Representante>
-    <Pedido>
-        <Cabecalho>
-            <CodigoPedido>99823</CodigoPedido>
-            <CodigoCliente>1542</CodigoCliente>
-            <DataEmissao>2023-10-25</DataEmissao>
-            <ValorTotal>1500.50</ValorTotal>
-            <CondicaoPagamento>30/60 D</CondicaoPagamento>
-        </Cabecalho>
-        <Itens>
-            <Item>
-                <CodigoProduto>78945</CodigoProduto>
-                <Quantidade>10</Quantidade>
-                <PrecoUnitario>150.05</PrecoUnitario>
-            </Item>
-        </Itens>
-    </Pedido>
-</PacoteVendas>
+<!DOCTYPE suportware>
+<root>
+<rep00 rep00_codrep="8" ven00_codmod="4" rep00_numver="5.08" rep00_datpck="2026-06-17" rep00_datrep="2026-05-14" rep00_codfil="1" rep00_passwo="8"/>
+<pckvenpac00>
+<pac00 dig00_agtcod="512" dig00_clicod="10350" dig00_bontot="0.000" dig00_codlog="" dig00_destot="0.000" dig00_lincod="1" dig00_subtot="0.000" dig00_digpco="0" dig00_digtot="509.280" dig00_bonfrcven="0" dig00_digcod="37" dig00_digfil="1" dig00_gerntf="0" dig00_placod="2" dig00_datsys="2026-06-16" dig00_digreg="3" dig00_codlat="" dig00_digpwd="8" dig00_datenv="2026-06-17" dig00_cobcod="-1"/>
+<pac01>
+<row dig01_bon_id="0" dig01_pcomax="2.780" dig01_prifil="1" dig01_destot="0.000" dig01_digqtd="2.000" dig01_bontyp="0" dig01_digpco="2.780" dig01_mulemb="0" dig01_percmb="0.000" dig01_subtot="0.000" dig01_mulven="0.000" dig01_codcmb="0" dig01_pcomin="2.780" dig01_digitm="1" dig01_ccvtot="0.000" dig01_digpro="1002" dig01_codbar="" dig01_boncod="0" dig01_pcopro="0.000"/>
+<row dig01_bon_id="0" dig01_pcomax="136.950" dig01_prifil="1" dig01_destot="0.000" dig01_digqtd="2.000" dig01_bontyp="0" dig01_digpco="136.950" dig01_mulemb="0" dig01_percmb="0.000" dig01_subtot="0.000" dig01_mulven="0.000" dig01_codcmb="0" dig01_pcomin="128.710" dig01_digitm="2" dig01_ccvtot="0.000" dig01_digpro="1005" dig01_codbar="" dig01_boncod="0" dig01_pcopro="0.000"/>
+</pac01>
+<cot00/>
+</pckvenpac00>
+</root>
 ```
 
-> **Nota:** A estrutura exata do XML (nós e atributos) deve refletir a modelagem exata do banco de dados (SQLite local) e a expectativa do servidor legado.
+> **Nota:** O arquivo é gerado e transmitido diretamente em XML puro com a extensão `.pac` (`p<codRep>-<seq>.pac`), sem compactação zip.
 
 ---
 
-## 2. 🗜️ Geração e Compactação do Arquivo `.pac`
+## 2. 🗜️ Geração do Arquivo `.pac`
 
-O arquivo `.pac` não é um formato proprietário, é simplesmente um arquivo **ZIP** renomeado. Para replicar isso no Flutter, usamos o pacote `archive` para criar o ZIP em memória e salvá-lo com a extensão `.pac`.
 
 ### A. Dependências Necessárias no `pubspec.yaml`
 Certifique-se de ter as seguintes bibliotecas adicionadas:

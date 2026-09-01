@@ -1,13 +1,12 @@
 import 'dart:io';
-import 'package:archive/archive.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../data/services/local_sales_database_service.dart';
 import '../data/services/pac_xml_generator_service.dart';
 import '../domain/models/pedido_venda.dart';
 import '../services/carga_registry_service.dart';
 import '../services/ftp_path_builder.dart';
+
 import '/app_state.dart';
 
 Future<String> gerarPacote({
@@ -40,49 +39,41 @@ Future<String> gerarPacote({
     if (e.toString().contains('já está(ão) em outro pacote')) rethrow;
   }
 
-  final prefs = await SharedPreferences.getInstance();
-  const seqKey = 'sequencial_pacote';
-  int seq = prefs.getInt(seqKey) ?? 0;
-  // se nunca teve, inicia em 1 ou MAX existente +1
-  if (seq == 0) {
-    // tenta descobrir maior sequencial já usado nos arquivos temp
-    try {
-      final tempDir = await getTemporaryDirectory();
-      final files = tempDir.listSync().whereType<File>().map((f) => p.basename(f.path)).where((n) => n.startsWith('p$codRep-') && n.endsWith('.pac')).toList();
-      int maxSeq = 0;
-      for (final n in files) {
-        final part = n.replaceFirst('p$codRep-', '').replaceFirst('.pac', ''); // ignore: unnecessary_brace_in_string_interps
-        final v = int.tryParse(part) ?? 0;
-        if (v > maxSeq) maxSeq = v;
-      }
-      seq = maxSeq;
-    } catch (_) {}
-  }
-  seq += 1;
-  await prefs.setInt(seqKey, seq);
-
-  final fileName = FtpPathBuilder.getFileNamePedido(codRep, seq);
-  // Exemplo p71-1.pac, p71-2.pac
-
-  final archive = Archive();
+  // 1. Carrega todos os pedidos selecionados
+  final List<PedidoVenda> pedidosValidos = [];
+  double totalValorLote = 0.0;
 
   for (final pedidoId in pedidosIds) {
     try {
       final pedido = await _carregarPedidoVenda(pedidoId, codRep);
-      if (pedido == null) continue;
-      final xml = PacXmlGeneratorService.generate(pedido);
-      final bytes = xml.codeUnits;
-      // cada pedido como xml separado dentro do zip
-      archive.addFile(ArchiveFile('pedido_$pedidoId.xml', bytes.length, bytes));
+      if (pedido != null) {
+        pedidosValidos.add(pedido);
+        totalValorLote += pedido.digtot;
+      }
     } catch (e) {
-      print('Erro ao gerar XML do pedido $pedidoId: $e');
+      print('Erro ao carregar pedido $pedidoId: $e');
     }
   }
 
-  if (archive.isEmpty) throw Exception('Nenhum pedido válido para gerar pacote');
+  if (pedidosValidos.isEmpty) {
+    throw Exception('Nenhum pedido válido encontrado para gerar o pacote');
+  }
 
-  final zipBytes = ZipEncoder().encode(archive);
-  if (zipBytes == null) throw Exception('Falha ao compactar pacote');
+  // 2. Obtém o sequencial oficial incremental (range 1000..9999)
+  final int seq = await LocalSalesDatabaseService.obterProximoSequencialPacote(codRep);
+  final String fileName = FtpPathBuilder.getFileNamePedido(codRep, seq);
+  final String internalXmlName = 'p$codRep-$seq.xml';
+
+  // 3. Serializa o XML consolidado conforme protocolo Suportware
+  final String xmlPayload = (pedidosValidos.length == 1)
+      ? PacXmlGeneratorService.generate(pedidosValidos.first)
+      : PacXmlGeneratorService.generateBatch(pedidosValidos, codRep);
+
+  // 4. Compacta o XML gerando o arquivo físico ZIP (.pac)
+  final zipBytes = PacXmlGeneratorService.compressXmlToPac(
+    xmlPayload,
+    internalFileName: internalXmlName,
+  );
 
   final tempDir = await getTemporaryDirectory();
   final pacFile = File(p.join(tempDir.path, fileName));
@@ -92,13 +83,41 @@ Future<String> gerarPacote({
   final docsFile = File(p.join(docsDir.path, fileName));
   await docsFile.writeAsBytes(zipBytes, flush: true);
 
-  // registra no manifesto
+  // 5. Registra no manifesto de cargas ativas
   final registry = CargaRegistryService();
-  await registry.registrar(CargaRegistro(arquivo: fileName, tipo: TipoCarga.pedido, id: seq));
+  await registry.registrar(CargaRegistro(
+    arquivo: fileName,
+    tipo: TipoCarga.pedido,
+    id: seq,
+  ));
 
-  // Marca pedidos como empacotados (sttenv = 1, pacstr = fileName) no SQLite
+  // 6. Registra o lote na tabela de controle pac00 e atualiza status dos pedidos
   try {
     final db = await LocalSalesDatabaseService.getDatabase();
+    final todayStr = DateTime.now().toString().split(' ').first;
+
+    // Registra na tabela de controle pac00
+    try {
+      await db.rawInsert('''
+        INSERT OR REPLACE INTO pac00 (
+          pac00_pacrep, pac00_paccod, pac00_pacsrc, pac00_pacdat,
+          pac00_pacqtd, pac00_pactot, pac00_sttpac, pac00_sttenv
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ''', [
+        codRep,
+        seq,
+        fileName,
+        todayStr,
+        pedidosValidos.length,
+        totalValorLote,
+        0, // 0 = Gerado, não enviado (pvpspNEnviado)
+        0, // 0 = Pendente de envio (pvpseNEnviado)
+      ]);
+    } catch (e) {
+      print('Aviso ao registrar na tabela pac00: $e');
+    }
+
+    // Atualiza status dos pedidos para EMPACOTADO (sttenv = 1) e vincula ao lote
     try { await db.execute('ALTER TABLE pckvendig000 ADD COLUMN ped00_pacstr TEXT'); } catch (_) {}
     try { await db.execute('ALTER TABLE pckvendig000 ADD COLUMN ped00_sttenv INTEGER DEFAULT 0'); } catch (_) {}
     try { await db.execute('ALTER TABLE pckvendig000 ADD COLUMN ped00_sttdig INTEGER DEFAULT 0'); } catch (_) {}
@@ -134,6 +153,7 @@ Future<String> gerarPacote({
 
   return fileName;
 }
+
 
 Future<PedidoVenda?> _carregarPedidoVenda(int pedidoId, int codRepFallback) async {
   try {

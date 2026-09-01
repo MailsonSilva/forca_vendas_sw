@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
+
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:forca_de_vendas/data/services/pac_xml_generator_service.dart';
@@ -200,10 +202,12 @@ void main() {
   test('geracao PAC: XML contem pac00/pac01 e totais corretos', () async {
     final pedido = sample(codMov: 9002);
     final xml = PacXmlGeneratorService.generate(pedido);
-    expect(xml, contains('pac00_paccod="9002"'));
-    expect(xml, contains('pac01_procod="78945"'));
+    expect(xml, contains('dig00_digcod="9002"'));
+    expect(xml, contains('dig01_digpro="78945"'));
     expect(xml, contains('<pckvenpac00>'));
     final pacBytes = PacXmlGeneratorService.compressXmlToPac(xml);
-    expect(pacBytes.sublist(0, 2), [0x50, 0x4B]);
+    expect(utf8.decode(pacBytes), equals(xml));
   });
 }
+
+

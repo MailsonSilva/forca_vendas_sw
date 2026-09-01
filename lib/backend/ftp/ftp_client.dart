@@ -68,6 +68,7 @@ class FtpClient implements FtpTransport {
   Future<void> mkd(String path) => _cmd('MKD $path', [257, 250, 550]);
 
   /// Download de um arquivo do diretorio atual. Retorna os bytes em memoria.
+  @override
   Future<List<int>> retr(String fileName) async {
     final dataSocket = await _openPassiveDataSocket();
     _write('RETR $fileName');
@@ -147,6 +148,44 @@ class FtpClient implements FtpTransport {
     return int.parse(parts[1]);
   }
 
+  /// Deleta um arquivo remoto no diretorio atual.
+  @override
+  Future<void> dele(String fileName) => _cmd('DELE $fileName', [250]);
+
+  /// Lista os nomes dos arquivos no diretorio atual (ou [path]).
+  @override
+  Future<List<String>> nlst([String? path]) async {
+    final dataSocket = await _openPassiveDataSocket();
+    final cmdStr = path != null && path.isNotEmpty ? 'NLST $path' : 'NLST';
+    _write(cmdStr);
+    final preliminary = await _readReply();
+    if (preliminary.code != 125 && preliminary.code != 150 && preliminary.code != 226) {
+      dataSocket.destroy();
+      return [];
+    }
+
+    final completer = Completer<List<String>>();
+    final buffer = <int>[];
+
+    dataSocket.listen(
+      buffer.addAll,
+      onError: completer.completeError,
+      onDone: () {
+        dataSocket.destroy();
+        final raw = utf8.decode(buffer, allowMalformed: true);
+        final lines = const LineSplitter().convert(raw).map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+        completer.complete(lines);
+      },
+      cancelOnError: true,
+    );
+
+    final result = await completer.future.timeout(const Duration(seconds: 30), onTimeout: () => []);
+    try {
+      await _expect([226, 250]);
+    } catch (_) {}
+    return result;
+  }
+
   /// Encerramento limpo da conexao. Ignora erros de desconexao.
   @override
   Future<void> quit() async {
@@ -156,6 +195,7 @@ class FtpClient implements FtpTransport {
     await _lines.cancel();
     await _socket.close();
   }
+
 
   Future<Socket> _openPassiveDataSocket() async {
     final reply = await _cmd('PASV', [227]);

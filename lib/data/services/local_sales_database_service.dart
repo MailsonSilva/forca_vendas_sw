@@ -85,6 +85,19 @@ class LocalSalesDatabaseService {
       )
     ''');
 
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS pac00 (
+        pac00_pacrep INTEGER,
+        pac00_paccod INTEGER,
+        pac00_pacsrc TEXT PRIMARY KEY,
+        pac00_pacdat TEXT,
+        pac00_pacqtd INTEGER DEFAULT 0,
+        pac00_pactot REAL DEFAULT 0,
+        pac00_sttpac INTEGER DEFAULT 0,
+        pac00_sttenv INTEGER DEFAULT 0
+      )
+    ''');
+
     for (final e in {
       'ped00_numped': 'INTEGER',
       'ped00_codcli': 'INTEGER',
@@ -145,6 +158,51 @@ class LocalSalesDatabaseService {
     try { await db.execute('DROP VIEW IF EXISTS dig01'); } catch (_) {}
     try { await db.execute('CREATE VIEW IF NOT EXISTS dig01 AS SELECT * FROM pckvendig010'); } catch (_) {}
   }
+
+  /// Obtém o próximo sequencial de pacote incremental (range 1000..9999).
+  /// Conforme especificação Suportware: txtven00_pacseq inicia em 1000 e vai até 9999.
+  static Future<int> obterProximoSequencialPacote(int codRep) async {
+    final db = await getDatabase();
+    int currentSeq = 0;
+
+    // 1. Tenta buscar no cadastro do representante cadrep00
+    try {
+      final rows = await db.rawQuery('SELECT * FROM cadrep00 WHERE ven00_codigo = ? OR rep00_codigo = ? LIMIT 1', [codRep, codRep]);
+      if (rows.isNotEmpty) {
+        final r = rows.first;
+        for (final k in ['txtven00_pacseq', 'ven00_pacseq', 'pacseq', 'rep00_pacseq']) {
+          if (r.containsKey(k) && r[k] != null) {
+            currentSeq = int.tryParse(r[k].toString()) ?? 0;
+            if (currentSeq > 0) break;
+          }
+        }
+      }
+    } catch (_) {}
+
+    // 2. Tenta buscar o maior sequencial gravado na tabela pac00
+    if (currentSeq == 0) {
+      try {
+        final rows = await db.rawQuery('SELECT MAX(pac00_paccod) as max_seq FROM pac00 WHERE pac00_pacrep = ?', [codRep]);
+        if (rows.isNotEmpty && rows.first['max_seq'] != null) {
+          final s = int.tryParse(rows.first['max_seq'].toString()) ?? 0;
+          if (s > currentSeq) currentSeq = s;
+        }
+      } catch (_) {}
+    }
+
+    int nextSeq = (currentSeq >= 1000) ? currentSeq + 1 : 1000;
+    if (nextSeq > 9999) {
+      nextSeq = 1000; // Rollover conforme especificação
+    }
+
+    // Tenta atualizar no cadrep00 se a tabela/coluna existir
+    try {
+      await db.rawUpdate('UPDATE cadrep00 SET txtven00_pacseq = ? WHERE ven00_codigo = ? OR rep00_codigo = ?', [nextSeq, codRep, codRep]);
+    } catch (_) {}
+
+    return nextSeq;
+  }
+
 
   /// Retorna todos os caminhos de bancos existentes no dispositivo (principal e alias)
   /// para garantir sincronização de escrita caso ambos os arquivos existam.

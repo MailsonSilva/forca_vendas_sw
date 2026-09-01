@@ -37,8 +37,18 @@ class _FakeFtp implements FtpTransport {
       sizeOverride[fileName] ?? sizes[fileName] ?? 0;
 
   @override
+  Future<List<int>> retr(String fileName) async => [];
+
+  @override
+  Future<List<String>> nlst([String? path]) async => [];
+
+  @override
+  Future<void> dele(String fileName) async {}
+
+  @override
   Future<void> quit() async => quitCalled = true;
 }
+
 
 class _FakeStatusDb extends StatusEnvioDb {
   final List<int> pedidosMarcados = [];

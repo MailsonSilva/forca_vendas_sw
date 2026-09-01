@@ -530,13 +530,22 @@ class _GerarPacotePageWidgetState extends State<GerarPacotePageWidget> {
                     const Icon(Icons.receipt_outlined, size: 16.0, color: Colors.grey),
                     const SizedBox(width: 6.0),
                     Expanded(
-                      child: Text(
-                        pacote.pedidosIds.isNotEmpty
-                            ? '${pacote.pedidosIds.length} pedido(s): ${pacote.pedidosIds.map((id) => '#$id').join(', ')}'
-                            : '${pacote.totalPedidos > 0 ? pacote.totalPedidos : 1} pedido(s) contidos no lote',
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.0),
+                      child: Builder(
+                        builder: (context) {
+                          final distinctIds = pacote.pedidosIds.toSet().toList();
+                          final count = distinctIds.isNotEmpty
+                              ? distinctIds.length
+                              : (pacote.totalPedidos > 0 ? pacote.totalPedidos : 1);
+                          return Text(
+                            distinctIds.isNotEmpty
+                                ? '$count pedido(s): ${distinctIds.map((id) => '#$id').join(', ')}'
+                                : '$count pedido(s) contidos no lote',
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.0),
+                          );
+                        },
                       ),
                     ),
+
                   ],
                 ),
                 const SizedBox(height: 6.0),

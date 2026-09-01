@@ -87,7 +87,7 @@ class StatusEnvioDb {
   }
 
   /// Marca todos os pedidos pertencentes a um pacote como enviados (`PedidoSttEnv.enviados = 2`)
-  /// na tabela `pckvendig000`, identificado por `ped00_pacstr` ou `ped00_pacote`.
+  /// na tabela `pckvendig000` e atualiza a tabela `pac00` (`pac00_sttenv = 1`, `pac00_sttpac = 1`).
   Future<void> marcarPacoteEnviado(String nomePacote) async {
     if (nomePacote.trim().isEmpty) return;
     try {
@@ -104,13 +104,20 @@ class StatusEnvioDb {
         for (final c in ['ped00_pacstr', 'ped00_pacote', 'pacstr', 'pacote']) {
           if (colNames.contains(c.toLowerCase())) { colPac = c; break; }
         }
-        if (colEnv == null) return;
-        if (colPac != null) {
+        if (colEnv != null && colPac != null) {
           await db.rawUpdate(
             'UPDATE pckvendig000 SET $colEnv = ? WHERE $colPac = ?',
             [PedidoSttEnv.enviados.value, nomePacote.trim()],
           );
         }
+
+        // Atualiza tabela pac00
+        try {
+          await db.rawUpdate(
+            'UPDATE pac00 SET pac00_sttenv = 1, pac00_sttpac = 1 WHERE pac00_pacsrc = ?',
+            [nomePacote.trim()],
+          );
+        } catch (_) {}
       } finally {
         if (isCustom) {
           await db.close();
@@ -118,6 +125,47 @@ class StatusEnvioDb {
       }
     } catch (_) {}
   }
+
+  /// Marca todos os pedidos pertencentes a um pacote como recebidos/faturados pelo ERP (`PedidoSttEnv.recebido = 3`)
+  /// na tabela `pckvendig000` e atualiza a tabela `pac00` (`pac00_sttenv = 2`).
+  Future<void> marcarPacoteRecebido(String nomePacote) async {
+    if (nomePacote.trim().isEmpty) return;
+    try {
+      final bool isCustom = dbPath != null;
+      final db = await _getDb();
+      try {
+        final columns = await db.rawQuery('PRAGMA table_info(pckvendig000)');
+        final colNames = columns.map((r) => r['name']?.toString().toLowerCase()).toSet();
+        String? colEnv;
+        for (final c in _candidatasPedido) {
+          if (colNames.contains(c.toLowerCase())) { colEnv = c; break; }
+        }
+        String? colPac;
+        for (final c in ['ped00_pacstr', 'ped00_pacote', 'pacstr', 'pacote']) {
+          if (colNames.contains(c.toLowerCase())) { colPac = c; break; }
+        }
+        if (colEnv != null && colPac != null) {
+          await db.rawUpdate(
+            'UPDATE pckvendig000 SET $colEnv = ? WHERE $colPac = ?',
+            [PedidoSttEnv.recebido.value, nomePacote.trim()],
+          );
+        }
+
+        // Atualiza tabela pac00 para retornado/processado
+        try {
+          await db.rawUpdate(
+            'UPDATE pac00 SET pac00_sttenv = 2 WHERE pac00_pacsrc = ?',
+            [nomePacote.trim()],
+          );
+        } catch (_) {}
+      } finally {
+        if (isCustom) {
+          await db.close();
+        }
+      }
+    } catch (_) {}
+  }
+
 
   /// Marca um cliente como enviado (`jaEnviado`) na tabela `cadcli00`,
   /// identificado por `cli00_codigo`.

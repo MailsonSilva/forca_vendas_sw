@@ -62,7 +62,32 @@ class PacoteItem {
 
   bool get isPendente => sttEnv == 1 || existeEmTemp;
   bool get isEnviado => sttEnv == 2 && !existeEmTemp;
+
+  PacoteItem copyWith({
+    String? nomeArquivo,
+    int? totalPedidos,
+    List<int>? pedidosIds,
+    String? data,
+    int? sttEnv,
+    int? tamanhoBytes,
+    double? totalValor,
+    bool? existeEmTemp,
+    String? caminhoArquivo,
+  }) {
+    return PacoteItem(
+      nomeArquivo: nomeArquivo ?? this.nomeArquivo,
+      totalPedidos: totalPedidos ?? this.totalPedidos,
+      pedidosIds: pedidosIds ?? this.pedidosIds,
+      data: data ?? this.data,
+      sttEnv: sttEnv ?? this.sttEnv,
+      tamanhoBytes: tamanhoBytes ?? this.tamanhoBytes,
+      totalValor: totalValor ?? this.totalValor,
+      existeEmTemp: existeEmTemp ?? this.existeEmTemp,
+      caminhoArquivo: caminhoArquivo ?? this.caminhoArquivo,
+    );
+  }
 }
+
 
 class PedidoPendente {
   PedidoPendente({
@@ -894,19 +919,32 @@ Future<List<PacoteItem>> listarPacotesAgrupados({String filtro = 'todos'}) async
           if (colNames.contains(c)) { colPac = c; break; }
         }
 
+        String colNum = 'ped00_numped';
+        for (final c in ['ped00_numped', 'ped00_pedcod', 'ped00_codmov', 'numped']) {
+          if (colNames.contains(c)) { colNum = c; break; }
+        }
+
         if (colPac != null) {
           final rows = await db.rawQuery('''
             SELECT 
               $colPac as pac_nome,
               MIN(ped00_sttenv) as min_sttenv,
               MAX(ped00_sttenv) as max_sttenv,
-              COUNT(ped00_numped) as total_ped,
-              GROUP_CONCAT(ped00_numped) as ids_str,
+              COUNT(DISTINCT $colNum) as total_ped,
+              GROUP_CONCAT(DISTINCT $colNum) as ids_str,
               MAX(ped00_datsys) as max_dat,
-              SUM(ped00_fattot) as sum_fat,
-              SUM(ped00_digtot) as sum_dig
-            FROM pckvendig000 
-            WHERE $colPac IS NOT NULL AND TRIM($colPac) != ''
+              SUM(ped_val) as total_val
+            FROM (
+              SELECT 
+                $colPac,
+                $colNum,
+                MIN(ped00_sttenv) as ped00_sttenv,
+                MAX(ped00_datsys) as ped00_datsys,
+                MAX(CASE WHEN ped00_fattot > 0 THEN ped00_fattot ELSE ped00_digtot END) as ped_val
+              FROM pckvendig000 
+              WHERE $colPac IS NOT NULL AND TRIM($colPac) != ''
+              GROUP BY $colPac, $colNum
+            )
             GROUP BY $colPac
           ''');
 
@@ -914,13 +952,16 @@ Future<List<PacoteItem>> listarPacotesAgrupados({String filtro = 'todos'}) async
             final pacNome = r['pac_nome']?.toString().trim() ?? '';
             if (pacNome.isEmpty) continue;
 
-            final totalPed = (r['total_ped'] is num) ? (r['total_ped'] as num).toInt() : 0;
             final idsStr = r['ids_str']?.toString() ?? '';
-            final ids = idsStr.split(',').map((s) => int.tryParse(s.trim()) ?? 0).where((id) => id > 0).toList();
+            final ids = idsStr
+                .split(',')
+                .map((s) => int.tryParse(s.trim()) ?? 0)
+                .where((id) => id > 0)
+                .toSet()
+                .toList();
+            final totalPed = ids.isNotEmpty ? ids.length : ((r['total_ped'] is num) ? (r['total_ped'] as num).toInt() : 0);
             final maxDat = r['max_dat']?.toString() ?? '';
-            final sumFat = (r['sum_fat'] is num) ? (r['sum_fat'] as num).toDouble() : 0.0;
-            final sumDig = (r['sum_dig'] is num) ? (r['sum_dig'] as num).toDouble() : 0.0;
-            final totalVal = sumFat > 0 ? sumFat : sumDig;
+            final totalVal = (r['total_val'] is num) ? (r['total_val'] as num).toDouble() : 0.0;
             final minEnv = (r['min_sttenv'] is num) ? (r['min_sttenv'] as num).toInt() : 0;
             final maxEnv = (r['max_sttenv'] is num) ? (r['max_sttenv'] as num).toInt() : 0;
 
@@ -958,9 +999,45 @@ Future<List<PacoteItem>> listarPacotesAgrupados({String filtro = 'todos'}) async
           }
         }
       }
+
+      // 2.1 Enriquece com dados de pac00 caso exista
+      try {
+        final pac00Check = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='pac00'",
+        );
+        if (pac00Check.isNotEmpty) {
+          final pacRows = await db.rawQuery('''
+            SELECT 
+              pac00_pacsrc as pac_nome,
+              pac00_pacqtd as total_ped,
+              pac00_pactot as total_val,
+              pac00_pacdat as pac_dat,
+              pac00_sttenv as stt_env
+            FROM pac00
+            WHERE pac00_pacsrc IS NOT NULL AND TRIM(pac00_pacsrc) != ''
+          ''');
+          for (final pr in pacRows) {
+            final pName = pr['pac_nome']?.toString().trim() ?? '';
+            if (pName.isEmpty) continue;
+            final qtd = (pr['total_ped'] is num) ? (pr['total_ped'] as num).toInt() : 0;
+            final val = (pr['total_val'] is num) ? (pr['total_val'] as num).toDouble() : 0.0;
+            final dat = pr['pac_dat']?.toString() ?? '';
+
+            if (pacotesMap.containsKey(pName)) {
+              final existing = pacotesMap[pName]!;
+              pacotesMap[pName] = existing.copyWith(
+                totalPedidos: existing.totalPedidos > 0 ? existing.totalPedidos : qtd,
+                totalValor: existing.totalValor > 0 ? existing.totalValor : val,
+                data: existing.data.isNotEmpty ? existing.data : dat,
+              );
+            }
+          }
+        }
+      } catch (_) {}
     } catch (e) {
       print('Erro ao consultar pacotes no SQLite: $e');
     }
+
 
     // 3. Inspeciona o diretório de documentos para pacotes históricos transmitidos
     try {

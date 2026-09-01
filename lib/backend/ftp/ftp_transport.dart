@@ -20,6 +20,16 @@ abstract class FtpTransport {
   /// Retorna o tamanho remoto (em bytes) do arquivo no diretório atual.
   Future<int> size(String fileName);
 
+  /// Baixa o arquivo do diretório atual. Retorna os bytes.
+  Future<List<int>> retr(String fileName);
+
+  /// Lista os nomes dos arquivos no diretório atual (ou [path]).
+  Future<List<String>> nlst([String? path]);
+
+  /// Deleta um arquivo no diretório atual.
+  Future<void> dele(String fileName);
+
   /// Encerra a conexão de forma limpa.
   Future<void> quit();
 }
+

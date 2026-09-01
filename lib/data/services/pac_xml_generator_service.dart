@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:archive/archive.dart';
 import 'package:intl/intl.dart';
 import '../../domain/models/pedido_venda.dart';
-import '../../functions/format_currency.dart';
+
+
 
 /// Gera o payload XML do pacote de pedido de venda (pckvenpac00) no
 /// protocolo legado Suportware.
@@ -24,102 +24,172 @@ import '../../functions/format_currency.dart';
 /// `rep00_*`/`ven00_*` dobrados sobre a tag `pac00` e os atributos de item
 /// (`dig01_*` legados) renomeados para `pac01_*`.
 class PacXmlGeneratorService {
+  static String _fmt3(num? v) => (v ?? 0.0).toStringAsFixed(3);
+
   static String generate(PedidoVenda pedido) {
     final StringBuffer xml = StringBuffer();
     final DateFormat formatter = DateFormat('yyyy-MM-dd');
     final String currentDate = formatter.format(DateTime.now());
 
     xml.writeln('<!DOCTYPE suportware>');
-    xml.writeln('<root sys_versao="1.0" rep00_codigo="${pedido.codRep}">');
+    xml.writeln('<root>');
+    xml.writeln(
+      '<rep00 rep00_codrep="${pedido.codRep}" ven00_codmod="4" rep00_numver="5.08" '
+      'rep00_datpck="${pedido.datSys}" rep00_datrep="$currentDate" '
+      'rep00_codfil="${pedido.codFil}" rep00_passwo="${pedido.codRep}"/>',
+    );
+    xml.writeln('<pckvenpac00>');
 
-    xml.writeln(' <pckvenpac00>');
-
-    // pac00 — cabeçalho (doc + campos legados renomeados dig00_* → pac00_*)
-    xml.write('  <pac00 ');
-    xml.write('pac00_pacrep="${pedido.codRep}" ');
-    xml.write('pac00_paccod="${pedido.codMov}" ');
-    xml.write('pac00_pacqtd="${pedido.items.length}" ');
-    xml.write('pac00_pactot="${fmtCurrencyPac(pedido.digtot)}" ');
-    xml.write('pac00_clicod="${pedido.codCli}" ');
-
-    // Campos do antigo <rep00/> dobrados no pac00 (sem perder dados)
-    xml.write('ven00_codmod="4" ');
-    xml.write('rep00_numver="5.08" ');
-    xml.write('rep00_datpck="${pedido.datSys}" ');
-    xml.write('rep00_datrep="$currentDate" ');
-    xml.write('rep00_codfil="${pedido.codFil}" ');
-    xml.write('rep00_passwo="${pedido.codRep}" ');
-
-    // Campos legados de cabeçalho (dig00_* → pac00_*)
-    xml.write('pac00_digreg="${pedido.codReg}" ');
-    xml.write('pac00_codlat="" ');
-    xml.write('pac00_digpwd="${pedido.codRep}" ');
-    xml.write('pac00_datenv="$currentDate" ');
-    xml.write('pac00_cobcod="-1" ');
-    xml.write('pac00_agtcod="${pedido.codAgt}" ');
-    xml.write('pac00_bontot="${fmtCurrencyPac(pedido.bontot)}" ');
-    xml.write('pac00_bonfrcven="${pedido.bonfrcven}" ');
-    xml.write('pac00_lincod="${pedido.codLin}" ');
-    xml.write('pac00_codlog="" ');
-    xml.write('pac00_destot="${fmtCurrencyPac(pedido.destot)}" ');
-    xml.write('pac00_subtot="${fmtCurrencyPac(pedido.subtot)}" ');
-    xml.write('pac00_digpco="1" ');
-    xml.write('pac00_digtot="${fmtCurrencyPac(pedido.digtot)}" ');
-    xml.write('pac00_placod="${pedido.codPla}" ');
-    xml.write('pac00_digfil="${pedido.codFil}" ');
-    xml.write('pac00_gerntf="0" ');
-    xml.write('pac00_datsys="${pedido.datSys}"');
+    // pac00 — cabeçalho com atributos dig00_*
+    xml.write('<pac00 ');
+    xml.write('dig00_agtcod="${pedido.codAgt}" ');
+    xml.write('dig00_clicod="${pedido.codCli}" ');
+    xml.write('dig00_bontot="${_fmt3(pedido.bontot)}" ');
+    xml.write('dig00_codlog="" ');
+    xml.write('dig00_destot="${_fmt3(pedido.destot)}" ');
+    xml.write('dig00_lincod="${pedido.codLin}" ');
+    xml.write('dig00_subtot="${_fmt3(pedido.subtot)}" ');
+    xml.write('dig00_digpco="0" ');
+    xml.write('dig00_digtot="${_fmt3(pedido.digtot)}" ');
+    xml.write('dig00_bonfrcven="${pedido.bonfrcven}" ');
+    xml.write('dig00_digcod="${pedido.codMov}" ');
+    xml.write('dig00_digfil="${pedido.codFil}" ');
+    xml.write('dig00_gerntf="0" ');
+    xml.write('dig00_placod="${pedido.codPla}" ');
+    xml.write('dig00_datsys="${pedido.datSys}" ');
+    xml.write('dig00_digreg="${pedido.codReg}" ');
+    xml.write('dig00_codlat="" ');
+    xml.write('dig00_digpwd="${pedido.codRep}" ');
+    xml.write('dig00_datenv="$currentDate" ');
+    xml.write('dig00_cobcod="-1"');
     xml.writeln('/>');
 
-    // pac01 — itens (dig01_* → pac01_*)
+    // pac01 — itens representados por <row .../>
+    xml.writeln('<pac01>');
     for (final item in pedido.items) {
-      xml.write('  <pac01 ');
-      xml.write('pac01_paccod="${pedido.codMov}" ');
-      xml.write('pac01_pacitm="${item.digitm}" ');
-      xml.write('pac01_procod="${item.digpro}" ');
-      xml.write('pac01_qtd="${fmtCurrencyPac(item.digqtd)}" ');
-      xml.write('pac01_pco="${fmtCurrencyPac(item.digpco)}" ');
-      xml.write('pac01_codbar="" ');
-      xml.write('pac01_boncod="${item.boncod}" ');
-      xml.write('pac01_pcopro="0.00" ');
-      xml.write('pac01_bon_id="0" ');
-      xml.write('pac01_pcomax="${fmtCurrencyPac(item.pcomax)}" ');
-      xml.write('pac01_prifil="1" ');
-      xml.write('pac01_destot="${fmtCurrencyPac(item.destot)}" ');
-      xml.write('pac01_bontyp="${item.bontyp}" ');
-      // PRD B4: embalagem/mulver reais (fallback 0 quando não preenchido)
-      xml.write('pac01_mulemb="${fmtCurrencyPac(item.mulemb ?? 0)}" ');
-      xml.write('pac01_percmb="0.00" ');
-      xml.write('pac01_mulven="${fmtCurrencyPac(item.mulven ?? 0)}" ');
-      xml.write('pac01_subtot="${fmtCurrencyPac(item.subtot)}" ');
-      xml.write('pac01_codcmb="0" ');
-      xml.write('pac01_pcomin="${fmtCurrencyPac(item.pcomin)}" ');
-      xml.write('pac01_digitm="${item.digitm}" ');
-      xml.write('pac01_ccvtot="${fmtCurrencyPac(item.ccvtot)}"');
+      xml.write('<row ');
+      xml.write('dig01_bon_id="0" ');
+      xml.write('dig01_pcomax="${_fmt3(item.pcomax)}" ');
+      xml.write('dig01_prifil="1" ');
+      xml.write('dig01_destot="${_fmt3(item.destot)}" ');
+      xml.write('dig01_digqtd="${_fmt3(item.digqtd)}" ');
+      xml.write('dig01_bontyp="${item.bontyp}" ');
+      xml.write('dig01_digpco="${_fmt3(item.digpco)}" ');
+      xml.write('dig01_mulemb="${item.mulemb?.toInt() ?? 0}" ');
+      xml.write('dig01_percmb="${_fmt3(item.percmb ?? 0.0)}" ');
+      xml.write('dig01_subtot="${_fmt3(item.subtot)}" ');
+      xml.write('dig01_mulven="${_fmt3(item.mulven ?? 0.0)}" ');
+      xml.write('dig01_codcmb="0" ');
+      xml.write('dig01_pcomin="${_fmt3(item.pcomin)}" ');
+      xml.write('dig01_digitm="${item.digitm}" ');
+      xml.write('dig01_ccvtot="${_fmt3(item.ccvtot)}" ');
+      xml.write('dig01_digpro="${item.digpro}" ');
+      xml.write('dig01_codbar="" ');
+      xml.write('dig01_boncod="${item.boncod}" ');
+      xml.write('dig01_pcopro="0.000"');
       xml.writeln('/>');
     }
+    xml.writeln('</pac01>');
 
     // cot00 (vazia como no layout legado)
-    xml.writeln('  <cot00/>');
-    xml.writeln(' </pckvenpac00>');
+    xml.writeln('<cot00/>');
+    xml.writeln('</pckvenpac00>');
     xml.writeln('</root>');
 
     return xml.toString();
   }
 
-  /// Compacta o XML de pedido em um arquivo ZIP em memória com a extensão
-  /// `.pac` (protocolo legado: `.pac` é um ZIP renomeado).
-  ///
-  /// Pura (sem I/O): o chamador decide onde gravar o arquivo. O conteúdo
-  /// original do XML é preservado íntegro dentro do arquivo `pedido.xml`.
-  static Uint8List compressXmlToPac(String xml) {
-    final bytes = utf8.encode(xml);
-    final archive = Archive()
-      ..addFile(ArchiveFile('pedido.xml', bytes.length, bytes));
-    final encoded = ZipEncoder().encode(archive);
-    if (encoded == null) {
-      throw StateError('Falha ao comprimir pacote PAC: ZipEncoder retornou nulo');
+  /// Gera o payload XML consolidado de um lote de pedidos de venda (pckvenpac00)
+  /// para empacotamento múltiplo conforme o novo layout homologado.
+  static String generateBatch(List<PedidoVenda> pedidos, int codRep) {
+    if (pedidos.isEmpty) {
+      throw ArgumentError('A lista de pedidos para gerar o lote não pode ser vazia.');
     }
-    return Uint8List.fromList(encoded);
+
+    final StringBuffer xml = StringBuffer();
+    final DateFormat formatter = DateFormat('yyyy-MM-dd');
+    final String currentDate = formatter.format(DateTime.now());
+    final firstPedido = pedidos.first;
+
+    xml.writeln('<!DOCTYPE suportware>');
+    xml.writeln('<root>');
+    xml.writeln(
+      '<rep00 rep00_codrep="$codRep" ven00_codmod="4" rep00_numver="5.08" '
+      'rep00_datpck="${firstPedido.datSys}" rep00_datrep="$currentDate" '
+      'rep00_codfil="${firstPedido.codFil}" rep00_passwo="$codRep"/>',
+    );
+    for (final pedido in pedidos) {
+      xml.writeln('<pckvenpac00>');
+
+      // pac00 — cabeçalho do pedido
+      xml.write('<pac00 ');
+      xml.write('dig00_agtcod="${pedido.codAgt}" ');
+      xml.write('dig00_clicod="${pedido.codCli}" ');
+      xml.write('dig00_bontot="${_fmt3(pedido.bontot)}" ');
+      xml.write('dig00_codlog="" ');
+      xml.write('dig00_destot="${_fmt3(pedido.destot)}" ');
+      xml.write('dig00_lincod="${pedido.codLin}" ');
+      xml.write('dig00_subtot="${_fmt3(pedido.subtot)}" ');
+      xml.write('dig00_digpco="0" ');
+      xml.write('dig00_digtot="${_fmt3(pedido.digtot)}" ');
+      xml.write('dig00_bonfrcven="${pedido.bonfrcven}" ');
+      xml.write('dig00_digcod="${pedido.codMov}" ');
+      xml.write('dig00_digfil="${pedido.codFil}" ');
+      xml.write('dig00_gerntf="0" ');
+      xml.write('dig00_placod="${pedido.codPla}" ');
+      xml.write('dig00_datsys="${pedido.datSys}" ');
+      xml.write('dig00_digreg="${pedido.codReg}" ');
+      xml.write('dig00_codlat="" ');
+      xml.write('dig00_digpwd="$codRep" ');
+      xml.write('dig00_datenv="$currentDate" ');
+      xml.write('dig00_cobcod="-1"');
+      xml.writeln('/>');
+
+      // pac01 — itens do pedido
+      xml.writeln('<pac01>');
+      for (final item in pedido.items) {
+        xml.write('<row ');
+        xml.write('dig01_bon_id="0" ');
+        xml.write('dig01_pcomax="${_fmt3(item.pcomax)}" ');
+        xml.write('dig01_prifil="1" ');
+        xml.write('dig01_destot="${_fmt3(item.destot)}" ');
+        xml.write('dig01_digqtd="${_fmt3(item.digqtd)}" ');
+        xml.write('dig01_bontyp="${item.bontyp}" ');
+        xml.write('dig01_digpco="${_fmt3(item.digpco)}" ');
+        xml.write('dig01_mulemb="${item.mulemb?.toInt() ?? 0}" ');
+        xml.write('dig01_percmb="${_fmt3(item.percmb ?? 0.0)}" ');
+        xml.write('dig01_subtot="${_fmt3(item.subtot)}" ');
+        xml.write('dig01_mulven="${_fmt3(item.mulven ?? 0.0)}" ');
+        xml.write('dig01_codcmb="0" ');
+        xml.write('dig01_pcomin="${_fmt3(item.pcomin)}" ');
+        xml.write('dig01_digitm="${item.digitm}" ');
+        xml.write('dig01_ccvtot="${_fmt3(item.ccvtot)}" ');
+        xml.write('dig01_digpro="${item.digpro}" ');
+        xml.write('dig01_codbar="" ');
+        xml.write('dig01_boncod="${item.boncod}" ');
+        xml.write('dig01_pcopro="0.000"');
+        xml.writeln('/>');
+      }
+      xml.writeln('</pac01>');
+
+      // cot00 (vazia como no layout legado)
+      xml.writeln('<cot00/>');
+      xml.writeln('</pckvenpac00>');
+    }
+
+    xml.writeln('</root>');
+
+    return xml.toString();
+
+  }
+
+  /// Converte o XML de pedido em bytes UTF-8 para o arquivo `.pac`
+  /// (protocolo legado: arquivo com extensão `.pac` contendo o XML puro em UTF-8, sem compactação zip).
+  static Uint8List compressXmlToPac(String xml, {String? internalFileName}) {
+    final bytes = utf8.encode(xml);
+    return Uint8List.fromList(bytes);
   }
 }
+
+
+
