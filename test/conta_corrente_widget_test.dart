@@ -30,7 +30,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('Relatórios'), findsOneWidget);
+    expect(find.text('Menu de Relatórios'), findsOneWidget);
     expect(find.text('Conta-Corrente (CCV)'), findsOneWidget);
     expect(find.text('Extrato de margens, créditos e débitos de Saldo Flex.'), findsOneWidget);
     expect(find.byIcon(Icons.account_balance_wallet_rounded), findsOneWidget);

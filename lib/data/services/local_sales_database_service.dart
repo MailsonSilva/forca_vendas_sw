@@ -127,6 +127,7 @@ class LocalSalesDatabaseService {
       'ped00_fatdat': 'TEXT',
       'ped00_fatobs': 'TEXT',
       'ped00_datret': 'TEXT',
+      'ped00_ccvtot': 'REAL',
     }.entries) {
       try {
         await db.execute('ALTER TABLE pckvendig000 ADD COLUMN ${e.key} ${e.value}');
@@ -153,9 +154,35 @@ class LocalSalesDatabaseService {
       'ped10_fatqtd': 'REAL',
       'ped10_fatpco': 'REAL',
       'ped10_digitm': 'INTEGER',
+      'ped10_ccvtot': 'REAL',
     }.entries) {
       try {
         await db.execute('ALTER TABLE pckvendig010 ADD COLUMN ${e.key} ${e.value}');
+      } catch (_) {}
+    }
+
+    for (final e in {
+      'cli00_descri': 'TEXT',
+      'cli00_fantas': 'TEXT',
+      'cli00_flgven': 'INTEGER',
+      'cli00_titven': 'REAL',
+      'cli00_titave': 'REAL',
+      'cli00_ciddes': 'TEXT',
+      'cli00_estsgl': 'TEXT',
+      'cli00_active': 'INTEGER',
+      'cli00_typpes': 'INTEGER',
+    }.entries) {
+      try {
+        await db.execute('ALTER TABLE cadcli00 ADD COLUMN ${e.key} ${e.value}');
+      } catch (_) {}
+    }
+
+    for (final e in {
+      'pro00_descri': 'TEXT',
+      'pro00_commax': 'REAL',
+    }.entries) {
+      try {
+        await db.execute('ALTER TABLE cadpro00 ADD COLUMN ${e.key} ${e.value}');
       } catch (_) {}
     }
 

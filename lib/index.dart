@@ -31,4 +31,7 @@ export '/pages/relatorios/resumo_vendas/resumo_vendas_page_widget.dart'
     show ResumoVendasPageWidget;
 export '/pages/relatorios/carteira_roteirizacao/carteira_roteirizacao_page_widget.dart'
     show CarteiraRoteirizacaoPageWidget;
+export '/pages/relatorios/faturamento_metas/faturamento_metas_page_widget.dart'
+    show FaturamentoMetasPageWidget;
+
 

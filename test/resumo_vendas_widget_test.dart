@@ -28,7 +28,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('Relatórios'), findsOneWidget);
+    expect(find.text('Menu de Relatórios'), findsOneWidget);
     expect(find.text('Conta-Corrente (CCV)'), findsOneWidget);
     expect(find.text('Resumo de Vendas e Comissões'), findsOneWidget);
     expect(find.text('Apuração de vendas brutas, líquidas, devoluções e comissões.'), findsOneWidget);

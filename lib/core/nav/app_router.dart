@@ -216,6 +216,11 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: CarteiraRoteirizacaoPageWidget.routeName,
           path: CarteiraRoteirizacaoPageWidget.routePath,
           builder: (context, params) => const CarteiraRoteirizacaoPageWidget(),
+        ),
+        AppRoute(
+          name: FaturamentoMetasPageWidget.routeName,
+          path: FaturamentoMetasPageWidget.routePath,
+          builder: (context, params) => const FaturamentoMetasPageWidget(),
         )
       ].map((r) => r.toRoute(appStateNotifier)).toList(),
     );

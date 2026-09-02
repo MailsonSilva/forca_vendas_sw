@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
 import '../app_state.dart';
 import '../data/services/local_sales_database_service.dart';
@@ -6,6 +7,16 @@ import '../domain/models/faturamento_metas_model.dart';
 /// Serviço responsável por gerenciar a sintetização local, regras fiscais
 /// e validações de faturamento e metas do vendedor (`ffrmrelfatcvd00` / `relestfatcvd00`).
 class FaturamentoMetasService {
+  static final NumberFormat _currencyFormat = NumberFormat.currency(
+    locale: 'pt_BR',
+    symbol: 'R\$',
+    decimalDigits: 2,
+  );
+
+  static String formatarMoeda(double valor) {
+    return _currencyFormat.format(valor).replaceAll('\u00A0', ' ');
+  }
+
   /// Validação pura de cálculo de Limite de Pessoa Física (`getPEDTOTPessoaFisicaCheck`).
   ///
   /// - [tipoCliente]: 1 = Pessoa Física (PF), 2 = Pessoa Jurídica (PJ).
