@@ -123,6 +123,10 @@ class LocalSalesDatabaseService {
       'ped00_bontot': 'REAL',
       'ped00_destot': 'REAL',
       'ped00_pacstr': 'TEXT',
+      'ped00_fatmov': 'TEXT',
+      'ped00_fatdat': 'TEXT',
+      'ped00_fatobs': 'TEXT',
+      'ped00_datret': 'TEXT',
     }.entries) {
       try {
         await db.execute('ALTER TABLE pckvendig000 ADD COLUMN ${e.key} ${e.value}');
@@ -146,11 +150,95 @@ class LocalSalesDatabaseService {
       'dig01_subtot': 'REAL',
       'ped10_destot': 'REAL',
       'dig01_destot': 'REAL',
+      'ped10_fatqtd': 'REAL',
+      'ped10_fatpco': 'REAL',
+      'ped10_digitm': 'INTEGER',
     }.entries) {
       try {
         await db.execute('ALTER TABLE pckvendig010 ADD COLUMN ${e.key} ${e.value}');
       } catch (_) {}
     }
+
+
+    for (final e in {
+      'pac00_codlot': 'TEXT',
+    }.entries) {
+      try {
+        await db.execute('ALTER TABLE pac00 ADD COLUMN ${e.key} ${e.value}');
+      } catch (_) {}
+    }
+
+    // Tabelas para dados de retornos e cadastros
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS cadpro00 (
+        pro00_codigo INTEGER,
+        pro00_prifil INTEGER DEFAULT 1,
+        pro00_qtdest REAL DEFAULT 0,
+        PRIMARY KEY (pro00_codigo, pro00_prifil)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS cadcli00 (
+        cli00_codigo INTEGER PRIMARY KEY,
+        cli00_crelim REAL DEFAULT 0,
+        cli00_creatu REAL DEFAULT 0
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS estfatdat00 (
+        dat00_dattim TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS estfatcvd00 (
+        fat00_codfil INTEGER,
+        fat00_codven INTEGER,
+        fat00_datmov TEXT,
+        fat00_clides TEXT,
+        fat00_clityp INTEGER,
+        fat00_vlrperfat REAL DEFAULT 0,
+        fat00_vlrfatven REAL DEFAULT 0,
+        fat00_vlrdigven REAL DEFAULT 0,
+        fat00_vlrdigloc REAL DEFAULT 0,
+        fat00_vlrtotven REAL DEFAULT 0,
+        fat00_vlrcalven REAL DEFAULT 0,
+        fat00_vlrtotper REAL DEFAULT 0,
+        fat00_vlrtotlib REAL DEFAULT 0
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS fincaidat00 (
+        dat00_dattim TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS fincaiccv01 (
+        ccv01_codfil INTEGER,
+        ccv01_codven INTEGER,
+        ccv01_vlrsal REAL DEFAULT 0,
+        ccv01_vlrusedig REAL DEFAULT 0,
+        ccv01_vlrusepck REAL DEFAULT 0,
+        ccv01_vlrsalatu REAL DEFAULT 0
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS fincaimovccv00 (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ccv00_codfil INTEGER,
+        ccv00_codven INTEGER,
+        ccv00_datmov TEXT,
+        ccv00_typmov TEXT,
+        ccv00_vlrmov REAL DEFAULT 0,
+        ccv00_vlrsal REAL DEFAULT 0,
+        ccv00_observ TEXT
+      )
+    ''');
 
     // Views de compatibilidade dig00 / dig01
     try { await db.execute('DROP VIEW IF EXISTS dig00'); } catch (_) {}
@@ -158,6 +246,7 @@ class LocalSalesDatabaseService {
     try { await db.execute('DROP VIEW IF EXISTS dig01'); } catch (_) {}
     try { await db.execute('CREATE VIEW IF NOT EXISTS dig01 AS SELECT * FROM pckvendig010'); } catch (_) {}
   }
+
 
   /// Obtém o próximo sequencial de pacote incremental (range 1000..9999).
   /// Conforme especificação Suportware: txtven00_pacseq inicia em 1000 e vai até 9999.

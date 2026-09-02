@@ -25,4 +25,10 @@ export '/pages/pedido_resumo/pedido_resumo_widget.dart'
     show PedidoResumoWidget;
 export '/pages/gerar_pacote/gerar_pacote_page_widget.dart'
     show GerarPacotePageWidget;
+export '/pages/relatorios/conta_corrente/conta_corrente_page_widget.dart'
+    show ContaCorrentePageWidget;
+export '/pages/relatorios/resumo_vendas/resumo_vendas_page_widget.dart'
+    show ResumoVendasPageWidget;
+export '/pages/relatorios/carteira_roteirizacao/carteira_roteirizacao_page_widget.dart'
+    show CarteiraRoteirizacaoPageWidget;
 

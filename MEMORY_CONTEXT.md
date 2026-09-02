@@ -1,6 +1,6 @@
 # MEMORY CONTEXT — FORÇA DE VENDAS (FLUTTER & SQLITE)
-> **Versão:** 2.1.0  
-> **Status:** 100% Homologado, Testado e Protegido (69/69 Testes Automatizados Aprovados)  
+> **Versão:** 2.2.0  
+> **Status:** 100% Homologado, Testado e Protegido (71/71 Testes Automatizados Aprovados)  
 > **Escopo:** Aplicativo Mobile Força de Vendas Offline-First (Flutter / SQLite / XML-PAC / FTP)
 
 ---
@@ -10,8 +10,8 @@
 ### 1.1 Padrão Arquitetural
 O aplicativo adota uma arquitetura modular por camadas e orientada a casos de uso (**Clean Architecture / Feature-First**), separando estritamente:
 - **Presentation Layer (`lib/pages/`, `lib/components/`):** Widgets Flutter reativos, modais padronizados, formulários com `InputDecorationTheme` global e gerenciamento de estado via `AppModel` com métodos `safeSetState`, `initState` e `dispose`.
-- **Domain Layer (`lib/domain/models/`, `lib/domain/services/`):** Modelos de negócio puros (`PedidoVenda`, `ItemPedidoVenda`, `ParcelaVenda`, `AgenteCobrador`, `StatusEnvio`), regras fiscais (`IcmsStService`) e validações financeiras (`BloqueioFinanceiroService`).
-- **Data & Infrastructure Layer (`lib/data/`, `lib/services/`, `lib/backend/`):** Acesso a banco local (`LocalSalesDatabaseService`), gerador de pacotes comprimidos (`PacXmlGeneratorService`), registro e manifesto de arquivos (`CargaRegistryService`) e cliente FTP (`FtpUploadService`, `FtpClient`).
+- **Domain Layer (`lib/domain/models/`, `lib/domain/services/`):** Modelos de negócio puros (`PedidoVenda`, `ItemPedidoVenda`, `ParcelaVenda`, `AgenteCobrador`, `StatusEnvio`, `ContaCorrenteSaldo`, `ContaCorrenteMovimentacao`), regras fiscais (`IcmsStService`) e validações financeiras (`BloqueioFinanceiroService`).
+- **Data & Infrastructure Layer (`lib/data/`, `lib/services/`, `lib/backend/`):** Acesso a banco local (`LocalSalesDatabaseService`), gerador de pacotes comprimidos (`PacXmlGeneratorService`), registro e manifesto de arquivos (`CargaRegistryService`), serviço de conta-corrente (`ContaCorrenteService`) e cliente FTP (`FtpUploadService`, `FtpClient`).
 - **Action Code Layer (`lib/action_code/`):** Orquestradores de casos de uso e regras de transição (ex: `concluirVendaProcess`, `salvarCarrinhoPedido`, `carregarAgentesCobrador`, `carregarClienteOffline`, `enviarArquivosPendentesFtp`).
 
 ### 1.2 Gerenciamento de Estado Global (`AppState`)
@@ -68,6 +68,16 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
 - **Nomenclatura Padrão de Arquivos:** `p<codRep>-<codMov>.pac` (ex: `p71-1007.pac`), gravado em `temp/` (fila) e `documents/` (backup).
 - **Upload Idempotente com Verificação de Tamanho (`SIZE`):** Envio para o FTP com verificação estrita de integridade via comando FTP `SIZE`. O pedido só é marcado como `ped00_sttenv = 2` (Transmitido) e o arquivo local excluído após a confirmação exata dos bytes no servidor.
 
+### 2.6 Relatórios & Conta-Corrente do Vendedor (CCV / Saldo Flex)
+- **Menu "Relatórios" na Home:** Botão dedicado no painel principal que aciona o `ModalRelatoriosWidget`.
+- **Extrato Analítico (`ContaCorrentePageWidget`):**
+  - Painel superior com cálculo em tempo real do Saldo Disponível Líquido (`ccv01_vlrsalatu`), Saldo Base (`ccv01_vlrsal`), Em Digitação (`ccv01_vlrusedig`) e Em Trânsito (`ccv01_vlrusepck`).
+  - Sinalização visual com cores dinâmicas para verba liberada (verde) e bloqueio impeditivo (vermelho).
+  - Histórico cronológico de lançamentos analíticos da tabela `fincaimovccv00` com filtros por tipo (Créditos/Débitos) e busca textual por histórico/observação.
+- **Regras de Negócio Homologadas:**
+  - Cálculo de margem por item $\text{CCV} = (\text{Preço Praticado} - \text{Preço Máximo}) \times \text{Qtd}$.
+  - Validação de margem flex no checkout: $\text{ccv01\_vlrsalatu} + \text{dig00\_ccvtot} \ge 0$.
+
 ---
 
 ## 3. Invariantes e Regras de Segurança Rígidas (NUNCA ALTERAR)
@@ -80,7 +90,7 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
 
 > [!IMPORTANT]
 > **REGRA 2: Migração Defensiva e Detecção de Colunas**  
-> Toda persistência deve ser protegida com blocos `ALTER TABLE ADD COLUMN` para todas as colunas de `pckvendig000` e `pckvendig010`.  
+> Toda persistência deve ser protegida com blocos `ALTER TABLE ADD COLUMN` para todas as colunas de `pckvendig000`, `pckvendig010` e `fincaimovccv00`.  
 > As operações de `UPDATE` e `SELECT` devem resolver a coluna de ID primário de forma resiliente inspecionando aliases (`ped00_numped`, `numped`, `ped00_codmov`, `codmov`, `ped00_pedcod`, `id`).
 
 > [!TIP]
@@ -100,6 +110,9 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
 | Módulo / Recurso | Arquivo Principal | Função / Responsabilidade |
 |---|---|---|
 | **Conexão SQLite** | [`lib/data/services/local_sales_database_service.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/data/services/local_sales_database_service.dart) | Singleton do banco, migração automática e views `dig00`/`dig01`. |
+| **Menu de Relatórios** | [`lib/components/modal_relatorios/modal_relatorios_widget.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/components/modal_relatorios/modal_relatorios_widget.dart) | Modal bottom sheet de acesso aos relatórios do sistema. |
+| **Conta-Corrente (CCV)** | [`lib/pages/relatorios/conta_corrente/conta_corrente_page_widget.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/pages/relatorios/conta_corrente/conta_corrente_page_widget.dart) | Tela de extrato analítico de saldo flex e consolidação de CCV. |
+| **Serviço de CCV** | [`lib/services/conta_corrente_service.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/services/conta_corrente_service.dart) | Consultas de saldo, histórico analítico e cálculos de margem. |
 | **Pipeline de Fechamento** | [`lib/action_code/concluir_venda_process.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/action_code/concluir_venda_process.dart) | Validação de itens, snapshots fiscais e orquestração do fechamento. |
 | **Serviço de Persistência** | [`lib/services/concluir_venda_service.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/services/concluir_venda_service.dart) | Transação SQLite do pedido, estatísticas e geração desacoplada do `.pac`. |
 | **Persistência de Carrinho** | [`lib/action_code/salvar_carrinho_pedido.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/action_code/salvar_carrinho_pedido.dart) | Gravação atômica de `pckvendig000` e `pckvendig010`. |
@@ -107,3 +120,4 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
 | **Carregamento de Cobradores** | [`lib/action_code/carregar_agentes_cobrador.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/action_code/carregar_agentes_cobrador.dart) | Consulta segura de cobradores via Singleton do banco. |
 | **Geração de XML/PAC** | [`lib/services/pac_xml_generator_service.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/services/pac_xml_generator_service.dart) | Serialização para XML legado e compressão ZIP. |
 | **Upload FTP** | [`lib/services/ftp_upload_service.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/services/ftp_upload_service.dart) | Envio em lote com verificação `SIZE` e atualização `sttenv = 2`. |
+

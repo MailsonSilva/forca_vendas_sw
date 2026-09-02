@@ -6,6 +6,7 @@ import '../../domain/models/pedido_venda.dart';
 import '../../domain/models/status_envio.dart';
 import '../../domain/services/icms_st_service.dart';
 import '../../services/concluir_venda_service.dart';
+import '../../services/faturamento_metas_service.dart';
 import '../../data/services/local_sales_database_service.dart';
 import 'salvar_carrinho_pedido.dart';
 
@@ -80,6 +81,25 @@ Future<bool> concluirVendaProcess({
         }
       } catch (e) {
         if (e.toString().contains('Valor total do pedido inferior')) rethrow;
+      }
+    }
+
+    // 1c. Validação de Limite de Pessoa Física (getPEDTOTPessoaFisicaCheck - Seção 1.1 / fat00_vlrtotlib)
+    if (resolvedClienteCodigo > 0) {
+      final double totalPedidoSemBon = carrinhoItens
+          .where((i) => !i.isBonificacao)
+          .fold(0.0, (sum, i) => sum + (i.quantidade * i.precoUnitario));
+
+      final validacaoPf = await FaturamentoMetasService.validarLimitePessoaFisica(
+        clienteCodigo: resolvedClienteCodigo,
+        valorPedido: totalPedidoSemBon,
+        codVen: codRep,
+        codFil: codFil,
+        customDb: db,
+      );
+
+      if (!validacaoPf.valido) {
+        throw Exception(validacaoPf.mensagemBloqueio ?? 'Limite de faturamento para Pessoa Física excedido no mês!');
       }
     }
 

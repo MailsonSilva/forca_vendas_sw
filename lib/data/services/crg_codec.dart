@@ -84,6 +84,52 @@ class CrgCodec {
     return encoding.decode(rawBytes);
   }
 
+  /// Descompacta o payload de retorno do ERP legado de forma polimórfica:
+  ///   1. Se for texto puro UTF-8 (ex: XML já em texto claro).
+  ///   2. Se for formato .crg/.ret com cabeçalho de 4 bytes + Zlib (1 ou 2 camadas).
+  ///   3. Se for Zlib puro (sem cabeçalho de 4 bytes).
+  ///   4. Se for GZip.
+  String decompressRetornoText(List<int> rawBytes) {
+    if (rawBytes.isEmpty) return '';
+
+    // 1. Tenta decodificar como texto UTF-8 direto
+    try {
+      final text = utf8.decode(rawBytes);
+      if (text.trim().startsWith('<') || text.contains('<root>') || text.contains('<?xml')) {
+        return text;
+      }
+    } catch (_) {}
+
+    // 2. Tenta descompactar pelo padrão CrgCodec (header 4 bytes + Zlib de 1 ou 2 camadas)
+    try {
+      final decompressed = decompressBytes(rawBytes);
+      final text = utf8.decode(decompressed, allowMalformed: true);
+      if (text.trim().startsWith('<') || text.contains('<root>') || text.contains('<?xml')) {
+        return text;
+      }
+    } catch (_) {}
+
+    // 3. Tenta descompactar com zlib direto (sem cabeçalho de 4 bytes)
+    try {
+      final decompressed = zlib.decode(rawBytes);
+      final text = utf8.decode(decompressed, allowMalformed: true);
+      if (text.trim().startsWith('<') || text.contains('<root>') || text.contains('<?xml')) {
+        return text;
+      }
+    } catch (_) {}
+
+    // 4. Tenta com gzip
+    try {
+      final decompressed = gzip.decode(rawBytes);
+      final text = utf8.decode(decompressed, allowMalformed: true);
+      if (text.trim().startsWith('<') || text.contains('<root>') || text.contains('<?xml')) {
+        return text;
+      }
+    } catch (_) {}
+
+    return utf8.decode(rawBytes, allowMalformed: true);
+  }
+
   bool _hasSqliteHeader(List<int> bytes) {
     final header = utf8.decode(bytes.take(16).toList(), allowMalformed: true);
     return header.contains(_sqliteHeader);
@@ -101,3 +147,4 @@ class CrgCodec {
     ];
   }
 }
+

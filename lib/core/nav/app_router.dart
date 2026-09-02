@@ -201,6 +201,21 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: GerarPacotePageWidget.routeName,
           path: GerarPacotePageWidget.routePath,
           builder: (context, params) => const GerarPacotePageWidget(),
+        ),
+        AppRoute(
+          name: ContaCorrentePageWidget.routeName,
+          path: ContaCorrentePageWidget.routePath,
+          builder: (context, params) => const ContaCorrentePageWidget(),
+        ),
+        AppRoute(
+          name: ResumoVendasPageWidget.routeName,
+          path: ResumoVendasPageWidget.routePath,
+          builder: (context, params) => const ResumoVendasPageWidget(),
+        ),
+        AppRoute(
+          name: CarteiraRoteirizacaoPageWidget.routeName,
+          path: CarteiraRoteirizacaoPageWidget.routePath,
+          builder: (context, params) => const CarteiraRoteirizacaoPageWidget(),
         )
       ].map((r) => r.toRoute(appStateNotifier)).toList(),
     );

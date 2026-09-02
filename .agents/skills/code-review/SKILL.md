@@ -1,170 +1,87 @@
 ---
 name: code-review
-description: "Use when asked to review a PR, MR, branch, or diff, audit changed files, or check code quality."
-hooks:
-  PreToolUse:
-    - matcher: "Bash"
-      hooks:
-        - type: command
-          command: "./scripts/protect-token.sh"
-license: MIT
+description: "Review the changes since a fixed point (commit, branch, tag, or merge-base) along two axes: Standards (does the code follow this repo's documented coding standards?) and Spec (does the code match what the originating issue/spec asked for?). Runs both reviews in parallel sub-agents and reports them side by side. Use when the user wants to review a branch, a PR, work-in-progress changes, or asks to \"review since X\"."
 ---
 
-# Code Review Skill
+Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
 
-Perform structured, objective code reviews for Flutter/Dart projects following a repeatable checklist.
+- **Standards**: does the code conform to this repo's documented coding standards?
+- **Spec**: does the code faithfully implement the originating issue / spec?
 
-## When to Use
+Both axes run as **parallel sub-agents** so they don't pollute each other's context, then this skill aggregates their findings.
 
-Use this skill when:
+The issue tracker should have been provided to you. If `docs/agents/issue-tracker.md` is missing, tell the user to run `/setup-matt-pocock-skills`.
 
-* Asked to review a pull request, merge request, or branch.
-* Evaluating changed, added, or deleted files for correctness and quality.
-* Auditing a diff before merging.
-* Checking whether new code meets project standards.
+## Process
 
----
+### 1. Pin the fixed point
 
-## Review Workflow
+Whatever the user said is the fixed point (a commit SHA, branch name, tag, `main`, `HEAD~5`, etc.). If they didn't specify one, ask for it.
 
-### Step 1 — Validate branch and merge target
+Capture the diff command once: `git diff <fixed-point>...HEAD` (three-dot, so the comparison is against the merge-base). Also note the list of commits via `git log <fixed-point>..HEAD --oneline`.
 
-1. Confirm the current branch is a **feature, bugfix, or PR/MR branch** — not the project's primary branch (e.g. `main`, `master`, `develop`).
-2. Verify the branch is **up-to-date** with the target branch (no unresolved conflicts).
-3. Identify the **target branch** for the merge.
+Before going further, confirm the fixed point resolves (`git rev-parse <fixed-point>`) and the diff is non-empty. A bad ref or empty diff should fail here, not inside two parallel sub-agents.
 
-**Checkpoint:** If the branch is behind the target, flag it before proceeding.
+### 2. Identify the spec source
 
-### Step 2 — Discover changes
+Look for the originating spec, in this order:
 
-1. List all **changed, added, and deleted files**.
-2. For each change, look up the **commit title** and review how connected components are implemented.
-3. **Analyze the change**: is it clear *why* the change was made? If not, dig into the connected methods and files until it is. When you report, name **which connected files/methods you analyzed and why** — this shows the change was understood, not assumed.
-4. **Never assume** a change is correct without investigating the implementation.
-5. If a change remains unclear after investigation, **note this explicitly** in the report.
+1. Issue references in the commit messages (`#123`, `Closes #45`, GitLab `!67`, etc.), fetched via the workflow in `docs/agents/issue-tracker.md`.
+2. A path the user passed as an argument.
+3. A spec file under `docs/`, `specs/`, or `.scratch/` matching the branch name or feature.
+4. If nothing is found, ask the user where the spec is. If they say there isn't one, the **Spec** sub-agent will skip and report "no spec available".
 
-### Step 3 — Review each file
+### 3. Identify the standards sources
 
-Iterate through each changed file. For every file, verify the following:
+Anything in the repo that documents how code should be written, such as `CODING_STANDARDS.md` or `CONTRIBUTING.md`.
 
-| Area | What to verify |
-|---|---|
-| **Understand the change** | Why was it made? Review connected methods/files; note which ones you analyzed and why |
-| **Location** | File is in the correct directory |
-| **Naming** | File name follows project naming conventions |
-| **Responsibility** | The file's responsibility is clear; reason for change is understandable |
-| **Readability** | Variable, function, and class names are descriptive and consistent |
-| **Logic & correctness** | No logic errors or missing edge cases |
-| **Code smells** | Scan for the smells in [Code Smells Reference](#code-smells-reference) below |
-| **Maintainability** | Code is modular; no unnecessary duplication |
-| **Error handling** | Errors and exceptions are handled appropriately |
-| **Security** | No input validation gaps; no secrets committed to code |
-| **Performance** | No obvious inefficiencies (e.g., unnecessary rebuilds, O(n^2) loops on large lists) |
-| **SOLID principles** | Adherence assessed without forcing unnecessary boilerplate or over-abstraction |
-| **Flutter/Dart/<your-state-management-package> patterns** | Match against the project's loaded guidelines and conventions |
-| **Documentation** | Public APIs, complex logic, and new modules are documented |
-| **Test coverage** | New or changed logic has sufficient tests (see Step 4) |
-| **Style** | Code matches the project's style guide and linting rules |
-| **Existing code** | If the new changes look fine, also review surrounding **existing (unchanged) code** for smells and suggest refactors where relevant |
+On top of whatever the repo documents, the Standards axis always carries the **smell baseline** below: a fixed set of Fowler code smells (_Refactoring_, ch.3) that applies even when a repo documents nothing. Two rules bind it:
 
-For **generated files** (e.g., `*.g.dart`, `*.freezed.dart`): confirm they are up-to-date and not manually modified.
+- **The repo overrides.** A documented repo standard always wins; where it endorses something the baseline would flag, suppress the smell.
+- **Always a judgement call.** Each smell is a labelled heuristic ("possible Feature Envy"), never a hard violation. Like any standard here, skip anything tooling already enforces.
 
-> **Scope discipline:** Your job is **not** to comment on every change — it's to find errors and concrete improvement areas and comment on those. Don't manufacture comments where the code is fine.
+Each smell reads *what it is* → *how to fix*; match it against the diff:
 
-#### Flutter-specific checks
+- **Mysterious Name**: a function, variable, or type whose name doesn't reveal what it does or holds. → rename it; if no honest name comes, the design's murky.
+- **Duplicated Code**: the same logic shape appears in more than one hunk or file in the change. → extract the shared shape, call it from both.
+- **Feature Envy**: a method that reaches into another object's data more than its own. → move the method onto the data it envies.
+- **Data Clumps**: the same few fields or params keep travelling together (a type wanting to be born). → bundle them into one type, pass that.
+- **Primitive Obsession**: a primitive or string standing in for a domain concept that deserves its own type. → give the concept its own small type.
+- **Repeated Switches**: the same `switch`/`if`-cascade on the same type recurs across the change. → replace with polymorphism, or one map both sites share.
+- **Shotgun Surgery**: one logical change forces scattered edits across many files in the diff. → gather what changes together into one module.
+- **Divergent Change**: one file or module is edited for several unrelated reasons. → split so each module changes for one reason.
+- **Speculative Generality**: abstraction, parameters, or hooks added for needs the spec doesn't have. → delete it; inline back until a real need shows.
+- **Message Chains**: long `a.b().c().d()` navigation the caller shouldn't depend on. → hide the walk behind one method on the first object.
+- **Middle Man**: a class or function that mostly just delegates onward. → cut it, call the real target direct.
+- **Refused Bequest**: a subclass or implementer that ignores or overrides most of what it inherits. → drop the inheritance, use composition.
 
-*(Note: The following is just an example using Bloc/Cubit; apply similar principles to Riverpod, Provider, or your chosen state management package.)*
+### 4. Spawn both sub-agents in parallel
 
-```dart
-// BAD — rebuilds entire tree on every state change
-BlocBuilder<MyCubit, MyState>(
-  builder: (context, state) => EntireScreen(state: state),
-);
+**Standards sub-agent prompt** should include:
 
-// GOOD — scope rebuilds to the widget that actually changes
-BlocSelector<MyCubit, MyState, String>(
-  selector: (state) => state.title,
-  builder: (context, title) => Text(title),
-);
-```
+- The full diff command and commit list.
+- The list of standards-source files you found in step 3, **plus the smell baseline from step 3** pasted in full (the sub-agent has no other access to it).
+- The brief: "Report, per file/hunk where relevant, (a) every place the diff violates a documented standard: cite the standard (file + the rule); and (b) any baseline smell you spot: name it and quote the hunk. Distinguish hard violations from judgement calls: documented-standard breaches can be hard, but baseline smells are always judgement calls, and a documented repo standard overrides the baseline. Skip anything tooling enforces. Under 400 words."
 
-* Verify `Key` usage on dynamically generated widgets.
-* Check that `dispose()` is called for controllers, streams, and animation controllers.
-* Confirm `const` constructors are used where possible.
+**Spec sub-agent prompt** should include:
 
-#### Code Smells Reference
+- The diff command and commit list.
+- The path or fetched contents of the spec.
+- The brief: "Report: (a) requirements the spec asked for that are missing or partial; (b) behaviour in the diff that wasn't asked for (scope creep); (c) requirements that look implemented but where the implementation looks wrong. Quote the spec line for each finding. Under 400 words."
 
-For each file, check for common code smells. Use [refactoring.guru/refactoring/smells](https://refactoring.guru/refactoring/smells) for definitions and suggested refactorings.
+If the spec is missing, skip the Spec sub-agent and note this in the final report.
 
-| Category | Smells |
-|---|---|
-| **Bloaters** | Long Method, Large Class, Primitive Obsession, Long Parameter List, Data Clumps |
-| **Object-Orientation Abusers** | Alternative Classes with Different Interfaces, Refused Bequest, Temporary Field, Switch Statements |
-| **Change Preventers** | Divergent Change, Parallel Inheritance Hierarchies, Shotgun Surgery |
-| **Dispensables** | Comments (redundant), Duplicate Code, Data Class, Dead Code, Lazy Class, Speculative Generality |
-| **Couplers** | Feature Envy, Inappropriate Intimacy, Incomplete Library Class, Message Chains, Middle Man |
+### 5. Aggregate
 
-### Step 4 — Evaluate the overall change set
+Present the two reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned. Do **not** merge or rerank findings, because the two axes are deliberately separate (see _Why two axes_).
 
-1. Verify the change set is **focused and scoped** to its stated purpose — no unrelated changes.
-2. Check that the **PR/MR description** accurately reflects the changes.
+End with a one-line summary: total findings per axis, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes: that's the reranking the separation exists to prevent.
 
-#### Test coverage
+## Why two axes
 
-Verify test coverage **explicitly** — this is easy to skip and easy to fake, so be deliberate:
+A change can pass one axis and fail the other:
 
-- For any new logic or significant change, **search for the corresponding test file(s)** and confirm tests actually exist.
-- Check that tests cover the changed functionality **including edge cases**, not just the happy path.
-- Evaluate whether tests could **actually fail** against real code, or only verify mocked behavior (a test that asserts a mock returns what the mock was told to return proves nothing).
-- If tests are **missing or insufficient**, comment on the lack of coverage — don't let it pass silently.
+- Code that follows every standard but implements the wrong thing → **Standards pass, Spec fail.**
+- Code that does exactly what the issue asked but breaks the project's conventions → **Spec pass, Standards fail.**
 
-### Step 5 — Verify CI and tests
-
-1. Ensure **all tests pass** in CI.
-2. Check for new analyzer warnings or lint violations.
-3. Fetch **official documentation** when unsure about best practices for a package.
-
-**Checkpoint:** If CI is red or tests are missing for new logic, flag as a blocking issue.
-
----
-
-## Wrap-Up
-
-After the per-file pass, decide the outcome:
-
-- **If everything looks good and no changes are needed:** post an **overall conclusion comment** summarizing what the MR is about (what was done) plus any observations, and approve the MR.
-- **If the new changes are clean but you spotted smells in existing code:** include those as optional refactor suggestions rather than blockers.
-- **If issues were found:** summarize the **key concerns** clearly so the author knows what to address first.
-
----
-
-## Feedback Standards
-
-* Be **objective and reasonable** — avoid automatic praise or flattery.
-* Take a **devil's advocate approach**: give honest, thoughtful feedback.
-* Provide **clear, constructive suggestions** for every issue found.
-* Include **requests for clarification** for anything unclear.
-* Classify each finding by severity: `suggestion`, `minor`, or `major`.
-
----
-
-## Output Format
-
-**By default, provide the review as a chat response** — a structured response covering each file:
-
-1. **Summary** — what changed and why.
-2. **Issues** — each with severity (`suggestion` / `minor` / `major`) and a concrete fix suggestion.
-3. **Questions** — specific clarification requests per file.
-4. **Verdict** — one of: `Approved`, `Approved with suggestions`, or `Changes requested`.
-
-> **Posting comments online (opt-in only).** After presenting the chat review, **ask the user whether they'd prefer you to also post these comments online** on the PR/MR — so the team can see them, review them, and reply. **Only post online if the user explicitly says yes.** Never post to the platform on your own initiative.
->
-> When the user does opt in, post issues as **inline comments** anchored to the right file and line (use proper position fields), with the conclusion/key-concerns as a top-level review comment and an approval when warranted. This requires a **review-bot access token** for the platform (GitHub/GitLab); if one isn't configured, let the user know and ask them to set it up before posting.
->
-> **Token safety.** The token is a secret. You may check whether it **exists** and report its **length** to confirm it's configured, but **never read, echo, log, print, or otherwise reveal the token value** — not in chat, not in a file, not in a commit. Pass it to `curl` only by referencing the env var (e.g. `$GITLAB_TOKEN`), never by inlining the literal value, and avoid `curl -v`/`--verbose` (it prints the auth header). This is enforced by a `PreToolUse` hook (`scripts/protect-token.sh`) that blocks any Bash command which would expose the value. See the "Handling the token safely" section in each reference file for the safe existence/length check.
->
-> The hook fires in both the Claude Code CLI and the Agent SDK. (SDK apps that set `settingSources`/`setting_sources` explicitly must include `"project"` for skill hooks to load; it's included by default.)
->
-> For platform-specific API details, curl formats, and approval steps, follow:
-> - GitLab → [references/gitlab-posting.md](references/gitlab-posting.md) (uses the `GITLAB_TOKEN` env var)
-> - GitHub → [references/github-posting.md](references/github-posting.md) (uses the `GITHUB_TOKEN` env var)
+Reporting them separately stops one axis from masking the other.

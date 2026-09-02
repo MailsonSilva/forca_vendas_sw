@@ -1,6 +1,7 @@
 import '/components/botao_menu_home/botao_menu_home_widget.dart';
 import '/components/modal_cliente/modal_cliente_widget.dart';
 import '/components/modal_pedidos/modal_pedidos_widget.dart';
+import '/components/modal_relatorios/modal_relatorios_widget.dart';
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
 import '/action_code/index.dart';
@@ -309,6 +310,52 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                                 ),
                               ),
                             ),
+                          ].divide(const SizedBox(width: 16.0)),
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.max,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            InkWell(
+                              splashColor: Colors.transparent,
+                              focusColor: Colors.transparent,
+                              hoverColor: Colors.transparent,
+                              highlightColor: Colors.transparent,
+                              onTap: () async {
+                                await showModalBottomSheet(
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  context: context,
+                                  builder: (context) {
+                                    return GestureDetector(
+                                      onTap: () {
+                                        FocusScope.of(context).unfocus();
+                                        FocusManager.instance.primaryFocus
+                                            ?.unfocus();
+                                      },
+                                      child: Padding(
+                                        padding:
+                                            MediaQuery.viewInsetsOf(context),
+                                        child: const ModalRelatoriosWidget(),
+                                      ),
+                                    );
+                                  },
+                                ).then((value) => safeSetState(() {}));
+                              },
+                              child: wrapWithModel(
+                                model: _model.botaoMenuHomeModel5,
+                                updateCallback: () => safeSetState(() {}),
+                                child: BotaoMenuHomeWidget(
+                                  description: 'Relatórios',
+                                  icon: Icon(
+                                    Icons.analytics_outlined,
+                                    color: AppTheme.of(context).primary,
+                                    size: 32.0,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 160.0),
                           ].divide(const SizedBox(width: 16.0)),
                         ),
                       ].divide(const SizedBox(height: 16.0)),

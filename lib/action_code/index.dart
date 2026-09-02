@@ -41,3 +41,5 @@ export '/action_code/gerar_pacote.dart' show gerarPacote;
 export '/action_code/contar_filiais.dart'
     show contarFiliais, FiliaisResult, FilialInfo;
 export '/action_code/do_maintenance.dart' show doMaintenance, logoutVendedor;
+export '/action_code/baixar_retorno_ftp.dart' show baixarRetornoFtp;
+
