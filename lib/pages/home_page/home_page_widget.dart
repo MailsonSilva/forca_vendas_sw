@@ -239,7 +239,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                                         padding:
                                             MediaQuery.viewInsetsOf(context),
                                         child: const SizedBox(
-                                          height: 400.0,
+                                          height: 500.0,
                                           child: ModalClienteWidget(),
                                         ),
                                       ),
@@ -355,7 +355,27 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 160.0),
+                            InkWell(
+                              splashColor: Colors.transparent,
+                              focusColor: Colors.transparent,
+                              hoverColor: Colors.transparent,
+                              highlightColor: Colors.transparent,
+                              onTap: () async {
+                                context.pushNamed(ReceberPageWidget.routeName);
+                              },
+                              child: wrapWithModel(
+                                model: _model.botaoMenuHomeModel6,
+                                updateCallback: () => safeSetState(() {}),
+                                child: BotaoMenuHomeWidget(
+                                  description: 'Receber',
+                                  icon: Icon(
+                                    Icons.receipt_long_rounded,
+                                    color: AppTheme.of(context).primary,
+                                    size: 32.0,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ].divide(const SizedBox(width: 16.0)),
                         ),
                       ].divide(const SizedBox(height: 16.0)),

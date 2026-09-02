@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sqflite/sqflite.dart';
 import '/data/services/local_sales_database_service.dart';
+import '/components/extrato_duplicatas/extrato_duplicatas_widget.dart';
 import 'extrato_cliente_page_model.dart';
 export 'extrato_cliente_page_model.dart';
 
@@ -323,6 +324,16 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.receipt_long_rounded, color: Colors.white),
+            tooltip: 'Auditoria de Duplicatas (Receber)',
+            onPressed: () {
+              final codInt = int.tryParse(widget.codigoCliente ?? '') ?? 0;
+              if (codInt > 0) {
+                ExtratoDuplicatasWidget.show(context, codigoCliente: codInt);
+              }
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Colors.white),
             tooltip: 'Atualizar',

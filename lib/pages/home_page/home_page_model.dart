@@ -17,6 +17,8 @@ class HomePageModel extends AppModel<HomePageWidget> {
   late BotaoMenuHomeModel botaoMenuHomeModel4;
   // Model for botaoMenuHome component (Relatórios).
   late BotaoMenuHomeModel botaoMenuHomeModel5;
+  // Model for botaoMenuHome component (Receber).
+  late BotaoMenuHomeModel botaoMenuHomeModel6;
 
   @override
   void initState(BuildContext context) {
@@ -25,6 +27,7 @@ class HomePageModel extends AppModel<HomePageWidget> {
     botaoMenuHomeModel3 = createModel(context, () => BotaoMenuHomeModel());
     botaoMenuHomeModel4 = createModel(context, () => BotaoMenuHomeModel());
     botaoMenuHomeModel5 = createModel(context, () => BotaoMenuHomeModel());
+    botaoMenuHomeModel6 = createModel(context, () => BotaoMenuHomeModel());
   }
 
   @override
@@ -34,5 +37,6 @@ class HomePageModel extends AppModel<HomePageWidget> {
     botaoMenuHomeModel3.dispose();
     botaoMenuHomeModel4.dispose();
     botaoMenuHomeModel5.dispose();
+    botaoMenuHomeModel6.dispose();
   }
 }

@@ -221,6 +221,11 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: FaturamentoMetasPageWidget.routeName,
           path: FaturamentoMetasPageWidget.routePath,
           builder: (context, params) => const FaturamentoMetasPageWidget(),
+        ),
+        AppRoute(
+          name: ReceberPageWidget.routeName,
+          path: ReceberPageWidget.routePath,
+          builder: (context, params) => const ReceberPageWidget(),
         )
       ].map((r) => r.toRoute(appStateNotifier)).toList(),
     );

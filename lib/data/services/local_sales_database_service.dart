@@ -267,11 +267,36 @@ class LocalSalesDatabaseService {
       )
     ''');
 
-    // Views de compatibilidade dig00 / dig01
+    // Tabela de duplicatas / contas a receber (dup00)
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS dup00 (
+        dup00_codigo INTEGER PRIMARY KEY,
+        dup00_codcli INTEGER,
+        dup00_datemi TEXT,
+        dup00_datven TEXT,
+        dup00_valori REAL DEFAULT 0,
+        dup00_valdev REAL DEFAULT 0,
+        dup00_valpag REAL DEFAULT 0,
+        dup00_codven INTEGER,
+        dup00_codagt INTEGER,
+        dup00_codcob INTEGER
+      )
+    ''');
+    try { await db.execute('CREATE INDEX IF NOT EXISTS idx_dup00_codcli ON dup00 (dup00_codcli)'); } catch (_) {}
+    try { await db.execute('CREATE INDEX IF NOT EXISTS idx_dup00_datven ON dup00 (dup00_datven)'); } catch (_) {}
+
+    // Garantir coluna de taxa de juros do representante
+    try {
+      await db.execute('ALTER TABLE cadrep00 ADD COLUMN ven00_txajur REAL DEFAULT 0');
+    } catch (_) {}
+
+    // Views de compatibilidade dig00 / dig01 / dup00
     try { await db.execute('DROP VIEW IF EXISTS dig00'); } catch (_) {}
     try { await db.execute('CREATE VIEW IF NOT EXISTS dig00 AS SELECT * FROM pckvendig000'); } catch (_) {}
     try { await db.execute('DROP VIEW IF EXISTS dig01'); } catch (_) {}
     try { await db.execute('CREATE VIEW IF NOT EXISTS dig01 AS SELECT * FROM pckvendig010'); } catch (_) {}
+    try { await db.execute('CREATE VIEW IF NOT EXISTS findup00 AS SELECT * FROM dup00'); } catch (_) {}
+    try { await db.execute('CREATE VIEW IF NOT EXISTS cadrecdup00 AS SELECT * FROM dup00'); } catch (_) {}
   }
 
 

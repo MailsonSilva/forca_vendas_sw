@@ -45,7 +45,7 @@ class _ModalClienteWidgetState extends State<ModalClienteWidget> {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      height: 380.0,
+      height: 500.0,
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -389,6 +389,110 @@ class _ModalClienteWidgetState extends State<ModalClienteWidget> {
                                       ),
                                       Text(
                                         'Adicionar novo cliente ao sistema',
+                                        style: AppTheme.of(context)
+                                            .bodyMedium
+                                            .override(
+                                              font: GoogleFonts.inter(
+                                                fontWeight: AppTheme.of(context)
+                                                    .bodyMedium
+                                                    .fontWeight,
+                                                fontStyle: AppTheme.of(context)
+                                                    .bodyMedium
+                                                    .fontStyle,
+                                              ),
+                                              letterSpacing: 0.0,
+                                              fontWeight: AppTheme.of(context)
+                                                  .bodyMedium
+                                                  .fontWeight,
+                                              fontStyle: AppTheme.of(context)
+                                                  .bodyMedium
+                                                  .fontStyle,
+                                            ),
+                                      ),
+                                    ].divide(SizedBox(height: 12.0)),
+                                  ),
+                                ),
+                              ].divide(SizedBox(width: 12.0)),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding:
+                          EdgeInsetsDirectional.fromSTEB(2.0, 0.0, 2.0, 0.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppTheme.of(context).secondaryBackground,
+                          boxShadow: [
+                            BoxShadow(
+                              blurRadius: 4.0,
+                              color: Color(0x33000000),
+                              offset: Offset(
+                                0.0,
+                                2.0,
+                              ),
+                            )
+                          ],
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: InkWell(
+                            splashColor: Colors.transparent,
+                            focusColor: Colors.transparent,
+                            hoverColor: Colors.transparent,
+                            highlightColor: Colors.transparent,
+                            onTap: () async {
+                              Navigator.pop(context);
+                              context.pushNamed(ReceberPageWidget.routeName);
+                            },
+                            child: Row(
+                              mainAxisSize: MainAxisSize.max,
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              children: [
+                                AppIconButton(
+                                  borderRadius: 8.0,
+                                  buttonSize: 60.0,
+                                  fillColor: Color(0x333572F7),
+                                  icon: Icon(
+                                    Icons.receipt_long_rounded,
+                                    color: AppTheme.of(context).primary,
+                                    size: 32.0,
+                                  ),
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    context.pushNamed(ReceberPageWidget.routeName);
+                                  },
+                                ),
+                                Expanded(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.max,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Contas a Receber',
+                                        style: AppTheme.of(context)
+                                            .bodyMedium
+                                            .override(
+                                              font: GoogleFonts.inter(
+                                                fontWeight: FontWeight.w600,
+                                                fontStyle: AppTheme.of(context)
+                                                    .bodyMedium
+                                                    .fontStyle,
+                                              ),
+                                              fontSize: 16.0,
+                                              letterSpacing: 0.0,
+                                              fontWeight: FontWeight.w600,
+                                              fontStyle: AppTheme.of(context)
+                                                  .bodyMedium
+                                                  .fontStyle,
+                                            ),
+                                      ),
+                                      Text(
+                                        'Consultar duplicatas e inadimplência',
                                         style: AppTheme.of(context)
                                             .bodyMedium
                                             .override(

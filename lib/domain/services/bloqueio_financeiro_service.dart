@@ -1,9 +1,9 @@
 import 'dart:io';
-import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
 import '../../app_constants.dart';
 import '../../app_state.dart';
+import '../../services/receber_duplicatas_service.dart';
 
 class BloqueioFinanceiroResult {
   final bool bloqueado;
@@ -143,110 +143,33 @@ class BloqueioFinanceiroService {
     return BloqueioFinanceiroResult(bloqueado: false, motivo: '');
   }
 
-  /// Consulta lista de títulos vencidos da tabela dup00 / findup00
-  static Future<List<TituloVencidoItem>> listarTitulosVencidos(int cliCodigo, {String? dbPathOverride}) async {
-    final List<TituloVencidoItem> titulos = [];
+  /// Consulta lista de títulos vencidos utilizando o ReceberDuplicatasService centralizado (DRY)
+  static Future<List<TituloVencidoItem>> listarTitulosVencidos(
+    int cliCodigo, {
+    String? dbPathOverride,
+  }) async {
+    final List<TituloVencidoItem> itens = [];
     try {
-      final dbPath = dbPathOverride ?? p.join(await getDatabasesPath(), 'dbforcacad001.db');
-      final db = await openDatabase(dbPath);
-      try {
-        final tables = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'");
-        final names = tables.map((r) => r['name'].toString().toLowerCase()).toSet();
+      final titulos = await ReceberDuplicatasService.carregarTitulosCliente(
+        cliCodigo,
+        dbPathOverride: dbPathOverride,
+      );
 
-        String? dupTable;
-        for (final tbl in ['dup00', 'findup00', 'caddup00', 'findup000', 'dup000']) {
-          if (names.contains(tbl)) {
-            dupTable = tbl;
-            break;
-          }
+      for (final t in titulos) {
+        if (t.isVencido) {
+          itens.add(TituloVencidoItem(
+            numeroDocumento: t.numeroDocumento,
+            dataEmissao: ReceberDuplicatasService.formatarData(t.dataEmissao),
+            dataVencimento: ReceberDuplicatasService.formatarData(t.dataVencimento),
+            valor: t.saldoDevedor,
+            diasAtraso: t.diasAtraso,
+            valorJuros: t.valorJuros,
+            saldoDevedor: t.saldoDevedor,
+          ));
         }
-        if (dupTable == null) {
-          await db.close();
-          return titulos;
-        }
-
-        final cols = await db.rawQuery('PRAGMA table_info($dupTable)');
-        final colNames = cols.map((r) => r['name'].toString().toLowerCase()).toSet();
-
-        String? colCli;
-        for (final c in ['dup00_codcli', 'dup00_clicod', 'codcli', 'clicod', 'cli00_codigo']) {
-          if (colNames.contains(c)) { colCli = c; break; }
-        }
-        if (colCli == null) {
-          await db.close();
-          return titulos;
-        }
-
-        final now = DateTime.now();
-        final todayStr = DateFormat('yyyy-MM-dd').format(now);
-
-        final rows = await db.rawQuery(
-          'SELECT * FROM $dupTable WHERE $colCli = ?',
-          [cliCodigo],
-        );
-
-        for (final r in rows) {
-          String doc = '';
-          String datEmi = '';
-          String datVen = '';
-          double valor = 0.0;
-          double valJur = 0.0;
-          double valDev = 0.0;
-          double valPag = 0.0;
-
-          for (final entry in r.entries) {
-            final k = entry.key.toLowerCase();
-            final v = entry.value;
-            if (v == null) continue;
-            if (k.contains('codigo') || k.contains('numdoc') || k.contains('numdup') || k.contains('dupcod')) {
-              doc = v.toString();
-            } else if (k.contains('datemi') || k.contains('dtemi')) {
-              datEmi = v.toString();
-            } else if (k.contains('datven') || k.contains('dtven') || k.contains('vencimento')) {
-              datVen = v.toString();
-            } else if (k.contains('valori') || k.contains('valtot') || k.contains('valor')) {
-              valor = (v is num) ? v.toDouble() : double.tryParse(v.toString()) ?? 0.0;
-            } else if (k.contains('valjur') || k.contains('juros')) {
-              valJur = (v is num) ? v.toDouble() : double.tryParse(v.toString()) ?? 0.0;
-            } else if (k.contains('valdev') || k.contains('saldo')) {
-              valDev = (v is num) ? v.toDouble() : double.tryParse(v.toString()) ?? 0.0;
-            } else if (k.contains('valpag') || k.contains('pago')) {
-              valPag = (v is num) ? v.toDouble() : double.tryParse(v.toString()) ?? 0.0;
-            }
-          }
-
-          if (datVen.isEmpty) continue;
-
-          final dtVen = DateTime.tryParse(datVen);
-          final isVencido = dtVen != null
-              ? dtVen.isBefore(DateTime(now.year, now.month, now.day))
-              : datVen.compareTo(todayStr) < 0;
-
-          if (valPag >= valor && valor > 0 && valDev <= 0) continue;
-
-          if (isVencido) {
-            final int diasAtraso = dtVen != null
-                ? DateTime(now.year, now.month, now.day).difference(DateTime(dtVen.year, dtVen.month, dtVen.day)).inDays
-                : 1;
-
-            final valorExibir = valDev > 0 ? valDev : valor;
-
-            titulos.add(TituloVencidoItem(
-              numeroDocumento: doc.isNotEmpty ? doc : 'Título',
-              dataEmissao: datEmi,
-              dataVencimento: datVen,
-              valor: valorExibir,
-              diasAtraso: diasAtraso > 0 ? diasAtraso : 1,
-              valorJuros: valJur,
-              saldoDevedor: valDev > 0 ? valDev : valor,
-            ));
-          }
-        }
-      } finally {
-        await db.close();
       }
     } catch (_) {}
-    return titulos;
+    return itens;
   }
 
   /// Verifica duplicatas atrasadas via tabela findup00/dup00 se existir.

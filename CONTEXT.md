@@ -31,3 +31,24 @@
 - **Crédito Regular / Verde**: Cliente com histórico financeiro em dia (`titven == 0` e `titave == 0`).
 - **Margem de Limite Disponível (`cli00_creatu`)**: Saldo financeiro disponível para novos faturamentos a prazo.
 - **Georreferenciamento (`cli16_codlat`, `cli16_codlon`)**: Coordenadas geográficas para traçar rota e auditoria de visitas presenciais.
+
+## Módulo: Contas a Receber e Gestão de Duplicatas (Receber)
+
+### 1. Duplicata / Título (`dup00`)
+- **Registro Financeiro**: Título individual emitido pelo ERP (`dup00_codigo`), vinculado ao cliente (`dup00_codcli`), com valor original (`dup00_valori`), saldo devedor (`dup00_valdev`), valor pago (`dup00_valpag`), data de emissão (`dup00_datemi`) e vencimento (`dup00_datven`).
+- **Escopo Negativo Estrito**: O aplicativo móvel opera em modo 100% consulta/auditoria. O vendedor **não** realiza baixa, **não** gera segundas vias ou Pix locais e **não** altera prazos ou juros.
+
+### 2. Apuração de Atraso e Juros de Mora
+- **Dias de Atraso (`diasAtrasado`)**: Diferença em dias corridos calculada offline entre `dup00_datven` e a data corrente do dispositivo (`hoje - datven`), quando `datven < hoje`.
+- **Taxa de Juros do Representante (`ven00_txajur`)**: Parâmetro percentual diário cadastrado em `cadrep00`. Se nulo ou zero, juros apurados são R$ 0,00 (sem inventar alíquotas não parametrizadas pelo ERP).
+- **Cálculo de Juros**: $\text{Juros} = \text{dup00\_valdev} \times (\text{ven00\_txajur} / 100) \times \text{diasAtrasado}$.
+
+### 3. Classificação e Saldos do Cliente
+- **Total Vencido (`cli00_titven`)**: Soma consolidada de `dup00_valdev + Juros` dos títulos com vencimento anterior à data atual.
+- **Total A Vencer (`cli00_titave`)**: Soma de `dup00_valdev` de títulos com vencimento igual ou posterior à data atual.
+- **Filtros Operacionais**: *Todos com Débito* (`valdev > 0`), *Apenas Vencidos* (`valdev > 0 AND datven < hoje`), *A Vencer* (`valdev > 0 AND datven >= hoje`).
+
+### 4. Extrato Analítico e Cobrança Amigável
+- **Extrato em Sliding BottomSheet**: Apresentação analítica reativa deslizante por cliente, mantendo a posição de scroll da lista macro.
+- **Destaque Visual de Inadimplência**: Títulos vencidos evidenciados em vermelho com badge de dias de atraso.
+- **Compartilhamento Textual**: Exportação formatada das pendências para canal de mensagens (WhatsApp / Clipboard) para cobrança amigável direta.
