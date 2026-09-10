@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'ferramentas_page_model.dart';
+import '/pages/gerar_pacote/gerar_pacote_page_widget.dart';
 export 'ferramentas_page_model.dart';
 
 class FerramentasPageWidget extends StatefulWidget {
@@ -91,6 +92,100 @@ class _FerramentasPageWidgetState extends State<FerramentasPageWidget> {
           child: Column(
             mainAxisSize: MainAxisSize.max,
             children: [
+              // ── NOVO: GERAR PACOTES E ENVIAR CARGA (Central de Transmissão) ──
+              Padding(
+                padding: EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+                child: Container(
+                  width: double.infinity,
+                  height: 84.0,
+                  decoration: BoxDecoration(
+                    color: AppTheme.of(context).secondaryBackground,
+                    boxShadow: [
+                      BoxShadow(
+                        blurRadius: 6.0,
+                        color: Color(0x26000000),
+                        offset: Offset(0.0, 2.0),
+                      )
+                    ],
+                    borderRadius: BorderRadius.circular(10.0),
+                    border: Border.all(
+                      color: AppTheme.of(context).primary.withValues(alpha: 0.35),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(12.0),
+                    child: InkWell(
+                      splashColor: Colors.transparent,
+                      focusColor: Colors.transparent,
+                      hoverColor: Colors.transparent,
+                      highlightColor: Colors.transparent,
+                      onTap: () async {
+                        await context.pushNamed(GerarPacotePageWidget.routeName);
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.max,
+                        children: [
+                          Container(
+                            width: 60.0,
+                            height: 60.0,
+                            decoration: BoxDecoration(
+                              color: AppTheme.of(context).primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10.0),
+                            ),
+                            child: Icon(
+                              Icons.inventory_2_rounded,
+                              color: AppTheme.of(context).primary,
+                              size: 32.0,
+                            ),
+                          ),
+                          Expanded(
+                            child: Padding(
+                              padding: EdgeInsetsDirectional.fromSTEB(12.0, 0.0, 0.0, 0.0),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.max,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'Gerar Pacotes e Enviar Carga',
+                                        style: AppTheme.of(context).bodyMedium.override(
+                                              font: GoogleFonts.plusJakartaSans(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                              fontSize: 15.0,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 3.0),
+                                  Text(
+                                    'Central de transmissão de pedidos e clientes',
+                                    style: AppTheme.of(context).bodyMedium.override(
+                                          font: GoogleFonts.inter(),
+                                          color: AppTheme.of(context).secondaryText,
+                                          fontSize: 12.0,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            Icons.keyboard_arrow_right,
+                            color: AppTheme.of(context).primary,
+                            size: 28.0,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
               Padding(
                 padding: EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
                 child: Container(

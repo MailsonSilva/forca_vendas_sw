@@ -122,6 +122,7 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         return Container(
@@ -225,24 +226,28 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                   },
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.all(16.0),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, -2))],
-                ),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.of(context).primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text(
-                      'Continuar Digitação',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+              SafeArea(
+                top: false,
+                bottom: true,
+                child: Container(
+                  padding: const EdgeInsets.all(16.0),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, -2))],
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.of(context).primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text(
+                        'Continuar Digitação',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                      ),
                     ),
                   ),
                 ),
@@ -259,6 +264,7 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
         return StatefulBuilder(
@@ -277,8 +283,11 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
               ),
-              child: Column(
-                children: [
+              child: SafeArea(
+                top: false,
+                bottom: true,
+                child: Column(
+                  children: [
                   const SizedBox(height: 12.0),
                   Container(
                     width: 40.0,
@@ -422,7 +431,8 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                   ),
                 ],
               ),
-            );
+            ),
+          );
           },
         );
       },
@@ -434,6 +444,7 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
         return StatefulBuilder(
@@ -451,8 +462,11 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
               ),
-              child: Column(
-                children: [
+              child: SafeArea(
+                top: false,
+                bottom: true,
+                child: Column(
+                  children: [
                   const SizedBox(height: 12.0),
                   Container(
                     width: 40.0,
@@ -564,7 +578,8 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                   ),
                 ],
               ),
-            );
+            ),
+          );
           },
         );
       },
@@ -576,6 +591,7 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
         return StatefulBuilder(
@@ -593,8 +609,11 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
               ),
-              child: Column(
-                children: [
+              child: SafeArea(
+                top: false,
+                bottom: true,
+                child: Column(
+                  children: [
                   const SizedBox(height: 12.0),
                   Container(
                     width: 40.0,
@@ -708,7 +727,8 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                   ),
                 ],
               ),
-            );
+            ),
+          );
           },
         );
       },

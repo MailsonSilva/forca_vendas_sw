@@ -30,13 +30,16 @@ class _ModalSelecaoFilialWidgetState extends State<ModalSelecaoFilialWidget> {
 
     return PopScope(
       canPop: false,
-      child: Container(
-        height: MediaQuery.of(context).size.height * 0.65,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
-        ),
-        child: Column(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600.0),
+          child: Container(
+            height: MediaQuery.sizeOf(context).height * 0.65,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
+            ),
+            child: Column(
           children: [
             const SizedBox(height: 12.0),
             Container(
@@ -133,24 +136,30 @@ class _ModalSelecaoFilialWidgetState extends State<ModalSelecaoFilialWidget> {
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: double.infinity,
-                height: 48.0,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.of(context).primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+            SafeArea(
+              top: false,
+              bottom: true,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 48.0,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.of(context).primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                    ),
+                    onPressed: _selecionado == null ? null : () => Navigator.pop(context, _selecionado),
+                    child: const Text('Confirmar Filial', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
-                  onPressed: _selecionado == null ? null : () => Navigator.pop(context, _selecionado),
-                  child: const Text('Confirmar Filial', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ),
             ),
           ],
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }

@@ -47,9 +47,7 @@ class ContaCorrenteService {
       if (rows.isNotEmpty) {
         return ContaCorrenteSaldo.fromMap(rows.first, dataSincronizacao: dataSinc);
       }
-    } catch (e) {
-      print('Erro ao obter saldo consolidado CCV: $e');
-    }
+    } catch (_) {}
 
     return ContaCorrenteSaldo.empty(codFil: filCod, codVen: repCod);
   }
@@ -95,8 +93,7 @@ class ContaCorrenteService {
 
       final rows = await db.rawQuery(query, whereArgs);
       return rows.map((r) => ContaCorrenteMovimentacao.fromMap(r)).toList();
-    } catch (e) {
-      print('Erro ao obter movimentações CCV: $e');
+    } catch (_) {
       return [];
     }
   }

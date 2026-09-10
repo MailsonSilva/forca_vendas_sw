@@ -162,6 +162,7 @@ class LocalSalesDatabaseService {
     }
 
     for (final e in {
+      'cli00_codigo16': 'TEXT',
       'cli00_descri': 'TEXT',
       'cli00_fantas': 'TEXT',
       'cli00_flgven': 'INTEGER',
@@ -171,6 +172,31 @@ class LocalSalesDatabaseService {
       'cli00_estsgl': 'TEXT',
       'cli00_active': 'INTEGER',
       'cli00_typpes': 'INTEGER',
+      'cli00_cpfcnp': 'TEXT',
+      'cli00_insest': 'TEXT',
+      'cli00_nrg': 'TEXT',
+      'cli00_email': 'TEXT',
+      'cli00_emaildanfe': 'TEXT',
+      'cli00_ramo': 'TEXT',
+      'cli00_endere': 'TEXT',
+      'cli00_endnum': 'TEXT',
+      'cli00_bairro': 'TEXT',
+      'cli00_endcep': 'TEXT',
+      'cli00_fonddd': 'TEXT',
+      'cli00_fonnum': 'TEXT',
+      'cli00_observ': 'TEXT',
+      'cli00_descobs': 'TEXT',
+      'cli00_endcob': 'TEXT',
+      'cli00_numcob': 'TEXT',
+      'cli00_bairrocob': 'TEXT',
+      'cli00_cidadecob': 'TEXT',
+      'cli00_ufcob': 'TEXT',
+      'cli00_cepcob': 'TEXT',
+      'cli00_dddcob': 'TEXT',
+      'cli00_fonecob': 'TEXT',
+      'cli00_sttenv': 'INTEGER DEFAULT 0',
+      'cli00_crelim': 'REAL DEFAULT 0',
+      'cli00_creatu': 'REAL DEFAULT 0',
     }.entries) {
       try {
         await db.execute('ALTER TABLE cadcli00 ADD COLUMN ${e.key} ${e.value}');
@@ -290,13 +316,32 @@ class LocalSalesDatabaseService {
       await db.execute('ALTER TABLE cadrep00 ADD COLUMN ven00_txajur REAL DEFAULT 0');
     } catch (_) {}
 
-    // Views de compatibilidade dig00 / dig01 / dup00
+    // Views de compatibilidade dig00 / dig01 / dup00 / cli00
     try { await db.execute('DROP VIEW IF EXISTS dig00'); } catch (_) {}
     try { await db.execute('CREATE VIEW IF NOT EXISTS dig00 AS SELECT * FROM pckvendig000'); } catch (_) {}
     try { await db.execute('DROP VIEW IF EXISTS dig01'); } catch (_) {}
     try { await db.execute('CREATE VIEW IF NOT EXISTS dig01 AS SELECT * FROM pckvendig010'); } catch (_) {}
-    try { await db.execute('CREATE VIEW IF NOT EXISTS findup00 AS SELECT * FROM dup00'); } catch (_) {}
+    try { await db.execute('DROP VIEW IF EXISTS findup00'); } catch (_) {}
     try { await db.execute('CREATE VIEW IF NOT EXISTS cadrecdup00 AS SELECT * FROM dup00'); } catch (_) {}
+    try { await db.execute('DROP VIEW IF EXISTS cli00'); } catch (_) {}
+    try { await db.execute('CREATE VIEW IF NOT EXISTS cli00 AS SELECT * FROM cadcli00'); } catch (_) {}
+  }
+
+
+  /// Obtém o próximo código sequencial para novo cliente local
+  static Future<int> obterProximoCodigoCliente() async {
+    final db = await getDatabase();
+    try {
+      final rows = await db.rawQuery('SELECT IFNULL(MAX(cli00_codigo), 0) AS max_cod FROM cadcli00');
+      if (rows.isNotEmpty) {
+        final val = rows.first['max_cod'];
+        final n = (val is num) ? val.toInt() : (int.tryParse(val?.toString() ?? '') ?? 0);
+        return n > 0 ? n + 1 : 1;
+      }
+      return 1;
+    } catch (_) {
+      return 1;
+    }
   }
 
 

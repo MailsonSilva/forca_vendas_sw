@@ -109,8 +109,7 @@ class ResumoVendasService {
         dataFim: dataFim,
         dias: diasList,
       );
-    } catch (e) {
-      print('Erro ao obter resumo de vendas e comissões: $e');
+    } catch (_) {
       return ResumoVendasConsolidado.empty(dataInicio: dataInicio, dataFim: dataFim);
     }
   }

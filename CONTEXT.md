@@ -52,3 +52,6 @@
 - **Extrato em Sliding BottomSheet**: Apresentação analítica reativa deslizante por cliente, mantendo a posição de scroll da lista macro.
 - **Destaque Visual de Inadimplência**: Títulos vencidos evidenciados em vermelho com badge de dias de atraso.
 - **Compartilhamento Textual**: Exportação formatada das pendências para canal de mensagens (WhatsApp / Clipboard) para cobrança amigável direta.
+- **Ordenação por Aging (Tempo de Atraso)**: Ordenação prioritária da carteira pelo título com vencimento mais antigo, antecipando o risco de crédito e bloqueio comercial.
+- **Barreira de Checkout / Termo de Responsabilidade**: Validação integrada que exige auditoria e termo de consentimento ao abrir pedido para cliente com títulos em atraso (`totalVencido > 0`).
+

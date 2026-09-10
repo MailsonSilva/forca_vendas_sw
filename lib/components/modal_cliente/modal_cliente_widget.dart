@@ -43,72 +43,87 @@ class _ModalClienteWidgetState extends State<ModalClienteWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: 500.0,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 4.0,
-            color: Color(0x33000000),
-            offset: Offset(
-              0.0,
-              2.0,
-            ),
-          )
-        ],
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(12.0),
-          topRight: Radius.circular(12.0),
+    return Align(
+      alignment: Alignment.bottomCenter,
+      heightFactor: 1.0,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 600.0,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
         ),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(18.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.max,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.max,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Clientes',
-                  style: AppTheme.of(context).titleLarge.override(
-                        font: GoogleFonts.outfit(
-                          fontWeight: FontWeight.w500,
-                          fontStyle: AppTheme.of(context).titleLarge.fontStyle,
-                        ),
-                        color: Color(0xFF14181B),
-                        fontSize: 22.0,
-                        letterSpacing: 0.0,
-                        fontWeight: FontWeight.w500,
-                        fontStyle: AppTheme.of(context).titleLarge.fontStyle,
-                      ),
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                blurRadius: 4.0,
+                color: Color(0x33000000),
+                offset: Offset(
+                  0.0,
+                  2.0,
                 ),
-                AppIconButton(
-                  borderColor: Color(0xFFE0E3E7),
-                  borderRadius: 12.0,
-                  borderWidth: 1.0,
-                  buttonSize: 44.0,
-                  icon: Icon(
-                    Icons.close_rounded,
-                    color: Color(0xFF14181B),
-                    size: 20.0,
-                  ),
-                  onPressed: () async {
-                    Navigator.pop(context);
-                  },
-                ),
-              ],
+              )
+            ],
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(12.0),
+              topRight: Radius.circular(12.0),
             ),
-            Expanded(
-              child: Padding(
-                padding: EdgeInsetsDirectional.fromSTEB(0.0, 12.0, 0.0, 0.0),
-                child: Column(
+          ),
+          child: SafeArea(
+            top: false,
+            bottom: true,
+            child: Padding(
+              padding: EdgeInsets.all(18.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                Row(
                   mainAxisSize: MainAxisSize.max,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    Expanded(
+                      child: Text(
+                        'Clientes',
+                        style: AppTheme.of(context).titleLarge.override(
+                              font: GoogleFonts.outfit(
+                                fontWeight: FontWeight.w500,
+                                fontStyle: AppTheme.of(context).titleLarge.fontStyle,
+                              ),
+                              color: Color(0xFF14181B),
+                              fontSize: 22.0,
+                              letterSpacing: 0.0,
+                              fontWeight: FontWeight.w500,
+                              fontStyle: AppTheme.of(context).titleLarge.fontStyle,
+                            ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    AppIconButton(
+                      borderColor: Color(0xFFE0E3E7),
+                      borderRadius: 12.0,
+                      borderWidth: 1.0,
+                      buttonSize: 44.0,
+                      icon: Icon(
+                        Icons.close_rounded,
+                        color: Color(0xFF14181B),
+                        size: 20.0,
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ],
+                ),
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: EdgeInsetsDirectional.fromSTEB(0.0, 12.0, 0.0, 0.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
                     Padding(
                       padding:
                           EdgeInsetsDirectional.fromSTEB(2.0, 0.0, 2.0, 0.0),
@@ -525,12 +540,16 @@ class _ModalClienteWidgetState extends State<ModalClienteWidget> {
                   ]
                       .divide(SizedBox(height: 16.0))
                       .addToStart(SizedBox(height: 12.0)),
+                  ),
                 ),
               ),
             ),
           ],
         ),
       ),
-    );
+    ),
+  ),
+),
+);
   }
 }

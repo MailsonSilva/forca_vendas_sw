@@ -3070,8 +3070,8 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             ],
                                           ),
                                         ),
-                                        SizedBox(
-                                          width: 320.0,
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
                                           child: Divider(
                                             thickness: 2.0,
                                             color: AppTheme.of(context)
@@ -3384,6 +3384,8 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                           .addToEnd(const SizedBox(height: 16.0)),
                                     ),
                                   ),
+                                  SingleChildScrollView(
+                                    child:
                                   Column(
                                     mainAxisSize: MainAxisSize.max,
                                     children: [
@@ -3951,6 +3953,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                         .divide(const SizedBox(height: 16.0))
                                         .addToStart(const SizedBox(height: 16.0))
                                         .addToEnd(const SizedBox(height: 16.0)),
+                                  ),
                                   ),
                                 ],
                               ),

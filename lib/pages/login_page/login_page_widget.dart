@@ -85,15 +85,17 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                     children: [
                       Padding(
                         padding: const EdgeInsets.all(24.0),
-                        child: Container(
-                          width: 400.0,
-                          decoration: BoxDecoration(
-                            color: AppTheme.of(context)
-                                .secondaryBackground,
-                            borderRadius: BorderRadius.circular(16.0),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(24.0),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 420.0),
+                          child: Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: AppTheme.of(context)
+                                  .secondaryBackground,
+                              borderRadius: BorderRadius.circular(16.0),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(24.0),
                             child: SingleChildScrollView(
                               primary: false,
                               child: Column(
@@ -451,7 +453,8 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                           ),
                         ),
                       ),
-                    ],
+                    ),
+                  ],
                   ),
                 ),
               ),

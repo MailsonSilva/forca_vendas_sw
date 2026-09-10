@@ -42,4 +42,8 @@ export '/action_code/contar_filiais.dart'
     show contarFiliais, FiliaisResult, FilialInfo;
 export '/action_code/do_maintenance.dart' show doMaintenance, logoutVendedor;
 export '/action_code/baixar_retorno_ftp.dart' show baixarRetornoFtp;
+export '/action_code/salvar_cliente_offline.dart'
+    show salvarClienteOffline, ResultadoSalvarCliente, removerMascara;
+export '/action_code/listar_clientes_pendentes.dart'
+    show listarClientesPendentes, ClientePendenteItem;
 

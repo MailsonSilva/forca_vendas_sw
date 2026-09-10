@@ -170,215 +170,234 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                 child: Container(
                   width: double.infinity,
                   decoration: const BoxDecoration(),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.max,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.max,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            InkWell(
-                              splashColor: Colors.transparent,
-                              focusColor: Colors.transparent,
-                              hoverColor: Colors.transparent,
-                              highlightColor: Colors.transparent,
-                              onTap: () async {
-                                await showModalBottomSheet(
-                                  isScrollControlled: true,
-                                  backgroundColor: Colors.transparent,
-                                  context: context,
-                                  builder: (context) {
-                                    return GestureDetector(
-                                      onTap: () {
-                                        FocusScope.of(context).unfocus();
-                                        FocusManager.instance.primaryFocus
-                                            ?.unfocus();
+                  child: SingleChildScrollView(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 600.0),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.max,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.max,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Expanded(
+                                    child: InkWell(
+                                      splashColor: Colors.transparent,
+                                      focusColor: Colors.transparent,
+                                      hoverColor: Colors.transparent,
+                                      highlightColor: Colors.transparent,
+                                      onTap: () async {
+                                        await showModalBottomSheet(
+                                          isScrollControlled: true,
+                                          useSafeArea: true,
+                                          backgroundColor: Colors.transparent,
+                                          context: context,
+                                          builder: (context) {
+                                            return GestureDetector(
+                                              onTap: () {
+                                                FocusScope.of(context).unfocus();
+                                                FocusManager.instance.primaryFocus
+                                                    ?.unfocus();
+                                              },
+                                              child: Padding(
+                                                padding:
+                                                    MediaQuery.viewInsetsOf(context),
+                                                child: const ModalPedidosWidget(),
+                                              ),
+                                            );
+                                          },
+                                        ).then((value) => safeSetState(() {}));
                                       },
-                                      child: Padding(
-                                        padding:
-                                            MediaQuery.viewInsetsOf(context),
-                                        child: const ModalPedidosWidget(),
-                                      ),
-                                    );
-                                  },
-                                ).then((value) => safeSetState(() {}));
-                              },
-                              child: wrapWithModel(
-                                model: _model.botaoMenuHomeModel1,
-                                updateCallback: () => safeSetState(() {}),
-                                child: BotaoMenuHomeWidget(
-                                  description: 'Pedidos',
-                                  icon: Icon(
-                                    Icons.shopping_cart_outlined,
-                                    color: AppTheme.of(context).primary,
-                                    size: 32.0,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            InkWell(
-                              splashColor: Colors.transparent,
-                              focusColor: Colors.transparent,
-                              hoverColor: Colors.transparent,
-                              highlightColor: Colors.transparent,
-                              onTap: () async {
-                                await showModalBottomSheet(
-                                  isScrollControlled: true,
-                                  backgroundColor: Colors.transparent,
-                                  context: context,
-                                  builder: (context) {
-                                    return GestureDetector(
-                                      onTap: () {
-                                        FocusScope.of(context).unfocus();
-                                        FocusManager.instance.primaryFocus
-                                            ?.unfocus();
-                                      },
-                                      child: Padding(
-                                        padding:
-                                            MediaQuery.viewInsetsOf(context),
-                                        child: const SizedBox(
-                                          height: 500.0,
-                                          child: ModalClienteWidget(),
+                                      child: wrapWithModel(
+                                        model: _model.botaoMenuHomeModel1,
+                                        updateCallback: () => safeSetState(() {}),
+                                        child: BotaoMenuHomeWidget(
+                                          description: 'Pedidos',
+                                          icon: Icon(
+                                            Icons.shopping_cart_outlined,
+                                            color: AppTheme.of(context).primary,
+                                            size: 32.0,
+                                          ),
                                         ),
                                       ),
-                                    );
-                                  },
-                                ).then((value) => safeSetState(() {}));
-                              },
-                              child: wrapWithModel(
-                                model: _model.botaoMenuHomeModel2,
-                                updateCallback: () => safeSetState(() {}),
-                                child: BotaoMenuHomeWidget(
-                                  description: 'Clientes',
-                                  icon: Icon(
-                                    Icons.people_outline_rounded,
-                                    color: AppTheme.of(context).primary,
-                                    size: 32.0,
+                                    ),
                                   ),
-                                ),
-                              ),
-                            ),
-                          ].divide(const SizedBox(width: 16.0)),
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.max,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            InkWell(
-                              splashColor: Colors.transparent,
-                              focusColor: Colors.transparent,
-                              hoverColor: Colors.transparent,
-                              highlightColor: Colors.transparent,
-                              onTap: () async {
-                                context.pushNamed(
-                                    BuscaProdutoPageWidget.routeName);
-                              },
-                              child: wrapWithModel(
-                                model: _model.botaoMenuHomeModel3,
-                                updateCallback: () => safeSetState(() {}),
-                                child: BotaoMenuHomeWidget(
-                                  description: 'Estoque',
-                                  icon: Icon(
-                                    Icons.storage_rounded,
-                                    color: AppTheme.of(context).primary,
-                                    size: 32.0,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            InkWell(
-                              splashColor: Colors.transparent,
-                              focusColor: Colors.transparent,
-                              hoverColor: Colors.transparent,
-                              highlightColor: Colors.transparent,
-                              onTap: () async {
-                                context
-                                    .pushNamed(FerramentasPageWidget.routeName);
-                              },
-                              child: wrapWithModel(
-                                model: _model.botaoMenuHomeModel4,
-                                updateCallback: () => safeSetState(() {}),
-                                child: BotaoMenuHomeWidget(
-                                  description: 'Ferramentas',
-                                  icon: Icon(
-                                    Icons.tune_rounded,
-                                    color: AppTheme.of(context).primary,
-                                    size: 32.0,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ].divide(const SizedBox(width: 16.0)),
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.max,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            InkWell(
-                              splashColor: Colors.transparent,
-                              focusColor: Colors.transparent,
-                              hoverColor: Colors.transparent,
-                              highlightColor: Colors.transparent,
-                              onTap: () async {
-                                await showModalBottomSheet(
-                                  isScrollControlled: true,
-                                  backgroundColor: Colors.transparent,
-                                  context: context,
-                                  builder: (context) {
-                                    return GestureDetector(
-                                      onTap: () {
-                                        FocusScope.of(context).unfocus();
-                                        FocusManager.instance.primaryFocus
-                                            ?.unfocus();
+                                  Expanded(
+                                    child: InkWell(
+                                      splashColor: Colors.transparent,
+                                      focusColor: Colors.transparent,
+                                      hoverColor: Colors.transparent,
+                                      highlightColor: Colors.transparent,
+                                      onTap: () async {
+                                        await showModalBottomSheet(
+                                          isScrollControlled: true,
+                                          useSafeArea: true,
+                                          backgroundColor: Colors.transparent,
+                                          context: context,
+                                          builder: (context) {
+                                            return GestureDetector(
+                                              onTap: () {
+                                                FocusScope.of(context).unfocus();
+                                                FocusManager.instance.primaryFocus
+                                                    ?.unfocus();
+                                              },
+                                              child: Padding(
+                                                padding:
+                                                    MediaQuery.viewInsetsOf(context),
+                                                child: const ModalClienteWidget(),
+                                              ),
+                                            );
+                                          },
+                                        ).then((value) => safeSetState(() {}));
                                       },
-                                      child: Padding(
-                                        padding:
-                                            MediaQuery.viewInsetsOf(context),
-                                        child: const ModalRelatoriosWidget(),
+                                      child: wrapWithModel(
+                                        model: _model.botaoMenuHomeModel2,
+                                        updateCallback: () => safeSetState(() {}),
+                                        child: BotaoMenuHomeWidget(
+                                          description: 'Clientes',
+                                          icon: Icon(
+                                            Icons.people_outline_rounded,
+                                            color: AppTheme.of(context).primary,
+                                            size: 32.0,
+                                          ),
+                                        ),
                                       ),
-                                    );
-                                  },
-                                ).then((value) => safeSetState(() {}));
-                              },
-                              child: wrapWithModel(
-                                model: _model.botaoMenuHomeModel5,
-                                updateCallback: () => safeSetState(() {}),
-                                child: BotaoMenuHomeWidget(
-                                  description: 'Relatórios',
-                                  icon: Icon(
-                                    Icons.analytics_outlined,
-                                    color: AppTheme.of(context).primary,
-                                    size: 32.0,
+                                    ),
                                   ),
-                                ),
+                                ].divide(const SizedBox(width: 16.0)),
                               ),
-                            ),
-                            InkWell(
-                              splashColor: Colors.transparent,
-                              focusColor: Colors.transparent,
-                              hoverColor: Colors.transparent,
-                              highlightColor: Colors.transparent,
-                              onTap: () async {
-                                context.pushNamed(ReceberPageWidget.routeName);
-                              },
-                              child: wrapWithModel(
-                                model: _model.botaoMenuHomeModel6,
-                                updateCallback: () => safeSetState(() {}),
-                                child: BotaoMenuHomeWidget(
-                                  description: 'Receber',
-                                  icon: Icon(
-                                    Icons.receipt_long_rounded,
-                                    color: AppTheme.of(context).primary,
-                                    size: 32.0,
+                              Row(
+                                mainAxisSize: MainAxisSize.max,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Expanded(
+                                    child: InkWell(
+                                      splashColor: Colors.transparent,
+                                      focusColor: Colors.transparent,
+                                      hoverColor: Colors.transparent,
+                                      highlightColor: Colors.transparent,
+                                      onTap: () async {
+                                        context.pushNamed(
+                                            BuscaProdutoPageWidget.routeName);
+                                      },
+                                      child: wrapWithModel(
+                                        model: _model.botaoMenuHomeModel3,
+                                        updateCallback: () => safeSetState(() {}),
+                                        child: BotaoMenuHomeWidget(
+                                          description: 'Estoque',
+                                          icon: Icon(
+                                            Icons.storage_rounded,
+                                            color: AppTheme.of(context).primary,
+                                            size: 32.0,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  Expanded(
+                                    child: InkWell(
+                                      splashColor: Colors.transparent,
+                                      focusColor: Colors.transparent,
+                                      hoverColor: Colors.transparent,
+                                      highlightColor: Colors.transparent,
+                                      onTap: () async {
+                                        context
+                                            .pushNamed(FerramentasPageWidget.routeName);
+                                      },
+                                      child: wrapWithModel(
+                                        model: _model.botaoMenuHomeModel4,
+                                        updateCallback: () => safeSetState(() {}),
+                                        child: BotaoMenuHomeWidget(
+                                          description: 'Ferramentas',
+                                          icon: Icon(
+                                            Icons.tune_rounded,
+                                            color: AppTheme.of(context).primary,
+                                            size: 32.0,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ].divide(const SizedBox(width: 16.0)),
                               ),
-                            ),
-                          ].divide(const SizedBox(width: 16.0)),
+                              Row(
+                                mainAxisSize: MainAxisSize.max,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Expanded(
+                                    child: InkWell(
+                                      splashColor: Colors.transparent,
+                                      focusColor: Colors.transparent,
+                                      hoverColor: Colors.transparent,
+                                      highlightColor: Colors.transparent,
+                                      onTap: () async {
+                                        await showModalBottomSheet(
+                                          isScrollControlled: true,
+                                          useSafeArea: true,
+                                          backgroundColor: Colors.transparent,
+                                          context: context,
+                                          builder: (context) {
+                                            return GestureDetector(
+                                              onTap: () {
+                                                FocusScope.of(context).unfocus();
+                                                FocusManager.instance.primaryFocus
+                                                    ?.unfocus();
+                                              },
+                                              child: Padding(
+                                                padding:
+                                                    MediaQuery.viewInsetsOf(context),
+                                                child: const ModalRelatoriosWidget(),
+                                              ),
+                                            );
+                                          },
+                                        ).then((value) => safeSetState(() {}));
+                                      },
+                                      child: wrapWithModel(
+                                        model: _model.botaoMenuHomeModel5,
+                                        updateCallback: () => safeSetState(() {}),
+                                        child: BotaoMenuHomeWidget(
+                                          description: 'Relatórios',
+                                          icon: Icon(
+                                            Icons.analytics_outlined,
+                                            color: AppTheme.of(context).primary,
+                                            size: 32.0,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: InkWell(
+                                      splashColor: Colors.transparent,
+                                      focusColor: Colors.transparent,
+                                      hoverColor: Colors.transparent,
+                                      highlightColor: Colors.transparent,
+                                      onTap: () async {
+                                        context.pushNamed(ReceberPageWidget.routeName);
+                                      },
+                                      child: wrapWithModel(
+                                        model: _model.botaoMenuHomeModel6,
+                                        updateCallback: () => safeSetState(() {}),
+                                        child: BotaoMenuHomeWidget(
+                                          description: 'Receber',
+                                          icon: Icon(
+                                            Icons.receipt_long_rounded,
+                                            color: AppTheme.of(context).primary,
+                                            size: 32.0,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ].divide(const SizedBox(width: 16.0)),
+                              ),
+                            ].divide(const SizedBox(height: 16.0)),
+                          ),
                         ),
-                      ].divide(const SizedBox(height: 16.0)),
+                      ),
                     ),
                   ),
                 ),

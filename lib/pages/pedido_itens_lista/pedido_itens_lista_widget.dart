@@ -789,6 +789,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
     final String? agenteSelecionado = await showModalBottomSheet<String?>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) => ModalAgenteCobradorWidget(
         agentePreSelecionado: agentePre,
@@ -1396,6 +1397,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
@@ -1449,6 +1451,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                   final List<ItemPedidoStruct>? novosItens = await showModalBottomSheet<List<ItemPedidoStruct>>(
                     context: context,
                     isScrollControlled: true,
+                    useSafeArea: true,
                     backgroundColor: Colors.transparent,
                     builder: (context) {
                       return BottomSheetSelecaoBonificacaoWidget(
@@ -1507,6 +1510,7 @@ carrinhoItens: _model.carrinhoItens,
                   final List<ItemPedidoStruct>? novosItens = await showModalBottomSheet<List<ItemPedidoStruct>>(
                     context: context,
                     isScrollControlled: true,
+                    useSafeArea: true,
                     backgroundColor: Colors.transparent,
                     builder: (context) {
                       return BottomSheetCombosWidget(
@@ -1722,6 +1726,7 @@ carrinhoItens: _model.carrinhoItens,
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
         return StatefulBuilder(

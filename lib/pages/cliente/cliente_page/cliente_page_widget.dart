@@ -27,6 +27,15 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
+  Future<void> _recarregarClientes() async {
+    final termo = _model.buscaClienteFieldTextController?.text.trim() ?? '';
+    final res = await actions.pesquisaCliente(termo, 0);
+    safeSetState(() {
+      _model.clientesIniciais = res;
+      _model.clientesResultPage = res.toList().cast<ClienteResultStruct>();
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -34,13 +43,7 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
 
     // On page load action.
     SchedulerBinding.instance.addPostFrameCallback((_) async {
-      _model.clientesIniciais = await actions.pesquisaCliente(
-        '',
-        0,
-      );
-      _model.clientesResultPage =
-          _model.clientesIniciais!.toList().cast<ClienteResultStruct>();
-      safeSetState(() {});
+      await _recarregarClientes();
     });
 
     _model.buscaClienteFieldTextController ??= TextEditingController();
@@ -119,7 +122,8 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                   size: 28.0,
                 ),
                 onPressed: () async {
-                  context.pushNamed(FormClientesPageWidget.routeName);
+                  await context.pushNamed(FormClientesPageWidget.routeName);
+                  await _recarregarClientes();
                 },
               ),
             ],
@@ -309,7 +313,7 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                                     hoverColor: Colors.transparent,
                                     highlightColor: Colors.transparent,
                                     onTap: () async {
-                                      context.pushNamed(
+                                      await context.pushNamed(
                                         FormClientesPageWidget.routeName,
                                         queryParameters: {
                                           'clienteCodigo': serializeParam(
@@ -318,6 +322,7 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                                           ),
                                         }.withoutNulls,
                                       );
+                                      await _recarregarClientes();
                                     },
                                     child: Row(
                                       mainAxisSize: MainAxisSize.max,
@@ -413,34 +418,22 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                                                   crossAxisAlignment:
                                                       CrossAxisAlignment.center,
                                                   children: [
-                                                    Text(
-                                                      valueOrDefault<String>(
-                                                        listaClienteItem
-                                                            .cli00Fantas,
-                                                        'Fantasia',
-                                                      ),
-                                                      style:
-                                                          AppTheme.of(
-                                                                  context)
-                                                              .bodySmall
-                                                              .override(
-                                                                font:
-                                                                    GoogleFonts
-                                                                        .inter(
-                                                                  fontWeight: AppTheme.of(
-                                                                          context)
-                                                                      .bodySmall
-                                                                      .fontWeight,
-                                                                  fontStyle: AppTheme.of(
-                                                                          context)
-                                                                      .bodySmall
-                                                                      .fontStyle,
-                                                                ),
-                                                                color: AppTheme.of(
-                                                                        context)
-                                                                    .secondaryText,
-                                                                letterSpacing:
-                                                                    0.0,
+                                                    Expanded(
+                                                      child: Text(
+                                                        valueOrDefault<String>(
+                                                          listaClienteItem
+                                                              .cli00Fantas,
+                                                          'Fantasia',
+                                                        ),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: AppTheme.of(
+                                                                context)
+                                                            .bodySmall
+                                                            .override(
+                                                              font: GoogleFonts
+                                                                  .inter(
                                                                 fontWeight: AppTheme.of(
                                                                         context)
                                                                     .bodySmall
@@ -450,6 +443,21 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                                                                     .bodySmall
                                                                     .fontStyle,
                                                               ),
+                                                              color: AppTheme.of(
+                                                                      context)
+                                                                  .secondaryText,
+                                                              letterSpacing:
+                                                                  0.0,
+                                                              fontWeight: AppTheme.of(
+                                                                      context)
+                                                                  .bodySmall
+                                                                  .fontWeight,
+                                                              fontStyle: AppTheme.of(
+                                                                      context)
+                                                                  .bodySmall
+                                                                  .fontStyle,
+                                                            ),
+                                                      ),
                                                     ),
                                                     Icon(
                                                       Icons.location_city,

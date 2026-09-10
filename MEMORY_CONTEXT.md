@@ -1,6 +1,6 @@
 # MEMORY CONTEXT — FORÇA DE VENDAS (FLUTTER & SQLITE)
-> **Versão:** 2.2.0  
-> **Status:** 100% Homologado, Testado e Protegido (71/71 Testes Automatizados Aprovados)  
+> **Versão:** 2.3.0  
+> **Status:** 100% Homologado, Testado e Protegido (144/144 Testes Automatizados Aprovados)  
 > **Escopo:** Aplicativo Mobile Força de Vendas Offline-First (Flutter / SQLite / XML-PAC / FTP)
 
 ---
@@ -12,7 +12,7 @@ O aplicativo adota uma arquitetura modular por camadas e orientada a casos de us
 - **Presentation Layer (`lib/pages/`, `lib/components/`):** Widgets Flutter reativos, modais padronizados, formulários com `InputDecorationTheme` global e gerenciamento de estado via `AppModel` com métodos `safeSetState`, `initState` e `dispose`.
 - **Domain Layer (`lib/domain/models/`, `lib/domain/services/`):** Modelos de negócio puros (`PedidoVenda`, `ItemPedidoVenda`, `ParcelaVenda`, `AgenteCobrador`, `StatusEnvio`, `ContaCorrenteSaldo`, `ContaCorrenteMovimentacao`), regras fiscais (`IcmsStService`) e validações financeiras (`BloqueioFinanceiroService`).
 - **Data & Infrastructure Layer (`lib/data/`, `lib/services/`, `lib/backend/`):** Acesso a banco local (`LocalSalesDatabaseService`), gerador de pacotes comprimidos (`PacXmlGeneratorService`), registro e manifesto de arquivos (`CargaRegistryService`), serviço de conta-corrente (`ContaCorrenteService`) e cliente FTP (`FtpUploadService`, `FtpClient`).
-- **Action Code Layer (`lib/action_code/`):** Orquestradores de casos de uso e regras de transição (ex: `concluirVendaProcess`, `salvarCarrinhoPedido`, `carregarAgentesCobrador`, `carregarClienteOffline`, `enviarArquivosPendentesFtp`).
+- **Action Code Layer (`lib/action_code/`):** Orquestradores de casos de uso e regras de transição (ex: `concluirVendaProcess`, `salvarCarrinhoPedido`, `salvarClienteOffline`, `listarClientesPendentes`, `carregarAgentesCobrador`, `carregarClienteOffline`, `enviarArquivosPendentesFtp`).
 
 ### 1.2 Gerenciamento de Estado Global (`AppState`)
 O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_state.dart`) com sincronização em `SharedPreferences`:
@@ -36,7 +36,7 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
 - **Isolamento de Dados:** Cada representante e filial operam de forma particionada no banco de dados local.
 
 ### 2.2 Clientes & Análise Financeira
-- **Busca Rápida de Clientes:** Filtro instantâneo por código, razão social, nome fantasia e CNPJ/CPF em `cadcli00`.
+- **Busca Rápida de Clientes:** Filtro instantâneo por código, razão social, nome fantasia e CNPJ/CPF em `cadcli00` / View `cli00`.
 - **Consulta de Títulos em Aberto e Vencidos (`dup00`):** Consulta das duplicatas do cliente com detalhamento de parcelas, valores, vencimentos e dias de atraso.
 - **Modal Informativo de Títulos Vencidos:** Exibição prévia das pendências financeiras antes do início da digitação do pedido.
 - **Limite de Crédito Informativo:** O limite de crédito e o saldo disponível são informados de forma transparente, não bloqueando a abertura do carrinho, mas alertando o vendedor conforme o perfil comercial (`ven_ignlimfis`).
@@ -78,6 +78,32 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
   - Cálculo de margem por item $\text{CCV} = (\text{Preço Praticado} - \text{Preço Máximo}) \times \text{Qtd}$.
   - Validação de margem flex no checkout: $\text{ccv01\_vlrsalatu} + \text{dig00\_ccvtot} \ge 0$.
 
+### 2.7 Cadastro e Edição Offline de Clientes (`cadcli00` / View `cli00`)
+- **Regras de Negócio e Higienização Fiscal:**
+  - Remoção rigorosa de máscaras (`removerMascara`) para CPF/CNPJ, CEP, Telefone e Fax.
+  - Conversão compulsória de campos textuais (Razão Social, Fantasia, Logradouro, Bairro, Cidade, Observações) para **MAIÚSCULO** (`UPPERCASE`).
+  - Regra estrita de tipo de pessoa: Para **Pessoa Física (PF)**, a Inscrição Estadual (`cli00_insest`) é gravada como `"-"` e o RG é persistido em `cli00_nrg`; para **Pessoa Jurídica (PJ)**, a Inscrição Estadual é higienizada e preservada.
+  - Sequencial automático de código de cliente via `LocalSalesDatabaseService.obterProximoCodigoCliente()`.
+- **Persistência Relacional Atômica e Status de Envio:**
+  - Gravação direta em `cadcli00` com `cli00_sttenv = 0` (Pendente de Envio) e `cli00_active = 1`.
+  - Migração de schema defensiva com criação da View `cli00` apontando para `cadcli00`.
+- **Geração de XML de Cliente (`ClienteXmlGeneratorService`):**
+  - Geração imediata do XML no formato legado Suportware (`c<codRep>-<retornaMil(codCliente)>.xml`).
+  - Escrita dupla resiliente: no subdiretório de organização `cli/` (`CPathCLI()`) e no diretório raiz de documentos/temp para o pipeline do FTP.
+  - Registro no manifesto de cargas pendentes via `CargaRegistryService`.
+- **Feedback Visual Obrigatório & Reatividade:**
+  - Modal de confirmação que exibe Código, Razão Social, CNPJ/CPF e o **Caminho Completo do XML gerado** com opção de cópia (`SelectableText`).
+  - Reatividade imediata no `ClientePageWidget`: a lista recarrega instantaneamente via `LocalSalesDatabaseService.getDatabase()` sem logout ou fechamento de sessão.
+
+### 2.8 Central de Transmissão e Empacotamento Manual (Menu Ferramentas)
+- **Integração no Menu Ferramentas:**
+  - Acesso direto via card destacado **"📦 Gerar Pacotes e Enviar Carga"** em `FerramentasPageWidget`.
+  - Navegação para a interface unificada `GerarPacotePageWidget`.
+- **Três Abas Operacionais Integradas:**
+  - **Aba 1 (Pedidos Aguardando):** Exibe pedidos finalizados com `sttenv = 0` (Aguardando Pacote). Permite seleção individual ou em massa e botão "Gerar Pacote (.pac)" com modal de confirmação. Atualiza atomicamente os pedidos para `sttenv = 1` (Empacotado) e vincula ao lote `pac00`.
+  - **Aba 2 (Novos Clientes Pendentes):** Exibe clientes cadastrados ou alterados localmente aguardando upload (`cli00_sttenv = 0`). Exibe dados cadastrais, data/hora e ação de transmissão imediata para a pasta `/Customer/` do FTP.
+  - **Aba 3 (Pacotes & Arquivos Prontos):** Visão completa de todos os pacotes `.pac` e XMLs de clientes prontos para envio, com filtros (Todos, Pedidos, Clientes), seleção em lote e botão "Conectar e Enviar Carga Completa ao FTP" com conferência de tamanho (`SIZE`) e atualização para `sttenv = 2` (Transmitido).
+
 ---
 
 ## 3. Invariantes e Regras de Segurança Rígidas (NUNCA ALTERAR)
@@ -90,8 +116,8 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
 
 > [!IMPORTANT]
 > **REGRA 2: Migração Defensiva e Detecção de Colunas**  
-> Toda persistência deve ser protegida com blocos `ALTER TABLE ADD COLUMN` para todas as colunas de `pckvendig000`, `pckvendig010` e `fincaimovccv00`.  
-> As operações de `UPDATE` e `SELECT` devem resolver a coluna de ID primário de forma resiliente inspecionando aliases (`ped00_numped`, `numped`, `ped00_codmov`, `codmov`, `ped00_pedcod`, `id`).
+> Toda persistência deve ser protegida com blocos `ALTER TABLE ADD COLUMN` para todas as colunas de `cadcli00`, `pckvendig000`, `pckvendig010`, `pac00` e `fincaimovccv00`.  
+> As operações de `UPDATE` e `SELECT` devem resolver nomes de colunas de forma resiliente inspecionando aliases e candidate keys, ignorando valores nulos ou vazios caso existam chaves candidatas com dados válidos.
 
 > [!TIP]
 > **REGRA 3: Desacoplamento da Geração do Pacote `.pac`**  
@@ -109,7 +135,14 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
 
 | Módulo / Recurso | Arquivo Principal | Função / Responsabilidade |
 |---|---|---|
-| **Conexão SQLite** | [`lib/data/services/local_sales_database_service.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/data/services/local_sales_database_service.dart) | Singleton do banco, migração automática e views `dig00`/`dig01`. |
+| **Conexão SQLite** | [`lib/data/services/local_sales_database_service.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/data/services/local_sales_database_service.dart) | Singleton do banco, migração automática, views `dig00`/`dig01`/`cli00` e sequenciais automáticos. |
+| **Persistência de Clientes** | [`lib/action_code/salvar_cliente_offline.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/action_code/salvar_cliente_offline.dart) | Higienização fiscal, UPPERCASE, regras PF/PJ, persistência em `cadcli00`, XML em `cli/` e manifesto. |
+| **Formulário de Clientes** | [`lib/pages/cliente/form_clientes_page/form_clientes_page_widget.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/pages/cliente/form_clientes_page/form_clientes_page_widget.dart) | UI de cadastro/edição, integração com `salvarClienteOffline` e modal com caminho do XML. |
+| **Listagem de Clientes** | [`lib/pages/cliente/cliente_page/cliente_page_widget.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/pages/cliente/cliente_page/cliente_page_widget.dart) | Reatividade imediata pós-salvamento sem perda de sessão. |
+| **Central de Transmissão (Ferramentas)** | [`lib/pages/gerar_pacote/gerar_pacote_page_widget.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/pages/gerar_pacote/gerar_pacote_page_widget.dart) | 3 abas integradas: Pedidos Aguardando, Novos Clientes e Pacotes Prontos com envio FTP. |
+| **Menu Ferramentas** | [`lib/pages/ferramentas/ferramentas_page/ferramentas_page_widget.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/pages/ferramentas/ferramentas_page/ferramentas_page_widget.dart) | Acesso direto à Central de Transmissão e Empacotamento. |
+| **Consulta de Clientes Pendentes** | [`lib/action_code/listar_clientes_pendentes.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/action_code/listar_clientes_pendentes.dart) | Busca clientes locais com `sttenv = 0` para a Central de Transmissão. |
+| **Empacotamento Manual** | [`lib/action_code/gerar_pacote.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/action_code/gerar_pacote.dart) | Geração manual de `.pac` agrupando pedidos e atualizando para `sttenv = 1`. |
 | **Menu de Relatórios** | [`lib/components/modal_relatorios/modal_relatorios_widget.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/components/modal_relatorios/modal_relatorios_widget.dart) | Modal bottom sheet de acesso aos relatórios do sistema. |
 | **Conta-Corrente (CCV)** | [`lib/pages/relatorios/conta_corrente/conta_corrente_page_widget.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/pages/relatorios/conta_corrente/conta_corrente_page_widget.dart) | Tela de extrato analítico de saldo flex e consolidação de CCV. |
 | **Serviço de CCV** | [`lib/services/conta_corrente_service.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/services/conta_corrente_service.dart) | Consultas de saldo, histórico analítico e cálculos de margem. |
@@ -120,4 +153,3 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
 | **Carregamento de Cobradores** | [`lib/action_code/carregar_agentes_cobrador.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/action_code/carregar_agentes_cobrador.dart) | Consulta segura de cobradores via Singleton do banco. |
 | **Geração de XML/PAC** | [`lib/services/pac_xml_generator_service.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/services/pac_xml_generator_service.dart) | Serialização para XML legado e compressão ZIP. |
 | **Upload FTP** | [`lib/services/ftp_upload_service.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/services/ftp_upload_service.dart) | Envio em lote com verificação `SIZE` e atualização `sttenv = 2`. |
-

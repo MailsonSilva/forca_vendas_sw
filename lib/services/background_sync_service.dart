@@ -1,5 +1,3 @@
-// ignore_for_file: avoid_print
-
 import 'dart:io';
 import 'dart:async';
 
@@ -49,12 +47,10 @@ void callbackDispatcher() {
           );
           break;
         default:
-          print('[WorkManager] Unknown task: $taskName');
           return false;
       }
       return true;
     } catch (e) {
-      print('[WorkManager] Task $taskName error: $e');
       if (taskName == kTaskSyncDb) {
         await prefs.setString(kPrefDbStatus, 'error');
         await prefs.setString(kPrefDbText, 'Erro: ${e.toString()}');

@@ -80,8 +80,7 @@ class CarteiraRoteirizacaoService {
       final clientes = rows.map((r) => ClienteRoteiroItem.fromMap(r)).toList();
 
       return CarteiraRoteirizacaoResumo.fromClientes(clientes);
-    } catch (e) {
-      print('Erro ao obter carteira roteirizada de clientes: $e');
+    } catch (_) {
       return CarteiraRoteirizacaoResumo.empty();
     }
   }

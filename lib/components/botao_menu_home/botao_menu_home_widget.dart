@@ -44,7 +44,7 @@ class _BotaoMenuHomeWidgetState extends State<BotaoMenuHomeWidget> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 160.0,
+      width: double.infinity,
       height: 120.0,
       decoration: BoxDecoration(
         color: AppTheme.of(context).secondaryBackground,

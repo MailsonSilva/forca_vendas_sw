@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -260,19 +259,14 @@ class ConcluirVendaService {
             await txn.rawUpdate(query, bindsWithId);
           }
         });
-        print('[ConcluirVendaService] Pedido #${pedido.codMov} salvo localmente no SQLite: sttdig=1, sttenv=0 (Aguardando Pacote).');
       }
-    } catch (e, stack) {
-      print('>>> ERRO REAL NO salvarPedidoConcluidoLocal: $e \n $stack');
+    } catch (e) {
       throw Exception('Falha ao persistir pedido no SQLite: $e');
     }
 
     try {
       await pedido.doUpdateStatistics();
-      print('[ConcluirVendaService] ESTATISTICAS OK pedido #${pedido.codMov}');
-    } catch (e, stack) {
-      print('>>> AVISO: Falha ao atualizar estatísticas locais: $e \n $stack');
-    }
+    } catch (_) {}
 
     return pedido.codMov;
   }
@@ -482,7 +476,6 @@ class ConcluirVendaService {
               break;
             }
           }
-          print('[ConcluirVendaService] TRANSACAO INICIO ${db.path} pedido #${pedido.codMov} colNum=$colNum');
           // Usa transaction para garantir atomicidade; confirma INSERT em pckvendig000
           await db.transaction((txn) async {
             final existing = await txn.rawQuery('SELECT $colNum FROM pckvendig000 WHERE $colNum = ? LIMIT 1', [pedido.codMov]);
@@ -500,35 +493,21 @@ class ConcluirVendaService {
               }
               final placeholders = List.filled(insertCols.length, '?').join(', ');
               await txn.rawInsert('INSERT OR REPLACE INTO pckvendig000 (${insertCols.join(', ')}) VALUES ($placeholders)', insertVals);
-              print('[ConcluirVendaService] CONFIRMA INSERT pckvendig000 pedido #${pedido.codMov} cols=${insertCols.length}');
             } else {
               final query = 'UPDATE pckvendig000 SET ${updateParts.join(', ')} WHERE $colNum = ?';
               final bindsWithId = [...binds, pedido.codMov];
-              final cnt = await txn.rawUpdate(query, bindsWithId);
-              print('[ConcluirVendaService] CONFIRMA UPDATE pckvendig000 pedido #${pedido.codMov} affected=$cnt');
-            }
-            // Confirma itens pckvendig010 existem (diagnóstico)
-            try {
-              final cntItens = await txn.rawQuery('SELECT COUNT(*) as c FROM pckvendig010 WHERE ped10_numped = ?', [pedido.codMov]);
-              print('[ConcluirVendaService] CONFIRMA ITENS pckvendig010 pedido #${pedido.codMov} count=${cntItens.first['c']}');
-            } catch (e) {
-              print('[ConcluirVendaService] AVISO contagem itens falhou: $e');
+              await txn.rawUpdate(query, bindsWithId);
             }
           });
-          print('DEBUG PEDIDO GRAVADO: ID ${pedido.codMov}, StatusDig: ${pedido.sttDig.value}, StatusEnv: 1 (empacotado), Rep: ${pedido.codRep}, Fil: ${pedido.codFil}');
         }
-      } catch (e, stack) {
-        print('>>> ERRO REAL NO CONCLUIR_VENDA_PROCESS (ConcluirVendaService): $e \n $stack');
+      } catch (e) {
         throw Exception('Falha ao persistir pedido no SQLite: $e');
       }
 
     // 3. Atualiza estatísticas locais (ESTFATCVD00, FINCAICVD00, ESTPRO00) — não bloqueia venda
     try {
       await pedido.doUpdateStatistics();
-      print('[ConcluirVendaService] ESTATISTICAS OK pedido #${pedido.codMov}');
-    } catch (e, stack) {
-      print('>>> AVISO: Falha ao atualizar estatísticas locais: $e \n $stack');
-    }
+    } catch (_) {}
 
     // 4, 5 e 6. Desacoplamento da Geração do Pacote .pac
     // O pedido já foi COMMITADO com sucesso no SQLite no passo anterior.
@@ -536,20 +515,17 @@ class ConcluirVendaService {
     try {
       final String xmlContent = PacXmlGeneratorService.generate(pedido);
       final pacBytes = PacXmlGeneratorService.compressXmlToPac(xmlContent);
-      print('[ConcluirVendaService] PAC GERADO pedido #${pedido.codMov} xmlLen=${xmlContent.length} pacBytes=${pacBytes.length}');
 
       // Grava localmente: temp/ (fila de upload) e documents/ (backup)
       final tempDir = await _getTemporaryDirectoryFn();
       final localFile = File(p.join(tempDir.path, fileName));
       await localFile.parent.create(recursive: true);
       await localFile.writeAsBytes(pacBytes, flush: true);
-      print('[ConcluirVendaService] PAC GRAVADO temp: ${localFile.path}');
 
       final docsDir = await _getDocumentsDirFn();
       final docsFile = File(p.join(docsDir.path, fileName));
       await docsFile.parent.create(recursive: true);
       await docsFile.writeAsBytes(pacBytes, flush: true);
-      print('[ConcluirVendaService] PAC GRAVADO docs: ${docsFile.path}');
 
       // Registra no manifesto a associação arquivo → id do pedido (em memória).
       await _registry.registrar(CargaRegistro(
@@ -557,12 +533,7 @@ class ConcluirVendaService {
         tipo: TipoCarga.pedido,
         id: pedido.codMov,
       ));
-
-      print('[ConcluirVendaService] Pedido #${pedido.codMov} salvo em: ${localFile.path} sttenv=1 pacstr=$fileName');
-      print('[ConcluirVendaService] FTP pendente — use Ferramentas → Dados → Subir Carga.');
-    } catch (e, stack) {
-      print('>>> AVISO: Falha na geração do pacote .pac (pedido salvo no SQLite com sucesso): $e \n $stack');
-    }
+    } catch (_) {}
 
     return fileName;
   }
@@ -618,13 +589,10 @@ class ConcluirVendaService {
         }
         await ftp.stor(fileName, pacBytes);
         uploadSuccess = true;
-        print('[ConcluirVendaService] Upload FTP OK: $remotePath$fileName');
       } finally {
         await ftp.quit();
       }
-    } catch (e) {
-      print('[ConcluirVendaService] Upload FTP falhou ($e). '
-          'Arquivo permanece em temp/ — reenvie via Ferramentas → Dados → Subir Carga.');
+    } catch (_) {
     }
 
     if (uploadSuccess) {
@@ -653,8 +621,7 @@ class ConcluirVendaService {
         }
         await _registry.remover(reg.arquivo);
       }
-    } catch (e) {
-      print('Aviso ao limpar arquivos temporários do pedido: $e');
+    } catch (_) {
     }
   }
 }

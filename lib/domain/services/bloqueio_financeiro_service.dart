@@ -74,7 +74,10 @@ class BloqueioFinanceiroService {
             return typInt == 0;
           }
           final desc = (row['pla00_descri'] ?? row['descri'] ?? '').toString().trim().toUpperCase();
-          if (desc == 'A VISTA' || desc == 'À VISTA' || desc == '0 DIAS' || desc.contains('DINHEIRO') || desc.startsWith('A VISTA') || desc.startsWith('À VISTA')) {
+          if (desc.startsWith('A VISTA') ||
+              desc.startsWith('À VISTA') ||
+              desc == '0 DIAS' ||
+              desc.contains('DINHEIRO')) {
             return true;
           }
           return false;

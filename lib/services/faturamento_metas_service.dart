@@ -252,9 +252,7 @@ class FaturamentoMetasService {
         digitadoTransito: agregadosPorTipo[2]?['transito'] ?? 0.0,
         rascunhoLocal: agregadosPorTipo[2]?['rascunho'] ?? 0.0,
       );
-    } catch (e) {
-      print('Erro ao obter metas consolidadas: $e');
-    }
+    } catch (_) {}
 
     return FaturamentoConsolidadoResumo.calcular(
       pf: pfModel,

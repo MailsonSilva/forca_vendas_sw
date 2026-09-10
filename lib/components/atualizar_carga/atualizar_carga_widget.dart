@@ -163,24 +163,28 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
     final String empresa = AppState().empresa_codigo.trim().isEmpty ? 'DINIZ' : AppState().empresa_codigo.trim();
     final int vendedor = AppState().vendedor_codigo > 0 ? AppState().vendedor_codigo : 1;
 
-    return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: AppTheme.of(context).secondaryBackground,
-          boxShadow: const [
-            BoxShadow(
-              blurRadius: 6.0,
-              color: Color(0x26000000),
-              offset: Offset(0.0, 2.0),
-            )
-          ],
-          borderRadius: BorderRadius.circular(12.0),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480.0),
+        child: Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+          child: Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: AppTheme.of(context).secondaryBackground,
+              boxShadow: const [
+                BoxShadow(
+                  blurRadius: 6.0,
+                  color: Color(0x26000000),
+                  offset: Offset(0.0, 2.0),
+                )
+              ],
+              borderRadius: BorderRadius.circular(12.0),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
             // ── Header ──────────────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0.0),
@@ -356,7 +360,10 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
                 ),
               ),
             ),
-          ],
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

@@ -57,44 +57,50 @@ class _ModalAgenteCobradorWidgetState extends State<ModalAgenteCobradorWidget> {
       return a.descricao.toLowerCase().contains(term) || a.codigo.toLowerCase().contains(term);
     }).toList();
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 12.0),
-          Container(
-            width: 40.0,
-            height: 5.0,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2.5),
-            ),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 600.0),
+        child: Container(
+          height: MediaQuery.sizeOf(context).height * 0.75,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
           ),
-          const SizedBox(height: 16.0),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Selecione o Agente Cobrador',
-                  style: GoogleFonts.outfit(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18.0,
-                    color: const Color(0xFF14181B),
-                  ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12.0),
+              Container(
+                width: 40.0,
+                height: 5.0,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2.5),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded),
-                  onPressed: () => Navigator.pop(context),
+              ),
+              const SizedBox(height: 16.0),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Selecione o Agente Cobrador',
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18.0,
+                          color: const Color(0xFF14181B),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: TextField(
@@ -184,26 +190,32 @@ class _ModalAgenteCobradorWidgetState extends State<ModalAgenteCobradorWidget> {
               ),
             ),
           if (!_loading)
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: double.infinity,
-                height: 48.0,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.of(context).primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+            SafeArea(
+              top: false,
+              bottom: true,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 48.0,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.of(context).primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                    ),
+                    onPressed: () {
+                      final sel = _selecionado ?? (_agentes.isNotEmpty ? _agentes.first.codigo : '');
+                      Navigator.pop(context, sel);
+                    },
+                    child: const Text('Confirmar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
-                  onPressed: () {
-                    final sel = _selecionado ?? (_agentes.isNotEmpty ? _agentes.first.codigo : '');
-                    Navigator.pop(context, sel);
-                  },
-                  child: const Text('Confirmar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ),
             ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }

@@ -5,28 +5,19 @@ import '/backend/schema/structs/index.dart';
 // Begin custom action code
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
-import 'dart:io';
+import '../data/services/local_sales_database_service.dart';
 
 Future<List<ClienteResultStruct>> pesquisaCliente(
   String? filtro,
   int? offset,
 ) async {
   try {
-    // 1. Valida se o banco de dados já existe no aparelho
-    final dbPath = join(await getDatabasesPath(), 'dbforcacad001.db');
-    if (!await File(dbPath).exists()) {
-      print('Erro: Banco de dados não encontrado para a pesquisa de clientes.');
-      return [];
-    }
-
-    final db = await openDatabase(dbPath);
+    final db = await LocalSalesDatabaseService.getDatabase();
     final String busca = filtro?.trim() ?? '';
     final int currentOffset = offset ?? 0;
 
-    // 2. Garante que sempre buscará APENAS clientes ativos
-    String whereClause = 'WHERE cli00_active in (0,1)';
+    // 2. Busca clientes ativos ou recém-cadastrados locais
+    String whereClause = 'WHERE (cli00_active in (0,1) OR cli00_active IS NULL)';
     List<dynamic> binds = [];
 
     // 3. Aplica o filtro de texto ou numérico conforme a busca do usuário
@@ -43,7 +34,7 @@ Future<List<ClienteResultStruct>> pesquisaCliente(
       }
     }
 
-    // 4. Sua query original mantendo todos os aliases (apelidos) exatamente iguais
+    // 4. Query com aliases padronizados
     final String query = '''
       SELECT 
         cli00_codigo AS codigo,
@@ -70,7 +61,6 @@ Future<List<ClienteResultStruct>> pesquisaCliente(
 
     binds.add(currentOffset);
     final results = await db.rawQuery(query, binds);
-    await db.close();
 
     // 5. Retorna a lista mapeada usando os apelidos da query
     return results.map((m) {

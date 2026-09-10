@@ -107,26 +107,30 @@ class _AtualizarImagensWidgetState extends State<AtualizarImagensWidget> {
 
     final bool isDownloading = _imgStatus == 'baixando';
 
-    return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: AppTheme.of(context).secondaryBackground,
-          boxShadow: const [
-            BoxShadow(
-              blurRadius: 4.0,
-              color: Color(0x33000000),
-              offset: Offset(0.0, 2.0),
-            )
-          ],
-          borderRadius: BorderRadius.circular(12.0),
-        ),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480.0),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+          padding: const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),
+          child: Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: AppTheme.of(context).secondaryBackground,
+              boxShadow: const [
+                BoxShadow(
+                  blurRadius: 4.0,
+                  color: Color(0x33000000),
+                  offset: Offset(0.0, 2.0),
+                )
+              ],
+              borderRadius: BorderRadius.circular(12.0),
+            ),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
               // ── Header ────────────────────────────────────────────────────
               Row(
                 children: [
@@ -341,7 +345,10 @@ class _AtualizarImagensWidgetState extends State<AtualizarImagensWidget> {
                     ),
                   ],
                 ),
-            ],
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       ),

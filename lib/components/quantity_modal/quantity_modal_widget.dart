@@ -57,18 +57,22 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
   Widget build(BuildContext context) {
     context.watch<AppState>();
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.of(context).secondaryBackground,
-        borderRadius: BorderRadius.circular(16.0),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500.0),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppTheme.of(context).secondaryBackground,
+            borderRadius: BorderRadius.circular(16.0),
+          ),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
             Container(
               alignment: const AlignmentDirectional(0.0, 0.0),
               child: Container(
@@ -513,6 +517,9 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
               ),
             ),
           ].divide(const SizedBox(height: 16.0)),
+              ),
+            ),
+          ),
         ),
       ),
     );

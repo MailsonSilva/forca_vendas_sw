@@ -130,74 +130,84 @@ class _ModalRelatoriosWidgetState extends State<ModalRelatoriosWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        width: double.infinity,
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * 0.82,
-        ),
-        decoration: BoxDecoration(
-          color: AppTheme.of(context).primaryBackground,
-          boxShadow: const [
-            BoxShadow(
-              blurRadius: 10.0,
-              color: Color(0x33000000),
-              offset: Offset(0.0, -2.0),
-            )
-          ],
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20.0),
-            topRight: Radius.circular(20.0),
-          ),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Drag handle
-              Padding(
-                padding: const EdgeInsets.only(top: 10.0, bottom: 4.0),
-                child: Container(
-                  width: 40.0,
-                  height: 4.0,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(2.0),
-                  ),
-                ),
+    return Align(
+      alignment: Alignment.bottomCenter,
+      heightFactor: 1.0,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 600.0),
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: double.infinity,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.82,
+            ),
+            decoration: BoxDecoration(
+              color: AppTheme.of(context).primaryBackground,
+              boxShadow: const [
+                BoxShadow(
+                  blurRadius: 10.0,
+                  color: Color(0x33000000),
+                  offset: Offset(0.0, -2.0),
+                )
+              ],
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20.0),
+                topRight: Radius.circular(20.0),
               ),
-              // Header
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.analytics_rounded,
-                          color: AppTheme.of(context).primary,
-                          size: 24.0,
-                        ),
-                        const SizedBox(width: 8.0),
-                        Text(
-                          'Menu de Relatórios',
-                          style: AppTheme.of(context).titleLarge.override(
-                                font: GoogleFonts.outfit(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                color: AppTheme.of(context).primaryText,
-                                fontSize: 20.0,
-                              ),
-                        ),
-                      ],
+            ),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Drag handle
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10.0, bottom: 4.0),
+                    child: Container(
+                      width: 40.0,
+                      height: 4.0,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(2.0),
+                      ),
                     ),
-                    AppIconButton(
-                      borderColor: const Color(0xFFE0E3E7),
-                      borderRadius: 12.0,
-                      borderWidth: 1.0,
+                  ),
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.analytics_rounded,
+                                color: AppTheme.of(context).primary,
+                                size: 24.0,
+                              ),
+                              const SizedBox(width: 8.0),
+                              Expanded(
+                                child: Text(
+                                  'Menu de Relatórios',
+                                  style: AppTheme.of(context).titleLarge.override(
+                                        font: GoogleFonts.outfit(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        color: AppTheme.of(context).primaryText,
+                                        fontSize: 20.0,
+                                      ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        AppIconButton(
+                          borderColor: const Color(0xFFE0E3E7),
+                          borderRadius: 12.0,
+                          borderWidth: 1.0,
                       buttonSize: 38.0,
                       icon: Icon(
                         Icons.close_rounded,
@@ -274,6 +284,8 @@ class _ModalRelatoriosWidgetState extends State<ModalRelatoriosWidget> {
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }

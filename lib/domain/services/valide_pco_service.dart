@@ -226,9 +226,7 @@ class ValidePcoService {
           }
         } catch (_) {}
       }
-    } catch (e) {
-      print('Erro ao obter faixas de preco: $e');
-    }
+    } catch (_) {}
 
     return const FaixaPrecoProduto(
       pcomin: 0.0,

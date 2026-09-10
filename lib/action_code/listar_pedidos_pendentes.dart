@@ -292,10 +292,6 @@ Future<List<PedidoPendente>> listarPedidosPendentes() async {
   } catch (e) {
     print('Erro listar pedidos pendentes: $e');
     return [];
-  } finally {
-    if (db != null && db.isOpen) {
-      await db.close();
-    }
   }
 }
 
@@ -612,20 +608,26 @@ Future<List<PedidoHistoricoItem>> listarPedidosHistorico({
   } catch (e) {
     print('Erro ao listar pedidos historico: $e');
     return [];
-  } finally {
-    if (db != null && db.isOpen) {
-      await db.close();
-    }
   }
 }
 
 dynamic _getVal(Map<String, dynamic> map, List<String> candidateKeys) {
   for (final k in candidateKeys) {
-    if (map.containsKey(k)) return map[k];
+    if (map.containsKey(k) && map[k] != null) {
+      if (map[k] is String && (map[k] as String).trim().isEmpty) {
+        // Ignora string vazia e tenta próxima chave candidata
+      } else {
+        return map[k];
+      }
+    }
     final lowerK = k.toLowerCase();
     for (final entry in map.entries) {
-      if (entry.key.toLowerCase() == lowerK) {
-        return entry.value;
+      if (entry.key.toLowerCase() == lowerK && entry.value != null) {
+        if (entry.value is String && (entry.value as String).trim().isEmpty) {
+          // Ignora string vazia e tenta próxima chave candidata
+        } else {
+          return entry.value;
+        }
       }
     }
   }
@@ -633,19 +635,65 @@ dynamic _getVal(Map<String, dynamic> map, List<String> candidateKeys) {
 }
 
 int _getInt(Map<String, dynamic> map, List<String> candidateKeys, [int def = 0]) {
-  final v = _getVal(map, candidateKeys);
-  if (v == null) return def;
-  if (v is int) return v;
-  if (v is num) return v.toInt();
-  return int.tryParse(v.toString()) ?? def;
+  int? firstFound;
+  for (final k in candidateKeys) {
+    dynamic val;
+    if (map.containsKey(k) && map[k] != null) {
+      val = map[k];
+    } else {
+      final lowerK = k.toLowerCase();
+      for (final entry in map.entries) {
+        if (entry.key.toLowerCase() == lowerK && entry.value != null) {
+          val = entry.value;
+          break;
+        }
+      }
+    }
+    if (val != null) {
+      int i = def;
+      if (val is int) {
+        i = val;
+      } else if (val is num) {
+        i = val.toInt();
+      } else {
+        i = int.tryParse(val.toString()) ?? def;
+      }
+      if (i != 0) return i;
+      firstFound ??= i;
+    }
+  }
+  return firstFound ?? def;
 }
 
 double _getDouble(Map<String, dynamic> map, List<String> candidateKeys, [double def = 0.0]) {
-  final v = _getVal(map, candidateKeys);
-  if (v == null) return def;
-  if (v is double) return v;
-  if (v is num) return v.toDouble();
-  return double.tryParse(v.toString()) ?? def;
+  double? firstFound;
+  for (final k in candidateKeys) {
+    dynamic val;
+    if (map.containsKey(k) && map[k] != null) {
+      val = map[k];
+    } else {
+      final lowerK = k.toLowerCase();
+      for (final entry in map.entries) {
+        if (entry.key.toLowerCase() == lowerK && entry.value != null) {
+          val = entry.value;
+          break;
+        }
+      }
+    }
+    if (val != null) {
+      double d = def;
+      if (val is double) {
+        d = val;
+      } else if (val is num) {
+        d = val.toDouble();
+      } else {
+        d = double.tryParse(val.toString()) ?? def;
+      }
+      if (d != 0.0) return d;
+      firstFound ??= d;
+    }
+  }
+  return firstFound ?? def;
 }
 
 String _getString(Map<String, dynamic> map, List<String> candidateKeys, [String def = '']) {
