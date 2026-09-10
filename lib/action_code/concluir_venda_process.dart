@@ -8,6 +8,7 @@ import '../../domain/services/icms_st_service.dart';
 import '../../services/concluir_venda_service.dart';
 import '../../services/faturamento_metas_service.dart';
 import '../../data/services/local_sales_database_service.dart';
+import '../../core/formatters/currency_formatter.dart';
 import 'salvar_carrinho_pedido.dart';
 
 Future<bool> concluirVendaProcess({
@@ -74,8 +75,7 @@ Future<bool> concluirVendaProcess({
                 .where((i) => !i.isBonificacao)
                 .fold(0.0, (sum, i) => sum + (i.quantidade * i.precoUnitario));
             if (vMin > 0 && totalPedido < vMin) {
-              final formattedMin = vMin.toStringAsFixed(2).replaceAll('.', ',');
-              throw Exception('Valor total do pedido inferior ao valor mínimo exigido pelo plano de pagamento (Mínimo: R\$ $formattedMin)!');
+              throw Exception('Valor total do pedido inferior ao valor mínimo exigido pelo plano de pagamento (Mínimo: ${vMin.toMoeda()})!');
             }
           }
         }

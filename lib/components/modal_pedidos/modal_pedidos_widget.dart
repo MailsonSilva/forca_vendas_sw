@@ -46,80 +46,100 @@ class _ModalPedidosWidgetState extends State<ModalPedidosWidget> {
       alignment: Alignment.bottomCenter,
       heightFactor: 1.0,
       child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: 600.0,
-          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
-        ),
-        child: Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                blurRadius: 4.0,
-                color: Color(0x33000000),
-                offset: Offset(
-                  0.0,
-                  2.0,
-                ),
-              )
-            ],
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(12.0),
-              topRight: Radius.circular(12.0),
+        constraints: const BoxConstraints(maxWidth: 600.0),
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: double.infinity,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.85,
             ),
-          ),
-          child: SafeArea(
-            top: false,
-            bottom: true,
-            child: Padding(
-              padding: EdgeInsets.all(18.0),
+            decoration: BoxDecoration(
+              color: AppTheme.of(context).primaryBackground,
+              boxShadow: const [
+                BoxShadow(
+                  blurRadius: 10.0,
+                  color: Color(0x33000000),
+                  offset: Offset(0.0, -2.0),
+                )
+              ],
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20.0),
+                topRight: Radius.circular(20.0),
+              ),
+            ),
+            child: SafeArea(
+              top: false,
+              bottom: true,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.max,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Pedidos',
-                          style: AppTheme.of(context).titleLarge.override(
-                                font: GoogleFonts.outfit(
-                                  fontWeight: FontWeight.w500,
-                                  fontStyle: AppTheme.of(context).titleLarge.fontStyle,
-                                ),
-                                color: Color(0xFF14181B),
-                                fontSize: 22.0,
-                                letterSpacing: 0.0,
-                                fontWeight: FontWeight.w500,
-                                fontStyle: AppTheme.of(context).titleLarge.fontStyle,
-                              ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                  // Drag handle
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10.0, bottom: 4.0),
+                    child: Container(
+                      width: 40.0,
+                      height: 4.0,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(2.0),
                       ),
-                      AppIconButton(
-                        borderColor: Color(0xFFE0E3E7),
-                        borderRadius: 12.0,
-                        borderWidth: 1.0,
-                        buttonSize: 44.0,
-                        icon: Icon(
-                          Icons.close_rounded,
-                          color: Color(0xFF14181B),
-                          size: 20.0,
-                        ),
-                        onPressed: () async {
-                          Navigator.pop(context);
-                        },
-                      ),
-                    ],
+                    ),
                   ),
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.shopping_cart_outlined,
+                                color: AppTheme.of(context).primary,
+                                size: 24.0,
+                              ),
+                              const SizedBox(width: 8.0),
+                              Expanded(
+                                child: Text(
+                                  'Pedidos',
+                                  style: AppTheme.of(context).titleLarge.override(
+                                        font: GoogleFonts.outfit(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        color: AppTheme.of(context).primaryText,
+                                        fontSize: 20.0,
+                                      ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        AppIconButton(
+                          borderColor: const Color(0xFFE0E3E7),
+                          borderRadius: 12.0,
+                          borderWidth: 1.0,
+                          buttonSize: 38.0,
+                          icon: Icon(
+                            Icons.close_rounded,
+                            color: AppTheme.of(context).primaryText,
+                            size: 18.0,
+                          ),
+                          onPressed: () async {
+                            Navigator.pop(context);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1.0, thickness: 1.0),
                   Flexible(
                     fit: FlexFit.loose,
                     child: SingleChildScrollView(
                       child: Padding(
-                        padding: EdgeInsetsDirectional.fromSTEB(0.0, 12.0, 0.0, 0.0),
+                        padding: const EdgeInsetsDirectional.fromSTEB(16.0, 12.0, 16.0, 16.0),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [

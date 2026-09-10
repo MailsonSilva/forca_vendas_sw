@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import '/widgets/imagem_preview_dialog.dart';
 
 class ImagemLocalWidget extends StatefulWidget {
   const ImagemLocalWidget({
@@ -18,11 +19,17 @@ class ImagemLocalWidget extends StatefulWidget {
     this.width,
     this.height,
     this.caminhoArquivo,
+    this.enablePreview = true,
+    this.titulo,
+    this.subtitulo,
   });
 
   final double? width;
   final double? height;
   final String? caminhoArquivo;
+  final bool enablePreview;
+  final String? titulo;
+  final String? subtitulo;
 
   @override
   State<ImagemLocalWidget> createState() => _ImagemLocalWidgetState();
@@ -136,7 +143,7 @@ class _ImagemLocalWidgetState extends State<ImagemLocalWidget> {
           return _buildPlaceholder();
         }
 
-        return ClipRRect(
+        final imageWidget = ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: Image.file(
             File(snapshot.data!),
@@ -148,6 +155,25 @@ class _ImagemLocalWidgetState extends State<ImagemLocalWidget> {
             },
           ),
         );
+
+        if (widget.enablePreview) {
+          return GestureDetector(
+            onTap: () {
+              abrirImagemPreview(
+                context,
+                caminhoArquivo: snapshot.data!,
+                titulo: widget.titulo,
+                subtitulo: widget.subtitulo,
+              );
+            },
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: imageWidget,
+            ),
+          );
+        }
+
+        return imageWidget;
       },
     );
   }

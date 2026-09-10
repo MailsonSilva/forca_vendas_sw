@@ -96,239 +96,279 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
     final itemSelecionado = await showModalBottomSheet<ItemPedidoStruct?>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (modalContext) {
         return StatefulBuilder(
           builder: (builderCtx, setModalState) {
-            String formatCurrency(double val) {
-              return 'R\$ ${val.toStringAsFixed(2).replaceAll('.', ',')}';
-            }
-
-            return Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
-              ),
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(builderCtx).viewInsets.bottom + 24.0,
-                left: 16.0,
-                right: 16.0,
-                top: 12.0,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40.0,
-                      height: 5.0,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2.5),
+            return Align(
+              alignment: Alignment.bottomCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600.0),
+                child: Container(
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    bottom: true,
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        bottom: MediaQuery.of(builderCtx).viewInsets.bottom + 16.0,
+                        left: 16.0,
+                        right: 16.0,
+                        top: 12.0,
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 16.0),
-                  const Text(
-                    'Adicionar ao Carrinho',
-                    style: TextStyle(
-                      fontSize: 18.0,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF14181B),
-                    ),
-                  ),
-                  const SizedBox(height: 16.0),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16.0),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12.0),
-                      border: Border.all(color: const Color(0xFFE0E3E7)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Cód. ${produto.codigo}',
-                          style: TextStyle(
-                            color: AppTheme.of(builderCtx).primary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12.0,
-                          ),
-                        ),
-                        const SizedBox(height: 4.0),
-                        Text(
-                          produto.descricao,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14.0,
-                          ),
-                        ),
-                        const SizedBox(height: 12.0),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Un: ${produto.unidade}',
-                              style: const TextStyle(color: Colors.grey, fontSize: 13.0),
-                            ),
-                            Text(
-                              'Preço: ${formatCurrency(produto.preco)}',
-                              style: const TextStyle(color: Colors.grey, fontSize: 13.0),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8.0),
-                        Row(
-                          children: [
-                            const Icon(Icons.inventory_2_outlined, color: Colors.grey, size: 16.0),
-                            const SizedBox(width: 4.0),
-                            const Text('Estoque disponível: ', style: TextStyle(color: Colors.grey, fontSize: 12.0)),
-                            Text(
-                              validaEstoque
-                                  ? functions.formatQuantity(
-                                      produto.saldoEstoque,
-                                      unidade: produto.unidade,
-                                    )
-                                  : 'Ilimitado',
-                              style: TextStyle(
-                                color: (!validaEstoque || produto.saldoEstoque > 0) ? AppTheme.of(builderCtx).primary : Colors.red,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12.0,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Center(
+                            child: Container(
+                              width: 48.0,
+                              height: 5.0,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE0E3E7),
+                                borderRadius: BorderRadius.circular(2.5),
                               ),
                             ),
-                          ],
-                        ),
-                        if (validaEstoque && produto.saldoEstoque <= 0) ...[
+                          ),
                           const SizedBox(height: 12.0),
-                          const Row(
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Icon(Icons.warning_amber_rounded, color: Colors.red, size: 18.0),
-                              SizedBox(width: 6.0),
-                              Expanded(
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.add_shopping_cart_rounded,
+                                    color: AppTheme.of(builderCtx).primary,
+                                    size: 24.0,
+                                  ),
+                                  const SizedBox(width: 8.0),
+                                  const Text(
+                                    'Adicionar ao Carrinho',
+                                    style: TextStyle(
+                                      fontSize: 18.0,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF14181B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              AppIconButton(
+                                borderColor: Colors.transparent,
+                                borderRadius: 20.0,
+                                borderWidth: 1.0,
+                                buttonSize: 38.0,
+                                fillColor: const Color(0xFFF1F4F8),
+                                icon: const Icon(
+                                  Icons.close_rounded,
+                                  color: Color(0xFF57636C),
+                                  size: 20.0,
+                                ),
+                                onPressed: () => Navigator.of(modalContext).pop(null),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8.0),
+                          const Divider(height: 1.0, thickness: 1.0, color: Color(0xFFE0E3E7)),
+                          const SizedBox(height: 14.0),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16.0),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12.0),
+                              border: Border.all(color: const Color(0xFFE0E3E7)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Cód. ${produto.codigo}',
+                                  style: TextStyle(
+                                    color: AppTheme.of(builderCtx).primary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12.0,
+                                  ),
+                                ),
+                                const SizedBox(height: 4.0),
+                                Text(
+                                  produto.descricao,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14.0,
+                                  ),
+                                ),
+                                const SizedBox(height: 12.0),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Un: ${produto.unidade}',
+                                      style: const TextStyle(color: Colors.grey, fontSize: 13.0),
+                                    ),
+                                    Text(
+                                      'Preço: ${produto.preco.toMoeda()}',
+                                      style: const TextStyle(color: Colors.grey, fontSize: 13.0),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8.0),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.inventory_2_outlined, color: Colors.grey, size: 16.0),
+                                    const SizedBox(width: 4.0),
+                                    const Text('Estoque disponível: ', style: TextStyle(color: Colors.grey, fontSize: 12.0)),
+                                    Text(
+                                      validaEstoque
+                                          ? functions.formatQuantity(
+                                              produto.saldoEstoque,
+                                              unidade: produto.unidade,
+                                            )
+                                          : 'Ilimitado',
+                                      style: TextStyle(
+                                        color: (!validaEstoque || produto.saldoEstoque > 0) ? AppTheme.of(builderCtx).primary : Colors.red,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12.0,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (validaEstoque && produto.saldoEstoque <= 0) ...[
+                                  const SizedBox(height: 12.0),
+                                  const Row(
+                                    children: [
+                                      Icon(Icons.warning_amber_rounded, color: Colors.red, size: 18.0),
+                                      SizedBox(width: 6.0),
+                                      Expanded(
+                                        child: Text(
+                                          'Produto indisponível: Estoque esgotado (Saldo: 0)',
+                                          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13.0),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20.0),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFAED5E6),
+                                  borderRadius: BorderRadius.circular(8.0),
+                                ),
+                                child: IconButton(
+                                  icon: const Icon(Icons.remove, color: Colors.white),
+                                  onPressed: quantidade > 1
+                                      ? () => setModalState(() => quantidade--)
+                                      : null,
+                                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                                ),
+                              ),
+                              Container(
+                                constraints: const BoxConstraints(minWidth: 64.0),
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: AppTheme.of(builderCtx).primary),
+                                  borderRadius: BorderRadius.circular(8.0),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 12.0),
+                                margin: const EdgeInsets.symmetric(horizontal: 8.0),
                                 child: Text(
-                                  'Produto indisponível: Estoque esgotado (Saldo: 0)',
-                                  style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13.0),
+                                  '$quantidade',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18.0),
+                                ),
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0288D1),
+                                  borderRadius: BorderRadius.circular(8.0),
+                                ),
+                                child: IconButton(
+                                  icon: const Icon(Icons.add, color: Colors.white),
+                                  onPressed: (!validaEstoque || quantidade < produto.saldoEstoque)
+                                      ? () => setModalState(() => quantidade++)
+                                      : null,
+                                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20.0),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Total do Item',
+                                style: TextStyle(color: Colors.grey, fontSize: 16.0),
+                              ),
+                              Text(
+                                (produto.preco * quantidade).toMoeda(),
+                                style: TextStyle(
+                                  color: AppTheme.of(builderCtx).primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20.0,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20.0),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(color: Colors.grey),
+                                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                                  ),
+                                  onPressed: () => Navigator.of(modalContext).pop(null),
+                                  child: const Text('Cancelar', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                                ),
+                              ),
+                              const SizedBox(width: 12.0),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.of(builderCtx).primary,
+                                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                                  ),
+                                  onPressed: quantidade > 0
+                                      ? () {
+                                          final mul = (produto.mulver != 0) ? produto.mulver : 1.0;
+                                          final item = ItemPedidoStruct(
+                                            codigoProduto: produto.codigo,
+                                            descricao: produto.descricao,
+                                            unidade: produto.unidade,
+                                            precoUnitario: produto.preco,
+                                            quantidade: quantidade.toDouble(),
+                                            totalItem: produto.preco * quantidade,
+                                            mulver: mul,
+                                            unidadeComercial: quantidade.toDouble() * mul,
+                                            embalagem: produto.unidade,
+                                          );
+                                          Navigator.of(modalContext).pop(item);
+                                        }
+                                      : null,
+                                  icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white, size: 20.0),
+                                  label: const Text('Adicionar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                                 ),
                               ),
                             ],
                           ),
                         ],
-                      ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 24.0),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFAED5E6),
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Icons.remove, color: Colors.white),
-                          onPressed: quantidade > 1
-                              ? () => setModalState(() => quantidade--)
-                              : null,
-                          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                        ),
-                      ),
-                      Container(
-                        constraints: const BoxConstraints(minWidth: 64.0),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: AppTheme.of(builderCtx).primary),
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 12.0),
-                        margin: const EdgeInsets.symmetric(horizontal: 8.0),
-                        child: Text(
-                          '$quantidade',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18.0),
-                        ),
-                      ),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0288D1),
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Icons.add, color: Colors.white),
-                          onPressed: (!validaEstoque || quantidade < produto.saldoEstoque)
-                              ? () => setModalState(() => quantidade++)
-                              : null,
-                          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24.0),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Total do Item',
-                        style: TextStyle(color: Colors.grey, fontSize: 16.0),
-                      ),
-                      Text(
-                        formatCurrency(produto.preco * quantidade),
-                        style: TextStyle(
-                          color: AppTheme.of(builderCtx).primary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20.0,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24.0),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.grey),
-                            padding: const EdgeInsets.symmetric(vertical: 16.0),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-                          ),
-                          onPressed: () => Navigator.of(modalContext).pop(null),
-                          child: const Text('Cancelar', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                      const SizedBox(width: 12.0),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.of(builderCtx).primary,
-                            padding: const EdgeInsets.symmetric(vertical: 16.0),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-                          ),
-                          onPressed: quantidade > 0
-                              ? () {
-                                  final mul = (produto.mulver != 0) ? produto.mulver : 1.0;
-                                  final item = ItemPedidoStruct(
-                                    codigoProduto: produto.codigo,
-                                    descricao: produto.descricao,
-                                    unidade: produto.unidade,
-                                    precoUnitario: produto.preco,
-                                    quantidade: quantidade.toDouble(),
-                                    totalItem: produto.preco * quantidade,
-                                    mulver: mul,
-                                    unidadeComercial: quantidade.toDouble() * mul,
-                                    embalagem: produto.unidade,
-                                  );
-                                  Navigator.of(modalContext).pop(item);
-                                }
-                              : null,
-                          icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white, size: 20.0),
-                          label: const Text('Adicionar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
             );
           },
@@ -1512,6 +1552,10 @@ side: BorderSide(
                                                     height: 80.0,
                                                     caminhoArquivo:
                                                         listaProdutoItem.codigo,
+                                                    titulo: listaProdutoItem
+                                                        .descricao,
+                                                    subtitulo:
+                                                        'Cód: ${listaProdutoItem.codigo} • ${listaProdutoItem.preco.toMoeda()}',
                                                   ),
                                                 ),
                                                 Expanded(
@@ -1811,13 +1855,7 @@ side: BorderSide(
                                                                     ),
                                                               ),
                                                               Text(
-                                                                valueOrDefault<
-                                                                    String>(
-                                                                  listaProdutoItem
-                                                                      .preco
-                                                                      .toString(),
-                                                                  '0,00',
-                                                                ),
+                                                                listaProdutoItem.preco.toMoeda(),
                                                                 style: AppTheme.of(
                                                                         context)
                                                                     .bodyMedium

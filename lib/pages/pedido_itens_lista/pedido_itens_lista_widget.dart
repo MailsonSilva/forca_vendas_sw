@@ -3,7 +3,9 @@ import '/action_code/index.dart';
 import '/functions/proximo_numero_pedido.dart';
 import '/backend/schema/structs/index.dart';
 import '/core/app_theme.dart';
+import '/core/app_icon_button.dart';
 import '/core/app_util.dart';
+import '/widget/imagem_local_widget.dart';
 import '/index.dart';
 import '/domain/services/valide_pco_service.dart';
 import 'package:flutter/material.dart';
@@ -201,7 +203,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                 final limVal = cMap['cli00_crelim'] ?? cMap['cli00_limite'] ?? cMap['cli00_limcre'] ?? cMap['limite'];
                 final lim = (limVal is num) ? limVal.toDouble() : (double.tryParse(limVal?.toString() ?? '') ?? 0.0);
                 if (lim > 0) {
-                  _clienteLimite = lim.toStringAsFixed(2).replaceAll('.', ',');
+                  _clienteLimite = lim.toMoeda(incluirSimbolo: false);
                 }
               }
             }
@@ -525,7 +527,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
   }
 
   String _formatCurrency(double val) {
-    return 'R\$ ${val.toStringAsFixed(2).replaceAll('.', ',')}';
+    return val.toMoeda();
   }
 
   /// PRD Seção 1 — Edição interativa do preço unitário com validação de faixas (pcomin/pcomax)
@@ -1196,6 +1198,19 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                                   Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
+                                      SizedBox(
+                                        width: 50.0,
+                                        height: 50.0,
+                                        child: ImagemLocalWidget(
+                                          width: 50.0,
+                                          height: 50.0,
+                                          caminhoArquivo: item.codigoProduto,
+                                          titulo: item.descricao,
+                                          subtitulo: 'Cód: ${item.codigoProduto} • ${_formatCurrency(item.precoUnitario)}',
+                                          enablePreview: true,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12.0),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1400,36 +1415,90 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40.0,
-                height: 5.0,
+        return Align(
+          alignment: Alignment.bottomCenter,
+          heightFactor: 1.0,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600.0),
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2.5),
-                ),
-              ),
-              const SizedBox(height: 20.0),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Ações do Pedido',
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 22.0,
-                    color: const Color(0xFF1D2429),
+                  color: AppTheme.of(context).primaryBackground,
+                  boxShadow: const [
+                    BoxShadow(
+                      blurRadius: 10.0,
+                      color: Color(0x33000000),
+                      offset: Offset(0.0, -2.0),
+                    )
+                  ],
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20.0),
+                    topRight: Radius.circular(20.0),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20.0),
+                child: SafeArea(
+                  top: false,
+                  bottom: true,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Drag handle
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4.0, bottom: 4.0),
+                          child: Container(
+                            width: 40.0,
+                            height: 4.0,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.withValues(alpha: 0.35),
+                              borderRadius: BorderRadius.circular(2.0),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.tune_rounded,
+                                    color: AppTheme.of(context).primary,
+                                    size: 24.0,
+                                  ),
+                                  const SizedBox(width: 8.0),
+                                  Text(
+                                    'Ações do Pedido',
+                                    style: AppTheme.of(context).titleLarge.override(
+                                          font: GoogleFonts.outfit(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          color: AppTheme.of(context).primaryText,
+                                          fontSize: 20.0,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                              AppIconButton(
+                                borderColor: const Color(0xFFE0E3E7),
+                                borderRadius: 12.0,
+                                borderWidth: 1.0,
+                                buttonSize: 38.0,
+                                icon: Icon(
+                                  Icons.close_rounded,
+                                  color: AppTheme.of(context).primaryText,
+                                  size: 18.0,
+                                ),
+                                onPressed: () => Navigator.pop(context),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Divider(height: 1.0, thickness: 1.0),
+                        const SizedBox(height: 12.0),
               _buildAcaoCard(
                 icon: Icons.check_circle_outlined,
                 label: 'Concluir Venda',
@@ -1594,7 +1663,12 @@ carrinhoItens: _model.carrinhoItens,
               ),
             ],
           ),
-        );
+        ),
+      ),
+    ),
+  ),
+),
+);
       },
     );
   }
@@ -1738,44 +1812,92 @@ carrinhoItens: _model.carrinhoItens,
               return desc.contains(term) || cod.contains(term);
             }).toList();
 
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.7,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
-              ),
-              child: Column(
-                children: [
-                  const SizedBox(height: 12.0),
-                  Container(
-                    width: 40.0,
-                    height: 5.0,
+            return Align(
+              alignment: Alignment.bottomCenter,
+              heightFactor: 1.0,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600.0),
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    height: MediaQuery.of(context).size.height * 0.7,
                     decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2.5),
-                    ),
-                  ),
-                  const SizedBox(height: 16.0),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Selecionar Novo Plano',
-                          style: GoogleFonts.outfit(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20.0,
-                            color: const Color(0xFF14181B),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded),
-                          onPressed: () => Navigator.pop(context),
-                        ),
+                      color: AppTheme.of(context).primaryBackground,
+                      boxShadow: const [
+                        BoxShadow(
+                          blurRadius: 10.0,
+                          color: Color(0x33000000),
+                          offset: Offset(0.0, -2.0),
+                        )
                       ],
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20.0),
+                        topRight: Radius.circular(20.0),
+                      ),
                     ),
-                  ),
+                    child: SafeArea(
+                      top: false,
+                      bottom: true,
+                      child: Column(
+                        children: [
+                          // Drag handle
+                          Padding(
+                            padding: const EdgeInsets.only(top: 10.0, bottom: 4.0),
+                            child: Container(
+                              width: 40.0,
+                              height: 4.0,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.withValues(alpha: 0.35),
+                                borderRadius: BorderRadius.circular(2.0),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.credit_card_rounded,
+                                        color: AppTheme.of(context).primary,
+                                        size: 24.0,
+                                      ),
+                                      const SizedBox(width: 8.0),
+                                      Expanded(
+                                        child: Text(
+                                          'Selecionar Novo Plano',
+                                          style: AppTheme.of(context).titleLarge.override(
+                                                font: GoogleFonts.outfit(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                                color: AppTheme.of(context).primaryText,
+                                                fontSize: 20.0,
+                                              ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                AppIconButton(
+                                  borderColor: const Color(0xFFE0E3E7),
+                                  borderRadius: 12.0,
+                                  borderWidth: 1.0,
+                                  buttonSize: 38.0,
+                                  icon: Icon(
+                                    Icons.close_rounded,
+                                    color: AppTheme.of(context).primaryText,
+                                    size: 18.0,
+                                  ),
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Divider(height: 1.0, thickness: 1.0),
                   const SizedBox(height: 8.0),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -1861,7 +1983,11 @@ carrinhoItens: _model.carrinhoItens,
                   ),
                 ],
               ),
-            );
+            ),
+          ),
+        ),
+      ),
+    );
           },
         );
       },

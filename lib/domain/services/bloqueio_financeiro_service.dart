@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import '../../app_constants.dart';
 import '../../app_state.dart';
 import '../../services/receber_duplicatas_service.dart';
+import '../../core/formatters/currency_formatter.dart';
 
 class BloqueioFinanceiroResult {
   final bool bloqueado;
@@ -51,7 +52,7 @@ class BloqueioFinanceiroService {
     if (limiteRestante < 0 || creatu <= 0) {
       return BloqueioFinanceiroResult(
         bloqueado: true,
-        motivo: 'Limite de crédito excedido. Disponível: R\$ ${creatu.toStringAsFixed(2)}',
+        motivo: 'Limite de crédito excedido. Disponível: ${creatu.toMoeda()}',
       );
     }
     return BloqueioFinanceiroResult(bloqueado: false, motivo: '');
@@ -139,7 +140,7 @@ class BloqueioFinanceiroService {
     if (limiteRestante < 0 || creatu <= 0) {
       return BloqueioFinanceiroResult(
         bloqueado: true,
-        motivo: 'Limite de crédito insuficiente para fechamento a prazo.\nTotal do Pedido: R\$ ${valorPedido.toStringAsFixed(2)}\nSaldo de Crédito Disponível: R\$ ${creatu.toStringAsFixed(2)}',
+        motivo: 'Limite de crédito insuficiente para fechamento a prazo.\nTotal do Pedido: ${valorPedido.toMoeda()}\nSaldo de Crédito Disponível: ${creatu.toMoeda()}',
       );
     }
 

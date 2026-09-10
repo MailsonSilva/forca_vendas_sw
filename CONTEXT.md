@@ -55,3 +55,33 @@
 - **Ordenação por Aging (Tempo de Atraso)**: Ordenação prioritária da carteira pelo título com vencimento mais antigo, antecipando o risco de crédito e bloqueio comercial.
 - **Barreira de Checkout / Termo de Responsabilidade**: Validação integrada que exige auditoria e termo de consentimento ao abrir pedido para cliente com títulos em atraso (`totalVencido > 0`).
 
+## Padrões Transversais de Interface e Apresentação
+
+### 1. Padrão Arquitetural de Modais (Bottom Sheets) e Correção de SafeArea
+- **Uso Exclusivo de `showAppModalBottomSheet` e `AppBottomSheet`**:
+  - Todo e qualquer novo modal ou painel deslizante do aplicativo **DEVE** ser aberto utilizando `showAppModalBottomSheet<T>()` e estruturado internamente com o widget `AppBottomSheet` (`lib/core/app_bottom_sheet.dart`).
+  - **Proibido**: Usar `showModalBottomSheet` cru do Flutter sem envelopamento em `SafeArea`.
+- **Garantia de Não-Sobreposição com Barra Virtual de Navegação (SafeArea)**:
+  - Todo modal é configurado com `useSafeArea: true` e encapsulado em `SafeArea(bottom: true)` com padding dinâmico via `MediaQuery.of(context).padding.bottom`.
+  - **Regra Rígida**: Nenhum botão, ação, campo de texto ou rodapé de modal pode ficar oculto atrás dos botões virtuais ou gestos nativos do Android/iOS.
+- **Identidade Visual Padronizada**:
+  - Barra de arraste centralizada no topo (`drag handle` 40x4px arredondado).
+  - Cabeçalho padronizado com ícone do contexto, título em negrito e botão de fechar `X` estilizado com `AppIconButton`.
+  - Cantos superiores com raio de 24px e contenção de largura máxima responsiva (`maxWidth: 600.0`) para renderização ideal em tablets e telas largas.
+
+### 2. Convenção Global de Formatação Monetária Brasileira (R$)
+- **Formatação Centralizada (`lib/core/formatters/currency_formatter.dart`)**:
+  - Todo e qualquer valor monetário apresentado para o usuário na interface (listagens de produtos, resumos de pedidos, rascunhos, extrato de clientes, limites e faturamentos) deve utilizar a biblioteca central `formatMoeda()` ou a extensão `.toMoeda()`.
+  - Utiliza `NumberFormat.currency(locale: 'pt_BR', symbol: 'R$')` com normalização de espaços, garantindo apresentação rigorosa: **`R$ 1.250,50`** (ponto para milhar e vírgula para centavos).
+  - **Proibido**: Exibir valores numéricos crus ou concatenados manualmente com ponto (ex: `10.5` ou `1250.50`).
+  - **Exceção**: Formatos de baixo nível para geração de pacotes e arquivos de integração com o ERP (ex: `fmtCurrencyPac`), que exigem ponto decimal sem símbolo monetário.
+
+### 3. Visualizador de Imagens de Produtos com Zoom e Compartilhamento
+- **Ativação Transparente via `ImagemLocalWidget` (`lib/widget/imagem_local_widget.dart`)**:
+  - O componente base de imagem de produtos possui `enablePreview: true` por padrão. O toque em qualquer imagem (em listas, detalhes ou itens do pedido) aciona automaticamente o `ImagemPreviewDialog`.
+- **Recursos do Diálogo Interativo (`lib/widgets/imagem_preview_dialog.dart`)**:
+  - **Zoom e Pan Fluido**: Utiliza `InteractiveViewer` permitindo escala de 0.8x a 5.0x com suporte a duplo toque para restauração rápida de zoom.
+  - **Compartilhamento Direto**: Botão de ação que utiliza `share_plus` (`Share.shareXFiles`) para enviar o arquivo da imagem diretamente para WhatsApp, Telegram ou outros apps do cliente.
+  - **Área de Transferência**: Botão de cópia rápida dos dados/caminho da imagem via `Clipboard.setData` com feedback visual imediato.
+
+

@@ -227,7 +227,7 @@ class _PedidosRascunhosPageWidgetState
     }
   }
 
-  String _fmt(double v) => 'R\$ ${v.toStringAsFixed(2).replaceAll('.', ',')}';
+  String _fmt(double v) => v.toMoeda();
 
   Color _getStatusColor(PedidoHistoricoItem item) {
     if (item.isFaturado) return const Color(0xFF2E7D32); // Verde

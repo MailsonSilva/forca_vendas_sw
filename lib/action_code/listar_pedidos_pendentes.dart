@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '/app_state.dart';
 import '/data/services/local_sales_database_service.dart';
 import '/functions/proximo_numero_pedido.dart';
+import '/core/formatters/currency_formatter.dart';
 
 class PedidoClonadoInfo {
   PedidoClonadoInfo({
@@ -492,7 +493,7 @@ Future<List<PedidoHistoricoItem>> listarPedidosHistorico({
 
             final lim = _getDouble(cMap, ['cli00_crelim', 'cli00_limite', 'cli00_limcre', 'crelim', 'limite', 'limcre']);
             if (lim > 0) {
-              cliLimite = lim.toStringAsFixed(2).replaceAll('.', ',');
+              cliLimite = lim.toMoeda(incluirSimbolo: false);
             }
           }
         } catch (_) {}
@@ -790,7 +791,7 @@ Future<PedidoClonadoInfo?> clonarPedidoLocal(int pedidoOrigemId) async {
 
           final lim = _getDouble(cMap, ['cli00_crelim', 'cli00_limite', 'cli00_limcre', 'crelim', 'limite', 'limcre']);
           if (lim > 0) {
-            cliLimite = lim.toStringAsFixed(2).replaceAll('.', ',');
+            cliLimite = lim.toMoeda(incluirSimbolo: false);
           }
         }
       } catch (_) {}

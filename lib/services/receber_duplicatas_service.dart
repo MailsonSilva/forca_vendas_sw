@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../data/services/local_sales_database_service.dart';
+import '../core/formatters/currency_formatter.dart';
 
 /// Representa um título individual / duplicata (dup00)
 class TituloDuplicataItem {
@@ -89,11 +90,8 @@ enum OrdenacaoReceber {
 
 /// Serviço responsável pela auditoria e consultas de Contas a Receber (dup00)
 class ReceberDuplicatasService {
-  static final _currencyFormat =
-      NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
   static final _dateFormat = DateFormat('dd/MM/yyyy');
-
-  static String formatarMoeda(double valor) => _currencyFormat.format(valor);
+  static String formatarMoeda(double valor) => formatMoeda(valor);
   static String formatarData(DateTime? dt) =>
       dt != null ? _dateFormat.format(dt) : '-';
 

@@ -7,6 +7,41 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [5.2.0] - 2026-09-10
+
+### 🌟 Adicionado (Novas Funcionalidades e Padronizações)
+
+#### 1. Padronização Visual e Responsiva de Modais (Bottom Sheets) com SafeArea
+- **Componente e Helper Centralizado (`lib/core/app_bottom_sheet.dart`)**:
+  - Implementação de `AppBottomSheet` e função helper `showAppModalBottomSheet<T>()` baseados no design de referência do Menu de Relatórios.
+  - Recursos visuais: Barra de arraste superior (`drag handle`), cabeçalho com ícone, título em negrito, botão de fechar padronizado (`AppIconButton`), cantos superiores arredondados (24px) e contenção de largura para tablets (`ConstrainedBox(maxWidth: 600.0)`).
+  - **Correção Estrita de SafeArea**: Configuração obrigatória de `useSafeArea: true` e `SafeArea(bottom: true)` com padding dinâmico via `MediaQuery.of(context).padding.bottom`, garantindo que nenhum elemento ou botão fique sobreposto ou oculto atrás da barra de navegação virtual do Android/iOS.
+- **Refatoração Global de Modais**:
+  - Migração de todos os bottom sheets do aplicativo: Pedidos (`ModalPedidosWidget`), Clientes (`ModalClienteWidget`), Agente Cobrador (`ModalAgenteCobradorWidget`), Seleção de Filial (`ModalSelecaoFilialWidget`), Combos (`BottomSheetCombosWidget`), Bonificações (`BottomSheetSelecaoBonificacaoWidget`), Extrato de Duplicatas e Compartilhamento (`ExtratoDuplicatasWidget`), Início e Ações do Pedido (`PedidoNovoInicioWidget`, `PedidoItensListaWidget`) e Adição ao Carrinho (`BuscaProdutoPageWidget`).
+
+#### 2. Centralização e Formatação Monetária Brasileira Padrão R$ (pt_BR)
+- **Utilitário Global (`lib/core/formatters/currency_formatter.dart`)**:
+  - Criação da função central `formatMoeda(num? valor, {bool incluirSimbolo = true})` e extensões diretas `num?.toMoeda()`, `num?.toMoedaSemSimbolo()` e `String?.toMoeda()`.
+  - Formatação com `intl` (`NumberFormat.currency(locale: 'pt_BR', symbol: 'R$')`) com normalização de espaços, garantindo apresentação consistente no formato `R$ 1.250,50` (milhar com ponto, decimal com vírgula).
+- **Unificação nos Serviços e Telas**:
+  - Centralização de `formatPreco` e dos serviços de relatórios (`FaturamentoMetasService`, `ResumoVendasService`, `ReceberDuplicatasService`).
+  - Varredura e padronização em listagens de produtos, rascunhos, resumos de pedidos, extratos de clientes, avisos de bloqueio por limite de crédito e central de pacotes.
+
+#### 3. Visualizador de Imagens com Zoom Interativo e Compartilhamento
+- **Integração com `share_plus`**: Adicionado `share_plus: ^12.0.2` para envio de mídias e dados para aplicativos terceiros (WhatsApp, Telegram, etc.).
+- **Diálogo Interativo (`lib/widgets/imagem_preview_dialog.dart`)**:
+  - Visualização em tela cheia com fundo escuro e zoom fluido via `InteractiveViewer` (0.8x a 5.0x) com suporte a duplo toque para reset.
+  - Ação de **Compartilhar**: Envio nativo do arquivo local de imagem via `Share.shareXFiles` (ou texto descritivo via `Share.share`).
+  - Ação de **Copiar**: Cópia de informações/caminho para a área de transferência via `Clipboard.setData`.
+- **Ativação Global em `ImagemLocalWidget`**:
+  - Habilitado por padrão (`enablePreview: true`), envolvendo qualquer imagem de produto em listas, detalhes e itens de pedidos com toque interativo para abertura imediata do preview.
+
+### 🛡️ Testes e Garantia de Qualidade
+- **Testes Automatizados**: Suíte completa de testes executada com 100% de sucesso (**151/151 testes aprovados**).
+- **Análise Estática**: `flutter analyze` executado com zero erros e zero avisos (`No issues found!`).
+
+---
+
 ## [5.1.0] - 2026-09-02
 
 ### 🌟 Adicionado (Novas Funcionalidades)

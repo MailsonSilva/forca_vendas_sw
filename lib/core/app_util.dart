@@ -21,6 +21,8 @@ export 'uploaded_file.dart';
 export '../app_state.dart';
 export '../app_constants.dart';
 export 'app_model.dart';
+export 'app_bottom_sheet.dart';
+export 'formatters/currency_formatter.dart';
 export 'dart:math' show min, max;
 export 'dart:typed_data' show Uint8List;
 export 'dart:convert' show jsonEncode, jsonDecode;

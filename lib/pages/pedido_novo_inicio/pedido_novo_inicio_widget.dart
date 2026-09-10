@@ -1,5 +1,6 @@
 import '/action_code/index.dart';
 import '/core/app_theme.dart';
+import '/core/app_icon_button.dart';
 import '/core/app_util.dart';
 import '/functions/proximo_numero_pedido.dart';
 import '/index.dart';
@@ -65,7 +66,7 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
   }
 
   String _formatCurrency(double val) {
-    return 'R\$ ${val.toStringAsFixed(2).replaceAll('.', ',')}';
+    return val.toMoeda();
   }
 
   // PRD 1 §4A — busca cli00_codage e descrição do agente em codage00/cadagt00
@@ -125,134 +126,189 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return Container(
-          height: MediaQuery.of(ctx).size.height * 0.75,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 40,
-                height: 5,
+        return Align(
+          alignment: Alignment.bottomCenter,
+          heightFactor: 1.0,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600.0),
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                height: MediaQuery.of(ctx).size.height * 0.75,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2.5),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Títulos Vencidos em Aberto',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1D2429)),
-                          ),
-                          Text(
-                            clienteNome,
-                            style: const TextStyle(fontSize: 13, color: Colors.grey),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
+                  color: AppTheme.of(ctx).primaryBackground,
+                  boxShadow: const [
+                    BoxShadow(
+                      blurRadius: 10.0,
+                      color: Color(0x33000000),
+                      offset: Offset(0.0, -2.0),
+                    )
                   ],
-                ),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                  itemCount: titulos.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (context, idx) {
-                    final t = titulos[idx];
-                    return Container(
-                      padding: const EdgeInsets.all(14.0),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF8E1),
-                        borderRadius: BorderRadius.circular(12.0),
-                        border: Border.all(color: const Color(0xFFFFE082)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Documento: ${t.numeroDocumento}',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1D2429)),
-                              ),
-                              Text(
-                                'R\$ ${t.valor.toStringAsFixed(2).replaceAll('.', ',')}',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFFC62828)),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Vencimento: ${t.dataVencimento}',
-                                style: const TextStyle(fontSize: 13, color: Colors.black87),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: Colors.red.shade100,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  '${t.diasAtraso} dia(s) em atraso',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.red.shade800),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-              SafeArea(
-                top: false,
-                bottom: true,
-                child: Container(
-                  padding: const EdgeInsets.all(16.0),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, -2))],
-                  ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.of(context).primary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text(
-                        'Continuar Digitação',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-                      ),
-                    ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20.0),
+                    topRight: Radius.circular(20.0),
                   ),
                 ),
+                child: SafeArea(
+                  top: false,
+                  bottom: true,
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10.0, bottom: 4.0),
+                        child: Container(
+                          width: 40.0,
+                          height: 4.0,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(2.0),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Títulos Vencidos em Aberto',
+                                          style: AppTheme.of(ctx).titleLarge.override(
+                                                font: GoogleFonts.outfit(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                                color: AppTheme.of(ctx).primaryText,
+                                                fontSize: 18.0,
+                                              ),
+                                        ),
+                                        Text(
+                                          clienteNome,
+                                          style: AppTheme.of(ctx).bodySmall.override(
+                                                font: GoogleFonts.inter(),
+                                                color: AppTheme.of(ctx).secondaryText,
+                                                fontSize: 12.0,
+                                              ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            AppIconButton(
+                              borderColor: const Color(0xFFE0E3E7),
+                              borderRadius: 12.0,
+                              borderWidth: 1.0,
+                              buttonSize: 38.0,
+                              icon: Icon(
+                                Icons.close_rounded,
+                                color: AppTheme.of(ctx).primaryText,
+                                size: 18.0,
+                              ),
+                              onPressed: () => Navigator.pop(ctx),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Divider(height: 1.0, thickness: 1.0),
+                      Expanded(
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                          itemCount: titulos.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 10),
+                          itemBuilder: (context, idx) {
+                            final t = titulos[idx];
+                            return Container(
+                              padding: const EdgeInsets.all(14.0),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF8E1),
+                                borderRadius: BorderRadius.circular(12.0),
+                                border: Border.all(color: const Color(0xFFFFE082)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Documento: ${t.numeroDocumento}',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1D2429)),
+                                      ),
+                                      Text(
+                                        t.valor.toMoeda(),
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFFC62828)),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Vencimento: ${t.dataVencimento}',
+                                        style: const TextStyle(fontSize: 13, color: Colors.black87),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFFCDD2),
+                                          borderRadius: BorderRadius.circular(6.0),
+                                        ),
+                                        child: Text(
+                                          '${t.diasAtraso}d atraso',
+                                          style: const TextStyle(color: Color(0xFFB71C1C), fontSize: 11, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      SafeArea(
+                        top: false,
+                        child: Container(
+                          padding: const EdgeInsets.all(16.0),
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, -2))],
+                          ),
+                          child: SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.of(context).primary,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text(
+                                'Continuar Digitação',
+                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ],
+            ),
           ),
         );
       },
@@ -277,47 +333,92 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
               return name.contains(term) || fantas.contains(term) || cod.contains(term);
             }).toList();
 
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.8,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
-              ),
-              child: SafeArea(
-                top: false,
-                bottom: true,
-                child: Column(
-                  children: [
-                  const SizedBox(height: 12.0),
-                  Container(
-                    width: 40.0,
-                    height: 5.0,
+            return Align(
+              alignment: Alignment.bottomCenter,
+              heightFactor: 1.0,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600.0),
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    height: MediaQuery.of(context).size.height * 0.8,
                     decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2.5),
-                    ),
-                  ),
-                  const SizedBox(height: 16.0),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Selecionar Cliente',
-                          style: GoogleFonts.outfit(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20.0,
-                            color: const Color(0xFF14181B),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded),
-                          onPressed: () => Navigator.pop(context),
-                        ),
+                      color: AppTheme.of(context).primaryBackground,
+                      boxShadow: const [
+                        BoxShadow(
+                          blurRadius: 10.0,
+                          color: Color(0x33000000),
+                          offset: Offset(0.0, -2.0),
+                        )
                       ],
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20.0),
+                        topRight: Radius.circular(20.0),
+                      ),
                     ),
-                  ),
+                    child: SafeArea(
+                      top: false,
+                      bottom: true,
+                      child: Column(
+                        children: [
+                          // Drag handle
+                          Padding(
+                            padding: const EdgeInsets.only(top: 10.0, bottom: 4.0),
+                            child: Container(
+                              width: 40.0,
+                              height: 4.0,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.withValues(alpha: 0.35),
+                                borderRadius: BorderRadius.circular(2.0),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.people_outline_rounded,
+                                        color: AppTheme.of(context).primary,
+                                        size: 24.0,
+                                      ),
+                                      const SizedBox(width: 8.0),
+                                      Expanded(
+                                        child: Text(
+                                          'Selecionar Cliente',
+                                          style: AppTheme.of(context).titleLarge.override(
+                                                font: GoogleFonts.outfit(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                                color: AppTheme.of(context).primaryText,
+                                                fontSize: 20.0,
+                                              ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                AppIconButton(
+                                  borderColor: const Color(0xFFE0E3E7),
+                                  borderRadius: 12.0,
+                                  borderWidth: 1.0,
+                                  buttonSize: 38.0,
+                                  icon: Icon(
+                                    Icons.close_rounded,
+                                    color: AppTheme.of(context).primaryText,
+                                    size: 18.0,
+                                  ),
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Divider(height: 1.0, thickness: 1.0),
                   const SizedBox(height: 8.0),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -432,7 +533,10 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                 ],
               ),
             ),
-          );
+          ),
+        ),
+      ),
+    );
           },
         );
       },
@@ -456,47 +560,92 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
               return desc.contains(term) || cod.contains(term);
             }).toList();
 
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.7,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
-              ),
-              child: SafeArea(
-                top: false,
-                bottom: true,
-                child: Column(
-                  children: [
-                  const SizedBox(height: 12.0),
-                  Container(
-                    width: 40.0,
-                    height: 5.0,
+            return Align(
+              alignment: Alignment.bottomCenter,
+              heightFactor: 1.0,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600.0),
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    height: MediaQuery.of(context).size.height * 0.7,
                     decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2.5),
-                    ),
-                  ),
-                  const SizedBox(height: 16.0),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Selecionar Linha de Produtos',
-                          style: GoogleFonts.outfit(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20.0,
-                            color: const Color(0xFF14181B),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded),
-                          onPressed: () => Navigator.pop(context),
-                        ),
+                      color: AppTheme.of(context).primaryBackground,
+                      boxShadow: const [
+                        BoxShadow(
+                          blurRadius: 10.0,
+                          color: Color(0x33000000),
+                          offset: Offset(0.0, -2.0),
+                        )
                       ],
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20.0),
+                        topRight: Radius.circular(20.0),
+                      ),
                     ),
-                  ),
+                    child: SafeArea(
+                      top: false,
+                      bottom: true,
+                      child: Column(
+                        children: [
+                          // Drag handle
+                          Padding(
+                            padding: const EdgeInsets.only(top: 10.0, bottom: 4.0),
+                            child: Container(
+                              width: 40.0,
+                              height: 4.0,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.withValues(alpha: 0.35),
+                                borderRadius: BorderRadius.circular(2.0),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.layers_outlined,
+                                        color: AppTheme.of(context).primary,
+                                        size: 24.0,
+                                      ),
+                                      const SizedBox(width: 8.0),
+                                      Expanded(
+                                        child: Text(
+                                          'Selecionar Linha de Produtos',
+                                          style: AppTheme.of(context).titleLarge.override(
+                                                font: GoogleFonts.outfit(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                                color: AppTheme.of(context).primaryText,
+                                                fontSize: 20.0,
+                                              ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                AppIconButton(
+                                  borderColor: const Color(0xFFE0E3E7),
+                                  borderRadius: 12.0,
+                                  borderWidth: 1.0,
+                                  buttonSize: 38.0,
+                                  icon: Icon(
+                                    Icons.close_rounded,
+                                    color: AppTheme.of(context).primaryText,
+                                    size: 18.0,
+                                  ),
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Divider(height: 1.0, thickness: 1.0),
                   const SizedBox(height: 8.0),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -579,7 +728,10 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                 ],
               ),
             ),
-          );
+          ),
+        ),
+      ),
+    );
           },
         );
       },
@@ -603,47 +755,92 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
               return desc.contains(term) || cod.contains(term);
             }).toList();
 
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.7,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
-              ),
-              child: SafeArea(
-                top: false,
-                bottom: true,
-                child: Column(
-                  children: [
-                  const SizedBox(height: 12.0),
-                  Container(
-                    width: 40.0,
-                    height: 5.0,
+            return Align(
+              alignment: Alignment.bottomCenter,
+              heightFactor: 1.0,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600.0),
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    height: MediaQuery.of(context).size.height * 0.7,
                     decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2.5),
-                    ),
-                  ),
-                  const SizedBox(height: 16.0),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Selecionar Plano de Pagamento',
-                          style: GoogleFonts.outfit(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20.0,
-                            color: const Color(0xFF14181B),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded),
-                          onPressed: () => Navigator.pop(context),
-                        ),
+                      color: AppTheme.of(context).primaryBackground,
+                      boxShadow: const [
+                        BoxShadow(
+                          blurRadius: 10.0,
+                          color: Color(0x33000000),
+                          offset: Offset(0.0, -2.0),
+                        )
                       ],
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20.0),
+                        topRight: Radius.circular(20.0),
+                      ),
                     ),
-                  ),
+                    child: SafeArea(
+                      top: false,
+                      bottom: true,
+                      child: Column(
+                        children: [
+                          // Drag handle
+                          Padding(
+                            padding: const EdgeInsets.only(top: 10.0, bottom: 4.0),
+                            child: Container(
+                              width: 40.0,
+                              height: 4.0,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.withValues(alpha: 0.35),
+                                borderRadius: BorderRadius.circular(2.0),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.credit_card_rounded,
+                                        color: AppTheme.of(context).primary,
+                                        size: 24.0,
+                                      ),
+                                      const SizedBox(width: 8.0),
+                                      Expanded(
+                                        child: Text(
+                                          'Selecionar Plano de Pagamento',
+                                          style: AppTheme.of(context).titleLarge.override(
+                                                font: GoogleFonts.outfit(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                                color: AppTheme.of(context).primaryText,
+                                                fontSize: 20.0,
+                                              ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                AppIconButton(
+                                  borderColor: const Color(0xFFE0E3E7),
+                                  borderRadius: 12.0,
+                                  borderWidth: 1.0,
+                                  buttonSize: 38.0,
+                                  icon: Icon(
+                                    Icons.close_rounded,
+                                    color: AppTheme.of(context).primaryText,
+                                    size: 18.0,
+                                  ),
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Divider(height: 1.0, thickness: 1.0),
                   const SizedBox(height: 8.0),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -728,7 +925,10 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                 ],
               ),
             ),
-          );
+          ),
+        ),
+      ),
+    );
           },
         );
       },

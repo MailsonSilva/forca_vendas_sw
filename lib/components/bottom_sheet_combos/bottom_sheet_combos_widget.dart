@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path_pkg;
 import '/backend/schema/structs/index.dart';
 import '/core/app_theme.dart';
+import '/core/app_icon_button.dart';
 import '/core/app_util.dart';
 import 'bottom_sheet_combos_model.dart';
 export 'bottom_sheet_combos_model.dart';
@@ -202,59 +203,113 @@ class _BottomSheetCombosWidgetState extends State<BottomSheetCombosWidget> {
   }
 
   String _formatCurrency(double val) {
-    return 'R\$ ${val.toStringAsFixed(2).replaceAll('.', ',')}';
+    return val.toMoeda();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
-      ),
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16.0,
-        left: 16.0,
-        right: 16.0,
-        top: 12.0,
-      ),
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.9,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Handle e cabeçalho
-          Center(
-            child: Container(
-              width: 40.0,
-              height: 5.0,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2.5),
+    return Align(
+      alignment: Alignment.bottomCenter,
+      heightFactor: 1.0,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 600.0),
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppTheme.of(context).primaryBackground,
+              boxShadow: const [
+                BoxShadow(
+                  blurRadius: 10.0,
+                  color: Color(0x33000000),
+                  offset: Offset(0.0, -2.0),
+                )
+              ],
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20.0),
+                topRight: Radius.circular(20.0),
               ),
             ),
-          ),
-          const SizedBox(height: 16.0),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Combos Promocionais',
-                style: GoogleFonts.inter(
-                  fontSize: 18.0,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF14181B),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+            ),
+            child: SafeArea(
+              top: false,
+              bottom: true,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 8.0,
+                  left: 16.0,
+                  right: 16.0,
+                  top: 8.0,
                 ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ],
-          ),
-          const Divider(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Handle
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0, bottom: 4.0),
+                      child: Center(
+                        child: Container(
+                          width: 40.0,
+                          height: 4.0,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(2.0),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.auto_awesome_rounded,
+                                  color: AppTheme.of(context).primary,
+                                  size: 24.0,
+                                ),
+                                const SizedBox(width: 8.0),
+                                Expanded(
+                                  child: Text(
+                                    'Combos Promocionais',
+                                    style: AppTheme.of(context).titleLarge.override(
+                                          font: GoogleFonts.outfit(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          color: AppTheme.of(context).primaryText,
+                                          fontSize: 20.0,
+                                        ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          AppIconButton(
+                            borderColor: const Color(0xFFE0E3E7),
+                            borderRadius: 12.0,
+                            borderWidth: 1.0,
+                            buttonSize: 38.0,
+                            icon: Icon(
+                              Icons.close_rounded,
+                              color: AppTheme.of(context).primaryText,
+                              size: 18.0,
+                            ),
+                            onPressed: () async {
+                              Navigator.pop(context);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1.0, thickness: 1.0),
+                    const SizedBox(height: 8.0),
           
           // Lista de combos
           Expanded(
@@ -414,7 +469,12 @@ class _BottomSheetCombosWidgetState extends State<BottomSheetCombosWidget> {
           ),
         ],
       ),
-    );
+    ),
+  ),
+),
+),
+),
+);
   }
 }
 

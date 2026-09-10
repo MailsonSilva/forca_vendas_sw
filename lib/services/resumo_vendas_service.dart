@@ -3,19 +3,12 @@ import 'package:sqflite/sqflite.dart';
 import '../app_state.dart';
 import '../data/services/local_sales_database_service.dart';
 import '../domain/models/resumo_vendas_model.dart';
+import '../core/formatters/currency_formatter.dart';
 
 /// Serviço responsável por processar, consolidar e calcular o
 /// Relatório de Resumo de Vendas Diário e Apuração de Comissões (`ffrmrelresven00`).
 class ResumoVendasService {
-  static final NumberFormat _currencyFormat = NumberFormat.currency(
-    locale: 'pt_BR',
-    symbol: 'R\$',
-    decimalDigits: 2,
-  );
-
-  static String formatarMoeda(double valor) {
-    return _currencyFormat.format(valor).replaceAll('\u00A0', ' ');
-  }
+  static String formatarMoeda(double valor) => formatMoeda(valor);
 
   static final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
   static final DateFormat _dbDateFormat = DateFormat('yyyy-MM-dd');

@@ -189,6 +189,11 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                                         height: 140.0,
                                                         caminhoArquivo:
                                                             listaDeImagensItem,
+                                                        titulo: _model
+                                                            .produtoResult
+                                                            ?.descricao,
+                                                        subtitulo:
+                                                            'Cód: ${_model.produtoResult?.codigo} • ${(_model.produtoResult?.preco ?? 0.0).toMoeda()}',
                                                       ),
                                                     );
                                                   },
@@ -780,17 +785,7 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                                       ),
                                             ),
                                             Text(
-                                              valueOrDefault<String>(
-                                                formatNumber(
-                                                  _model.produtoResult?.preco,
-                                                  formatType:
-                                                      FormatType.decimal,
-                                                  decimalType:
-                                                      DecimalType.commaDecimal,
-                                                  currency: 'R\$ ',
-                                                ),
-                                                '00,00',
-                                              ),
+                                              (_model.produtoResult?.preco ?? 0.0).toMoeda(),
                                               style: AppTheme.of(
                                                       context)
                                                   .headlineSmall

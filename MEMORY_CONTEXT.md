@@ -1,6 +1,6 @@
 # MEMORY CONTEXT — FORÇA DE VENDAS (FLUTTER & SQLITE)
-> **Versão:** 2.3.0  
-> **Status:** 100% Homologado, Testado e Protegido (144/144 Testes Automatizados Aprovados)  
+> **Versão:** 2.4.0  
+> **Status:** 100% Homologado, Testado e Protegido (151/151 Testes Automatizados Aprovados)  
 > **Escopo:** Aplicativo Mobile Força de Vendas Offline-First (Flutter / SQLite / XML-PAC / FTP)
 
 ---
@@ -9,7 +9,7 @@
 
 ### 1.1 Padrão Arquitetural
 O aplicativo adota uma arquitetura modular por camadas e orientada a casos de uso (**Clean Architecture / Feature-First**), separando estritamente:
-- **Presentation Layer (`lib/pages/`, `lib/components/`):** Widgets Flutter reativos, modais padronizados, formulários com `InputDecorationTheme` global e gerenciamento de estado via `AppModel` com métodos `safeSetState`, `initState` e `dispose`.
+- **Presentation Layer (`lib/pages/`, `lib/components/`, `lib/core/`):** Widgets Flutter reativos, modais padronizados via `AppBottomSheet` / `showAppModalBottomSheet` com `SafeArea`, visualizador interativo de imagens (`ImagemPreviewDialog` via `ImagemLocalWidget`), formatação monetária global centralizada (`lib/core/formatters/currency_formatter.dart`), formulários com `InputDecorationTheme` global e gerenciamento de estado via `AppModel` com métodos `safeSetState`, `initState` e `dispose`.
 - **Domain Layer (`lib/domain/models/`, `lib/domain/services/`):** Modelos de negócio puros (`PedidoVenda`, `ItemPedidoVenda`, `ParcelaVenda`, `AgenteCobrador`, `StatusEnvio`, `ContaCorrenteSaldo`, `ContaCorrenteMovimentacao`), regras fiscais (`IcmsStService`) e validações financeiras (`BloqueioFinanceiroService`).
 - **Data & Infrastructure Layer (`lib/data/`, `lib/services/`, `lib/backend/`):** Acesso a banco local (`LocalSalesDatabaseService`), gerador de pacotes comprimidos (`PacXmlGeneratorService`), registro e manifesto de arquivos (`CargaRegistryService`), serviço de conta-corrente (`ContaCorrenteService`) e cliente FTP (`FtpUploadService`, `FtpClient`).
 - **Action Code Layer (`lib/action_code/`):** Orquestradores de casos de uso e regras de transição (ex: `concluirVendaProcess`, `salvarCarrinhoPedido`, `salvarClienteOffline`, `listarClientesPendentes`, `carregarAgentesCobrador`, `carregarClienteOffline`, `enviarArquivosPendentesFtp`).
@@ -104,6 +104,17 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
   - **Aba 2 (Novos Clientes Pendentes):** Exibe clientes cadastrados ou alterados localmente aguardando upload (`cli00_sttenv = 0`). Exibe dados cadastrais, data/hora e ação de transmissão imediata para a pasta `/Customer/` do FTP.
   - **Aba 3 (Pacotes & Arquivos Prontos):** Visão completa de todos os pacotes `.pac` e XMLs de clientes prontos para envio, com filtros (Todos, Pedidos, Clientes), seleção em lote e botão "Conectar e Enviar Carga Completa ao FTP" com conferência de tamanho (`SIZE`) e atualização para `sttenv = 2` (Transmitido).
 
+### 2.9 Padronização Visual de Modais, Formatação Monetária e Visualizador de Imagens
+- **Arquitetura Padronizada de Modais (`AppBottomSheet` / `showAppModalBottomSheet`):**
+  - Todos os modais do sistema adotam a estrutura de referência do Menu de Relatórios: drag handle centralizado, cabeçalho com ícone, título e botão fechar (`AppIconButton`), cantos superiores arredondados (24px) e largura máxima responsiva (`maxWidth: 600.0`).
+  - **Proteção Rígida de SafeArea:** `useSafeArea: true` e `SafeArea(bottom: true)` com padding dinâmico via `MediaQuery.of(context).padding.bottom`, impedindo que botões ou rodapés fiquem ocultos atrás da barra de navegação virtual do Android/iOS.
+- **Formatação Monetária Global (`lib/core/formatters/currency_formatter.dart`):**
+  - Funções `formatMoeda()` e extensões `.toMoeda()`, `.toMoedaSemSimbolo()`.
+  - Padrão monetário oficial brasileiro **`R$ 1.250,50`** (milhar com ponto e centavos com vírgula). Proibido exibir valores numéricos crus ou concatenados manualmente com ponto na UI.
+- **Visualizador Interativo de Imagens de Produtos (`ImagemPreviewDialog` / `share_plus`):**
+  - Componente base `ImagemLocalWidget` com toque habilitado por padrão (`enablePreview: true`).
+  - Diálogo em tela cheia com zoom/pan fluidos (`InteractiveViewer`), reset com duplo toque, cópia de dados (`Clipboard`) e compartilhamento direto de imagens locais para WhatsApp/outros apps (`Share.shareXFiles`).
+
 ---
 
 ## 3. Invariantes e Regras de Segurança Rígidas (NUNCA ALTERAR)
@@ -129,6 +140,12 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
 > **REGRA 4: Tratamento de Conflito de Chave Primária**  
 > Como o pedido pode ser pré-salvo como rascunho antes da seleção do cobrador, a finalização deve sempre executar `UPDATE pckvendig000 ... WHERE ped00_numped = ?` ou `INSERT OR REPLACE INTO pckvendig000`. Nunca realize `INSERT` direto sem cláusula de substituição/conflito.
 
+> [!IMPORTANT]
+> **REGRA 5: Padrão Mandatório de Modais, SafeArea e Moeda na UI**  
+> Todo e qualquer novo modal/bottom sheet do sistema **DEVE** utilizar exclusivamente `showAppModalBottomSheet<T>()` e estruturar seu conteúdo em `AppBottomSheet` com `SafeArea(bottom: true)`.  
+> **É ESTRITAMENTE PROIBIDO** chamar `showModalBottomSheet` cru sem proteção de SafeArea ou permitir botões ocultos atrás da barra virtual de navegação.  
+> Todo valor financeiro apresentado para o usuário **DEVE** utilizar `formatMoeda()` ou `.toMoeda()` de `currency_formatter.dart`.
+
 ---
 
 ## 4. Guia Rápido de Arquivos e Funções Principais
@@ -153,3 +170,7 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
 | **Carregamento de Cobradores** | [`lib/action_code/carregar_agentes_cobrador.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/action_code/carregar_agentes_cobrador.dart) | Consulta segura de cobradores via Singleton do banco. |
 | **Geração de XML/PAC** | [`lib/services/pac_xml_generator_service.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/services/pac_xml_generator_service.dart) | Serialização para XML legado e compressão ZIP. |
 | **Upload FTP** | [`lib/services/ftp_upload_service.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/services/ftp_upload_service.dart) | Envio em lote com verificação `SIZE` e atualização `sttenv = 2`. |
+| **Padrão de Modais (Bottom Sheet)** | [`lib/core/app_bottom_sheet.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/core/app_bottom_sheet.dart) | Componente `AppBottomSheet` e helper `showAppModalBottomSheet` com `SafeArea` obrigatória. |
+| **Formatador Monetário R$** | [`lib/core/formatters/currency_formatter.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/core/formatters/currency_formatter.dart) | Funções e extensões `.toMoeda()` padronizadas em `pt_BR` (`R$ 1.250,50`). |
+| **Visualizador de Imagens** | [`lib/widgets/imagem_preview_dialog.dart`](file:///d:/sistema/projetos/Mobile/forca_de_vendas/lib/widgets/imagem_preview_dialog.dart) | Preview interativo com zoom, pan (`InteractiveViewer`), cópia e compartilhamento (`share_plus`). |
+

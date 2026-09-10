@@ -152,7 +152,7 @@ void main() {
       expect(info.planoDescricao, equals('A VISTA 30D'));
       expect(info.clienteCnpj, equals('12.345.678/0001-90'));
       expect(info.clienteCidade, equals('TERESINA'));
-      expect(info.clienteLimite, equals('5000,00'));
+      expect(info.clienteLimite, equals('5.000,00'));
       expect(info.clienteEndereco, equals('RUA PRINCIPAL 100'));
 
       // Verifica dados persistidos para o novo ID no SQLite

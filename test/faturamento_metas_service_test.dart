@@ -325,9 +325,9 @@ void main() {
       );
 
       expect(validacao.valido, isFalse);
-      expect(validacao.mensagemBloqueio, contains('Limite: R\$ 16000,00'));
-      expect(validacao.mensagemBloqueio, contains('Saldo Disponível: R\$ 1000,00'));
-      expect(validacao.mensagemBloqueio, contains('Pedido: R\$ 1500,00'));
+      expect(validacao.mensagemBloqueio, contains('Limite: R\$ 16.000,00'));
+      expect(validacao.mensagemBloqueio, contains('Saldo Disponível: R\$ 1.000,00'));
+      expect(validacao.mensagemBloqueio, contains('Pedido: R\$ 1.500,00'));
     });
   });
 }

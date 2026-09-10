@@ -292,8 +292,7 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
     if (mounted) setState(() => _loading = false);
   }
 
-  String _fmtMoeda(double v) =>
-      'R\$ ${v.toStringAsFixed(2).replaceAll('.', ',')}';
+  String _fmtMoeda(double v) => v.toMoeda();
 
   String _fmtData(String dat) {
     if (dat.isEmpty) return '—';

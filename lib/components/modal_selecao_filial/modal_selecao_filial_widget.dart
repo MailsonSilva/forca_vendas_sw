@@ -30,46 +30,68 @@ class _ModalSelecaoFilialWidgetState extends State<ModalSelecaoFilialWidget> {
 
     return PopScope(
       canPop: false,
-      child: Center(
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        heightFactor: 1.0,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 600.0),
-          child: Container(
-            height: MediaQuery.sizeOf(context).height * 0.65,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
-            ),
-            child: Column(
-          children: [
-            const SizedBox(height: 12.0),
-            Container(
-              width: 40.0,
-              height: 5.0,
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              height: MediaQuery.sizeOf(context).height * 0.70,
               decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2.5),
+                color: AppTheme.of(context).primaryBackground,
+                boxShadow: const [
+                  BoxShadow(
+                    blurRadius: 10.0,
+                    color: Color(0x33000000),
+                    offset: Offset(0.0, -2.0),
+                  )
+                ],
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20.0),
+                  topRight: Radius.circular(20.0),
+                ),
               ),
-            ),
-            const SizedBox(height: 16.0),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                children: [
-                  Icon(Icons.store_outlined, color: AppTheme.of(context).primary),
-                  const SizedBox(width: 8.0),
-                  Expanded(
-                    child: Text(
-                      'Selecione a Filial',
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18.0,
-                        color: const Color(0xFF14181B),
+              child: SafeArea(
+                top: false,
+                bottom: true,
+                child: Column(
+                  children: [
+                    // Drag handle
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10.0, bottom: 4.0),
+                      child: Container(
+                        width: 40.0,
+                        height: 4.0,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(2.0),
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+                      child: Row(
+                        children: [
+                          Icon(Icons.store_outlined, color: AppTheme.of(context).primary, size: 24.0),
+                          const SizedBox(width: 8.0),
+                          Expanded(
+                            child: Text(
+                              'Selecione a Filial',
+                              style: AppTheme.of(context).titleLarge.override(
+                                    font: GoogleFonts.outfit(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    color: AppTheme.of(context).primaryText,
+                                    fontSize: 20.0,
+                                  ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1.0, thickness: 1.0),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: Text(
@@ -158,8 +180,10 @@ class _ModalSelecaoFilialWidgetState extends State<ModalSelecaoFilialWidget> {
           ],
         ),
       ),
-    ),
-  ),
-);
+          ),
+        ),
+      ),
+      ),
+    );
   }
 }

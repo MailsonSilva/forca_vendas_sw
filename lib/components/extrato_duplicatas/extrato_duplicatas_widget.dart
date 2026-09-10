@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_theme.dart';
+import '../../core/app_icon_button.dart';
 import '../../core/app_util.dart';
 import '../../index.dart';
 import '../../services/receber_duplicatas_service.dart';
@@ -25,6 +26,7 @@ class ExtratoDuplicatasWidget extends StatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => ExtratoDuplicatasWidget(
         clienteInicial: cliente,
@@ -73,87 +75,129 @@ class _ExtratoDuplicatasWidgetState extends State<ExtratoDuplicatasWidget> {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
+      builder: (ctx) => Align(
+        alignment: Alignment.bottomCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600.0),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: SafeArea(
+              top: false,
+              bottom: true,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 48,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE0E3E7),
+                          borderRadius: BorderRadius.circular(2.5),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.share_rounded,
+                              color: Color(0xFF0288D1),
+                              size: 24.0,
+                            ),
+                            const SizedBox(width: 8.0),
+                            Text(
+                              'Compartilhar Extrato',
+                              style: GoogleFonts.inter(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF14181B),
+                              ),
+                            ),
+                          ],
+                        ),
+                        AppIconButton(
+                          borderColor: Colors.transparent,
+                          borderRadius: 20.0,
+                          borderWidth: 1.0,
+                          buttonSize: 38.0,
+                          fillColor: const Color(0xFFF1F4F8),
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: Color(0xFF57636C),
+                            size: 20.0,
+                          ),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Divider(height: 1.0, thickness: 1.0, color: Color(0xFFE0E3E7)),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Envie a cobrança amigável diretamente para o cliente:',
+                      style: GoogleFonts.inter(fontSize: 14, color: Colors.black54),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white),
+                      label: Text(
+                        'Enviar via WhatsApp',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF25D366),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        ReceberDuplicatasService.compartilharWhatsApp(
+                          context,
+                          _cliente!,
+                          nomeVendedor: nomeVendedor,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.copy_rounded, color: Colors.black87),
+                      label: Text(
+                        'Copiar Texto do Extrato',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15, color: Colors.black87),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        side: BorderSide(color: Colors.grey.shade400),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        ReceberDuplicatasService.copiarClipboard(
+                          context,
+                          _cliente!,
+                          nomeVendedor: nomeVendedor,
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Compartilhar Extrato Financeiro',
-              style: GoogleFonts.inter(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Envie a cobrança amigável diretamente para o cliente:',
-              style: GoogleFonts.inter(fontSize: 14, color: Colors.black54),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white),
-              label: Text(
-                'Enviar via WhatsApp',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF25D366),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: () {
-                Navigator.pop(ctx);
-                ReceberDuplicatasService.compartilharWhatsApp(
-                  context,
-                  _cliente!,
-                  nomeVendedor: nomeVendedor,
-                );
-              },
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.copy_rounded, color: Colors.black87),
-              label: Text(
-                'Copiar Texto do Extrato',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15, color: Colors.black87),
-              ),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                side: BorderSide(color: Colors.grey.shade400),
-              ),
-              onPressed: () {
-                Navigator.pop(ctx);
-                ReceberDuplicatasService.copiarClipboard(
-                  context,
-                  _cliente!,
-                  nomeVendedor: nomeVendedor,
-                );
-              },
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -234,7 +278,10 @@ class _ExtratoDuplicatasWidgetState extends State<ExtratoDuplicatasWidget> {
       maxChildSize: 0.95,
       expand: false,
       builder: (context, scrollController) {
-        return Container(
+        return SafeArea(
+          top: false,
+          bottom: true,
+          child: Container(
           decoration: const BoxDecoration(
             color: Color(0xFFF8F9FA),
             borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
@@ -294,8 +341,17 @@ class _ExtratoDuplicatasWidgetState extends State<ExtratoDuplicatasWidget> {
                         ),
                       ],
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, color: Colors.black54),
+                    AppIconButton(
+                      borderColor: Colors.transparent,
+                      borderRadius: 20.0,
+                      borderWidth: 1.0,
+                      buttonSize: 38.0,
+                      fillColor: const Color(0xFFF1F4F8),
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        color: Color(0xFF57636C),
+                        size: 20.0,
+                      ),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
@@ -429,6 +485,7 @@ class _ExtratoDuplicatasWidgetState extends State<ExtratoDuplicatasWidget> {
                 ),
             ],
           ),
+        ),
         );
       },
     );

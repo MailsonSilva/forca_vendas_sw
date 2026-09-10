@@ -1,21 +1,13 @@
-import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
 import '../app_state.dart';
 import '../data/services/local_sales_database_service.dart';
 import '../domain/models/faturamento_metas_model.dart';
+import '../core/formatters/currency_formatter.dart';
 
 /// Serviço responsável por gerenciar a sintetização local, regras fiscais
 /// e validações de faturamento e metas do vendedor (`ffrmrelfatcvd00` / `relestfatcvd00`).
 class FaturamentoMetasService {
-  static final NumberFormat _currencyFormat = NumberFormat.currency(
-    locale: 'pt_BR',
-    symbol: 'R\$',
-    decimalDigits: 2,
-  );
-
-  static String formatarMoeda(double valor) {
-    return _currencyFormat.format(valor).replaceAll('\u00A0', ' ');
-  }
+  static String formatarMoeda(double valor) => formatMoeda(valor);
 
   /// Validação pura de cálculo de Limite de Pessoa Física (`getPEDTOTPessoaFisicaCheck`).
   ///
@@ -54,9 +46,9 @@ class FaturamentoMetasService {
 
     // 3. Verifica se o pedido estoura o limite liberado
     if (totalProjetado > limiteLiberadoPF) {
-      final fLimite = limiteLiberadoPF.toStringAsFixed(2).replaceAll('.', ',');
-      final fRestante = (limiteRestante > 0 ? limiteRestante : 0.0).toStringAsFixed(2).replaceAll('.', ',');
-      final fPedido = valorPedidoAtual.toStringAsFixed(2).replaceAll('.', ',');
+      final fLimite = limiteLiberadoPF.toMoeda();
+      final fRestante = (limiteRestante > 0 ? limiteRestante : 0.0).toMoeda();
+      final fPedido = valorPedidoAtual.toMoeda();
 
       return ResultadoValidacaoLimitePF.bloqueado(
         limiteTotal: limiteLiberadoPF,
@@ -64,7 +56,7 @@ class FaturamentoMetasService {
         valorPedido: valorPedidoAtual,
         limiteRestante: limiteRestante,
         mensagem: 'Limite de faturamento para Pessoa Física excedido no mês! '
-            '(Limite: R\$ $fLimite, Saldo Disponível: R\$ $fRestante, Pedido: R\$ $fPedido)',
+            '(Limite: $fLimite, Saldo Disponível: $fRestante, Pedido: $fPedido)',
       );
     }
 

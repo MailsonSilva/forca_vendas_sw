@@ -1,4 +1,5 @@
 import '/core/app_theme.dart';
+import '/core/app_icon_button.dart';
 import '/core/app_util.dart';
 import '/backend/schema/structs/index.dart';
 import 'package:flutter/material.dart';
@@ -220,63 +221,107 @@ class _BottomSheetSelecaoBonificacaoWidgetState
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return Align(
+      alignment: Alignment.bottomCenter,
+      heightFactor: 1.0,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 600.0),
-        child: Container(
-          width: double.infinity,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
-          ),
-          padding: EdgeInsets.only(
-            left: 20.0,
-            right: 20.0,
-            top: 16.0,
-            bottom: MediaQuery.viewInsetsOf(context).bottom + 16.0,
-          ),
-          child: SingleChildScrollView(
-            child: AnimatedSize(
-              duration: const Duration(milliseconds: 200),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Top Drag bar
-                  Center(
-                    child: Container(
-                      width: 40.0,
-                      height: 5.0,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2.5),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16.0),
-
-                  // Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: AppTheme.of(context).primaryBackground,
+              boxShadow: const [
+                BoxShadow(
+                  blurRadius: 10.0,
+                  color: Color(0x33000000),
+                  offset: Offset(0.0, -2.0),
+                )
+              ],
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20.0),
+                topRight: Radius.circular(20.0),
+              ),
+            ),
+            child: SafeArea(
+              top: false,
+              bottom: true,
+              child: SingleChildScrollView(
+                padding: EdgeInsets.only(
+                  left: 16.0,
+                  right: 16.0,
+                  top: 8.0,
+                  bottom: MediaQuery.viewInsetsOf(context).bottom + 16.0,
+                ),
+                child: AnimatedSize(
+                  duration: const Duration(milliseconds: 200),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          'Incluir Bonificação',
-                          style: GoogleFonts.inter(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 20.0,
-                            color: const Color(0xFF1D2429),
+                      // Top Drag bar
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4.0, bottom: 4.0),
+                        child: Center(
+                          child: Container(
+                            width: 40.0,
+                            height: 4.0,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.withValues(alpha: 0.35),
+                              borderRadius: BorderRadius.circular(2.0),
+                            ),
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
+                      // Header
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.card_giftcard_rounded,
+                                    color: AppTheme.of(context).primary,
+                                    size: 24.0,
+                                  ),
+                                  const SizedBox(width: 8.0),
+                                  Expanded(
+                                    child: Text(
+                                      'Incluir Bonificação',
+                                      style: AppTheme.of(context).titleLarge.override(
+                                            font: GoogleFonts.outfit(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            color: AppTheme.of(context).primaryText,
+                                            fontSize: 20.0,
+                                          ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            AppIconButton(
+                              borderColor: const Color(0xFFE0E3E7),
+                              borderRadius: 12.0,
+                              borderWidth: 1.0,
+                              buttonSize: 38.0,
+                              icon: Icon(
+                                Icons.close_rounded,
+                                color: AppTheme.of(context).primaryText,
+                                size: 18.0,
+                              ),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
-            const Divider(height: 16.0, color: Color(0xFFE0E3E7)),
+                      const Divider(height: 1.0, thickness: 1.0),
+                      const SizedBox(height: 8.0),
 
             if (_model.isBusy)
               const Center(
@@ -501,6 +546,8 @@ class _BottomSheetSelecaoBonificacaoWidgetState
       ),
     ),
   ),
+),
+),
 ),
 );
   }

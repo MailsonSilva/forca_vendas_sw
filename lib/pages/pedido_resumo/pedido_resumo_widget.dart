@@ -48,7 +48,7 @@ class _PedidoResumoWidgetState extends State<PedidoResumoWidget> {
     });
   }
 
-  String _fmt(double v) => 'R\$ ${v.toStringAsFixed(2).replaceAll('.', ',')}';
+  String _fmt(double v) => v.toMoeda();
 
   Widget _linha(String label, String value, {bool bold = false, Color? color}) {
     return Padding(

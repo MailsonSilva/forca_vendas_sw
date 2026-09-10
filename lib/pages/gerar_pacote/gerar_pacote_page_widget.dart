@@ -332,7 +332,7 @@ class _GerarPacotePageWidgetState extends State<GerarPacotePageWidget> {
   int get _countPacotesPendentes => _todosPacotes.where((p) => p.isPendente).length;
   int get _countClientesPendentes => _clientesPendentes.where((c) => c.isPendente).length;
 
-  String _fmt(double v) => 'R\$ ${v.toStringAsFixed(2).replaceAll('.', ',')}';
+  String _fmt(double v) => v.toMoeda();
 
   String _formatarBytes(int bytes) {
     if (bytes <= 0) return '0 B';
