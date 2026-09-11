@@ -5,7 +5,6 @@ import '/backend/schema/structs/index.dart';
 import '/core/app_theme.dart';
 import '/core/app_icon_button.dart';
 import '/core/app_util.dart';
-import '/widget/imagem_local_widget.dart';
 import '/index.dart';
 import '/domain/services/valide_pco_service.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +15,7 @@ import '/data/services/local_sales_database_service.dart';
 import '/components/bottom_sheet_selecao_bonificacao/bottom_sheet_selecao_bonificacao_widget.dart';
 import '/components/bottom_sheet_combos/bottom_sheet_combos_widget.dart';
 import '/components/modal_agente_cobrador/modal_agente_cobrador_widget.dart';
+import 'widgets/item_pedido_card_widget.dart';
 export 'pedido_itens_lista_model.dart';
 
 class PedidoItensListaWidget extends StatefulWidget {
@@ -263,19 +263,52 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
           String descri = r['ped10_descri']?.toString() ?? r['ped10_descricao']?.toString() ?? r['ped10_prodes']?.toString() ?? '';
           String unid = r['ped10_unidpri']?.toString() ?? r['ped10_unidade']?.toString() ?? r['ped10_unimed']?.toString() ?? 'UN';
 
-          // Se descrição estiver vazia, busca em cadpro00
-          if (descri.isEmpty && codPrd.isNotEmpty) {
+          String marca = '';
+          String ref1 = '';
+          String ref2 = '';
+          String codbar = '';
+          String embalagem = '';
+
+          // Busca dados detalhados (marca, referências, EAN, embalagem) em cadpro00 + cadmar00 com suporte a bancos legados
+          if (codPrd.isNotEmpty) {
             try {
               final pr = await db.rawQuery('SELECT * FROM cadpro00 WHERE pro00_codigo = ? OR CAST(pro00_codigo AS TEXT) = ? LIMIT 1', [codPrd, codPrd]);
               if (pr.isNotEmpty) {
-                descri = pr.first['pro00_descri']?.toString() ?? pr.first['descri']?.toString() ?? '';
+                final pRow = pr.first;
+                if (descri.isEmpty) {
+                  descri = pRow['pro00_descri']?.toString() ?? pRow['descri']?.toString() ?? '';
+                }
                 if (unid == 'UN') {
-                  final u = pr.first['pro00_unimed']?.toString() ?? pr.first['pro00_unidade']?.toString() ?? '';
+                  final u = pRow['pro00_unimed']?.toString() ?? pRow['pro00_unidade']?.toString() ?? pRow['pro00_unidad']?.toString() ?? '';
                   if (u.isNotEmpty) unid = u;
+                }
+                ref1 = pRow['pro00_ref001']?.toString() ?? '';
+                ref2 = pRow['pro00_ref002']?.toString() ?? '';
+                codbar = pRow['pro00_codbar']?.toString() ?? '';
+                embalagem = pRow['pro00_embala']?.toString() ?? unid;
+
+                final codMar = pRow['pro00_codmar'];
+                if (codMar != null) {
+                  try {
+                    final mr = await db.rawQuery('SELECT mar00_descri FROM cadmar00 WHERE mar00_codigo = ? LIMIT 1', [codMar]);
+                    if (mr.isNotEmpty) {
+                      marca = mr.first['mar00_descri']?.toString() ?? '';
+                    } else {
+                      final mr2 = await db.rawQuery('SELECT mar00_descri FROM mar00 WHERE mar00_codigo = ? LIMIT 1', [codMar]);
+                      if (mr2.isNotEmpty) {
+                        marca = mr2.first['mar00_descri']?.toString() ?? '';
+                      }
+                    }
+                  } catch (_) {}
                 }
               }
             } catch (_) {}
           }
+
+          final refs = <String>[];
+          if (ref1.trim().isNotEmpty) refs.add(ref1.trim());
+          if (ref2.trim().isNotEmpty) refs.add(ref2.trim());
+          final referenciaFormatada = refs.isNotEmpty ? refs.join(' / ') : '';
 
           final codCmb = r['ped10_codcmb']?.toString() ?? r['ped10_combo']?.toString() ?? '';
 
@@ -291,6 +324,10 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
             codigoCombo: codCmb,
             unidadeComercial: isBon ? (qtdBon > 0 ? qtdBon : qtd) : qtd,
             mulver: 1.0,
+            embalagem: embalagem.isNotEmpty ? embalagem : unid,
+            marca: marca,
+            referencia: referenciaFormatada,
+            codbar: codbar,
           ));
         }
         if (mounted) {
@@ -488,7 +525,10 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
           totalItem: p.preco,
           mulver: mul,
           unidadeComercial: 1.0 * mul,
-          embalagem: p.unidade,
+          embalagem: p.embalagem.isNotEmpty ? p.embalagem : p.unidade,
+          marca: p.marca,
+          referencia: p.referenciaFormatada,
+          codbar: p.codbar,
         ));
       }
       _model.recalcularTotais();
@@ -1177,166 +1217,24 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                         itemCount: _model.carrinhoItens.length,
                         itemBuilder: (context, index) {
                           final item = _model.carrinhoItens[index];
-                          // Create a dummy ProdutoResultStruct for the shared methods
                           final p = ProdutoResultStruct(
                             codigo: item.codigoProduto,
                             descricao: item.descricao,
                             unidade: item.unidade,
                             preco: item.precoUnitario,
+                            marca: item.marca,
+                            referencia1: item.referencia,
+                            codbar: item.codbar,
+                            embalagem: item.embalagem,
                           );
 
-                          return Card(
-                            elevation: 1,
-                            margin: const EdgeInsets.only(bottom: 12.0),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-                            color: Colors.white,
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      SizedBox(
-                                        width: 50.0,
-                                        height: 50.0,
-                                        child: ImagemLocalWidget(
-                                          width: 50.0,
-                                          height: 50.0,
-                                          caminhoArquivo: item.codigoProduto,
-                                          titulo: item.descricao,
-                                          subtitulo: 'Cód: ${item.codigoProduto} • ${_formatCurrency(item.precoUnitario)}',
-                                          enablePreview: true,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12.0),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            if (item.isBonificacao)
-                                              Container(
-                                                margin: const EdgeInsets.only(bottom: 4.0),
-                                                padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.green[100],
-                                                  borderRadius: BorderRadius.circular(4.0),
-                                                ),
-                                                child: Text(
-                                                  'BONIFICAÇÃO',
-                                                  style: GoogleFonts.inter(
-                                                    color: Colors.green[800],
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 10.0,
-                                                  ),
-                                                ),
-                                              ),
-                                            Text(
-                                              item.descricao,
-                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.0),
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
-                                        onPressed: () => _removerItem(p),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8.0),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        item.mulver != 1.0 && item.mulver != 0
-                                            ? '${item.unidade} (${item.unidadeComercial.toStringAsFixed(0)} un)'
-                                            : item.unidade,
-                                        style: const TextStyle(color: Colors.grey, fontSize: 14.0),
-                                      ),
-                                      InkWell(
-                                        onTap: () => _exibirDialogEdicaoPreco(item),
-                                        borderRadius: BorderRadius.circular(6.0),
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Text(
-                                                item.isBonificacao ? 'R\$ 0,00' : _formatCurrency(item.precoUnitario),
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 14.0,
-                                                  color: item.isBonificacao ? Colors.black87 : AppTheme.of(context).primary,
-                                                ),
-                                              ),
-                                              if (!item.isBonificacao && !_pedidoDigitado) ...[
-                                                const SizedBox(width: 4),
-                                                Icon(Icons.edit_outlined, size: 14, color: AppTheme.of(context).primary),
-                                              ],
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12.0),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      if (item.isBonificacao)
-                                        Text(
-                                          'Qtd: ${item.quantidadeBonificada.toInt()}',
-                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0),
-                                        )
-                                      else
-                                        Row(
-                                          children: [
-                                            Container(
-                                              decoration: BoxDecoration(color: const Color(0xFFAED5E6), borderRadius: BorderRadius.circular(8.0)),
-                                              child: IconButton(
-                                                icon: const Icon(Icons.remove, color: Colors.white),
-                                                onPressed: () => _decrementarQuantidade(p),
-                                                padding: EdgeInsets.zero,
-                                                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                                              ),
-                                            ),
-                                            Container(
-                                              constraints: const BoxConstraints(minWidth: 40.0),
-                                              alignment: Alignment.center,
-                                              child: Text('${item.quantidade.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0)),
-                                            ),
-                                            Container(
-                                              decoration: BoxDecoration(color: const Color(0xFF0288D1), borderRadius: BorderRadius.circular(8.0)),
-                                              child: IconButton(
-                                                icon: const Icon(Icons.add, color: Colors.white),
-                                                onPressed: () => _incrementarQuantidade(p),
-                                                padding: EdgeInsets.zero,
-                                                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.end,
-                                        children: [
-                                          const Text('Total', style: TextStyle(color: Colors.grey, fontSize: 10.0)),
-                                          Text(
-                                            item.isBonificacao ? 'R\$ 0,00' : _formatCurrency(item.totalItem),
-                                            style: TextStyle(color: AppTheme.of(context).primary, fontWeight: FontWeight.bold, fontSize: 16.0),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
+                          return ItemPedidoCardWidget(
+                            item: item,
+                            pedidoDigitado: _pedidoDigitado,
+                            onRemover: () => _removerItem(p),
+                            onIncrementar: () => _incrementarQuantidade(p),
+                            onDecrementar: () => _decrementarQuantidade(p),
+                            onEditarPreco: () => _exibirDialogEdicaoPreco(item),
                           );
                         },
                       ),

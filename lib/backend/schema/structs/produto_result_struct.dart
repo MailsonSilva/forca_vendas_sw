@@ -40,6 +40,11 @@ class ProdutoResultStruct extends BaseStruct {
     double? commax,
     int? codtrb,
     bool? freadpco,
+    // Atributos de Produto EAN, Marca, Referência, Embalagem, Imagem
+    String? referencia1,
+    String? referencia2,
+    String? embalagem,
+    int? imagemId,
   })  : _codigo = codigo,
         _descricao = descricao,
         _unidade = unidade,
@@ -59,7 +64,11 @@ class ProdutoResultStruct extends BaseStruct {
         _pcomax = pcomax,
         _commax = commax,
         _codtrb = codtrb,
-        _freadpco = freadpco;
+        _freadpco = freadpco,
+        _referencia1 = referencia1,
+        _referencia2 = referencia2,
+        _embalagem = embalagem,
+        _imagemId = imagemId;
 
   // "codigo" field.
   String? _codigo;
@@ -212,6 +221,42 @@ class ProdutoResultStruct extends BaseStruct {
   set freadpco(bool? val) => _freadpco = val;
   bool hasFreadpco() => _freadpco != null;
 
+  // "referencia1" field.
+  String? _referencia1;
+  String get referencia1 => _referencia1 ?? '';
+  set referencia1(String? val) => _referencia1 = val;
+  bool hasReferencia1() => _referencia1 != null;
+
+  // "referencia2" field.
+  String? _referencia2;
+  String get referencia2 => _referencia2 ?? '';
+  set referencia2(String? val) => _referencia2 = val;
+  bool hasReferencia2() => _referencia2 != null;
+
+  // "embalagem" field.
+  String? _embalagem;
+  String get embalagem => _embalagem ?? '';
+  set embalagem(String? val) => _embalagem = val;
+  bool hasEmbalagem() => _embalagem != null;
+
+  // "imagemId" field.
+  int? _imagemId;
+  int get imagemId => _imagemId ?? 0;
+  set imagemId(int? val) => _imagemId = val;
+  bool hasImagemId() => _imagemId != null;
+
+  /// Formatação legível da referência para exibição na UI
+  String get referenciaFormatada {
+    final refs = <String>[];
+    if (referencia1.trim().isNotEmpty) {
+      refs.add(referencia1.trim());
+    }
+    if (referencia2.trim().isNotEmpty) {
+      refs.add(referencia2.trim());
+    }
+    return refs.isNotEmpty ? refs.join(' / ') : 'N/A';
+  }
+
   static ProdutoResultStruct fromMap(Map<String, dynamic> data) =>
       ProdutoResultStruct(
         codigo: data['codigo'] as String?,
@@ -234,6 +279,10 @@ class ProdutoResultStruct extends BaseStruct {
         commax: castToType<double>(data['commax']),
         codtrb: castToType<int>(data['codtrb']),
         freadpco: data['freadpco'] as bool?,
+        referencia1: data['referencia1'] as String?,
+        referencia2: data['referencia2'] as String?,
+        embalagem: data['embalagem'] as String?,
+        imagemId: castToType<int>(data['imagemId']),
       );
 
   static ProdutoResultStruct? maybeFromMap(dynamic data) => data is Map
@@ -261,6 +310,10 @@ class ProdutoResultStruct extends BaseStruct {
         'commax': _commax,
         'codtrb': _codtrb,
         'freadpco': _freadpco,
+        'referencia1': _referencia1,
+        'referencia2': _referencia2,
+        'embalagem': _embalagem,
+        'imagemId': _imagemId,
       }.withoutNulls;
 
   @override
@@ -526,6 +579,10 @@ ProdutoResultStruct createProdutoResultStruct({
   double? commax,
   int? codtrb,
   bool? freadpco,
+  String? referencia1,
+  String? referencia2,
+  String? embalagem,
+  int? imagemId,
 }) =>
     ProdutoResultStruct(
       codigo: codigo,
@@ -547,4 +604,8 @@ ProdutoResultStruct createProdutoResultStruct({
       commax: commax,
       codtrb: codtrb,
       freadpco: freadpco,
+      referencia1: referencia1,
+      referencia2: referencia2,
+      embalagem: embalagem,
+      imagemId: imagemId,
     );

@@ -21,14 +21,39 @@ void main() {
       await db.execute('DROP TABLE IF EXISTS pckvendig000');
       await db.execute('DROP TABLE IF EXISTS pckvendig010');
 
+      await db.execute('DROP TABLE IF EXISTS cadmar00');
+      await db.execute('DROP TABLE IF EXISTS cadfor00');
+
       await db.execute('''
         CREATE TABLE cadpro00 (
           pro00_codigo TEXT PRIMARY KEY,
           pro00_descri TEXT,
           pro00_unidad TEXT,
-          pro00_codbar TEXT
+          pro00_codbar TEXT,
+          pro00_codmar INTEGER,
+          pro00_codfab INTEGER,
+          pro00_ref001 TEXT,
+          pro00_ref002 TEXT,
+          pro00_embala TEXT
         )
       ''');
+
+      await db.execute('''
+        CREATE TABLE cadmar00 (
+          mar00_codigo INTEGER PRIMARY KEY,
+          mar00_descri TEXT
+        )
+      ''');
+
+      await db.execute('''
+        CREATE TABLE cadfor00 (
+          for00_codigo INTEGER PRIMARY KEY,
+          for00_descri TEXT
+        )
+      ''');
+
+      await db.insert('cadmar00', {'mar00_codigo': 10, 'mar00_descri': 'NESTLÉ'});
+      await db.insert('cadfor00', {'for00_codigo': 20, 'for00_descri': 'NESTLÉ BRASIL LTDA'});
 
       await db.execute('''
         CREATE TABLE estpro00 (
@@ -63,12 +88,30 @@ void main() {
         )
       ''');
 
-      // Inserir produto de teste
+      // Inserir produto de teste com EAN, Marca, Referências e Fabricante
       await db.insert('cadpro00', {
         'pro00_codigo': '101',
         'pro00_descri': 'PRODUTO TESTE 01',
         'pro00_unidad': 'UN',
         'pro00_codbar': '7890001',
+        'pro00_codmar': 10,
+        'pro00_codfab': 20,
+        'pro00_ref001': 'REF-A1',
+        'pro00_ref002': 'REF-B2',
+        'pro00_embala': 'CX 12 UN',
+      });
+
+      // Inserir segundo produto com outra marca e referência
+      await db.insert('cadpro00', {
+        'pro00_codigo': '102',
+        'pro00_descri': 'BISCOITO CRACKER',
+        'pro00_unidad': 'PCT',
+        'pro00_codbar': '7890002999',
+        'pro00_codmar': 10,
+        'pro00_codfab': 20,
+        'pro00_ref001': 'REF-CRACKER',
+        'pro00_ref002': null,
+        'pro00_embala': 'FD 30 UN',
       });
 
       // Estoque bruto = 50, pendente = 5 -> saldo inicial sem rascunho = 45
@@ -173,6 +216,35 @@ void main() {
         1,
       );
       expect(resComRascunho.first.saldoEstoque, equals(33.0));
+    });
+
+    test('buscaProduto localiza por EAN, Marca, Referencia e preenche novos campos no ProdutoResultStruct', () async {
+      // 1. Busca por Código EAN
+      final resEan = await buscaProduto('7890002999', 0, null, null, null, null, false, false, 1, 'Todas');
+      expect(resEan.length, equals(1));
+      expect(resEan.first.codigo, equals('102'));
+      expect(resEan.first.descricao, equals('BISCOITO CRACKER'));
+      expect(resEan.first.codbar, equals('7890002999'));
+      expect(resEan.first.marca, equals('NESTLÉ'));
+      expect(resEan.first.fabricante, equals('NESTLÉ BRASIL LTDA'));
+      expect(resEan.first.referencia1, equals('REF-CRACKER'));
+      expect(resEan.first.referenciaFormatada, equals('REF-CRACKER'));
+      expect(resEan.first.embalagem, equals('FD 30 UN'));
+
+      // 2. Busca por Marca
+      final resMarca = await buscaProduto('NESTLÉ', 0, null, null, null, null, false, false, 1, 'Todas');
+      expect(resMarca.length, equals(2));
+
+      // 3. Busca por Referência 1
+      final resRef1 = await buscaProduto('REF-A1', 0, null, null, null, null, false, false, 1, 'Todas');
+      expect(resRef1.length, equals(1));
+      expect(resRef1.first.codigo, equals('101'));
+      expect(resRef1.first.referenciaFormatada, equals('REF-A1 / REF-B2'));
+
+      // 4. Busca por Referência 2
+      final resRef2 = await buscaProduto('REF-B2', 0, null, null, null, null, false, false, 1, 'Todas');
+      expect(resRef2.length, equals(1));
+      expect(resRef2.first.codigo, equals('101'));
     });
   });
 }

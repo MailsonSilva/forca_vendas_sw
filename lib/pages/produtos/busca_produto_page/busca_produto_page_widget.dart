@@ -353,7 +353,10 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                             totalItem: produto.preco * quantidade,
                                             mulver: mul,
                                             unidadeComercial: quantidade.toDouble() * mul,
-                                            embalagem: produto.unidade,
+                                            embalagem: produto.embalagem.isNotEmpty ? produto.embalagem : produto.unidade,
+                                            marca: produto.marca,
+                                            referencia: produto.referenciaFormatada,
+                                            codbar: produto.codbar,
                                           );
                                           Navigator.of(modalContext).pop(item);
                                         }
@@ -483,7 +486,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                             obscureText: false,
                             decoration: InputDecoration(
                               labelText: 'Produto',
-                              hintText: 'Pesquise por código ou descrição...',
+                              hintText: 'Pesquise por descrição, EAN, marca ou referência...',
                               enabledBorder: OutlineInputBorder(
                                 borderSide: BorderSide(
                                   color: AppTheme.of(context).alternate,
@@ -1655,6 +1658,49 @@ side: BorderSide(
                                                         ].divide(const SizedBox(
                                                             width: 8.0)),
                                                       ),
+                                                      const SizedBox(height: 4.0),
+                                                      Row(
+                                                        mainAxisSize: MainAxisSize.max,
+                                                        children: [
+                                                          Text(
+                                                            'Marca: ${listaProdutoItem.marca.isNotEmpty ? listaProdutoItem.marca : "SEM MARCA"}',
+                                                            style: AppTheme.of(context).bodySmall.override(
+                                                              font: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                                                              color: AppTheme.of(context).secondaryText,
+                                                              fontSize: 11.0,
+                                                            ),
+                                                          ),
+                                                          Text(
+                                                            '  |  ',
+                                                            style: TextStyle(color: AppTheme.of(context).alternate, fontSize: 11.0),
+                                                          ),
+                                                          Expanded(
+                                                            child: Text(
+                                                              'Ref: ${listaProdutoItem.referenciaFormatada}',
+                                                              maxLines: 1,
+                                                              overflow: TextOverflow.ellipsis,
+                                                              style: AppTheme.of(context).bodySmall.override(
+                                                                font: GoogleFonts.inter(fontWeight: FontWeight.w500),
+                                                                color: AppTheme.of(context).secondaryText,
+                                                                fontSize: 11.0,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      if (listaProdutoItem.codbar.isNotEmpty)
+                                                        Padding(
+                                                          padding: const EdgeInsets.only(top: 2.0),
+                                                          child: Text(
+                                                            'EAN: ${listaProdutoItem.codbar}',
+                                                            style: AppTheme.of(context).bodySmall.override(
+                                                              font: GoogleFonts.inter(fontWeight: FontWeight.w500),
+                                                              color: AppTheme.of(context).secondaryText,
+                                                              fontSize: 11.0,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      const SizedBox(height: 6.0),
                                                       Row(
                                                         mainAxisSize:
                                                             MainAxisSize.max,
@@ -1677,7 +1723,7 @@ side: BorderSide(
                                                                     .start,
                                                             children: [
                                                               Text(
-                                                                'UN',
+                                                                'Estoque',
                                                                 style: AppTheme.of(
                                                                         context)
                                                                     .bodySmall
@@ -1707,12 +1753,7 @@ side: BorderSide(
                                                                     ),
                                                               ),
                                                               Text(
-                                                                valueOrDefault<
-                                                                    String>(
-                                                                  listaProdutoItem
-                                                                      .unidade,
-                                                                  'UN',
-                                                                ),
+                                                                '${functions.formatQuantity(listaProdutoItem.saldoEstoque, unidade: listaProdutoItem.unidade)} ${listaProdutoItem.unidade}',
                                                                 style: AppTheme.of(
                                                                         context)
                                                                     .bodyMedium
@@ -1750,7 +1791,7 @@ side: BorderSide(
                                                                     .start,
                                                             children: [
                                                               Text(
-                                                                'Disponível',
+                                                                'Emb',
                                                                 style: AppTheme.of(
                                                                         context)
                                                                     .bodySmall
@@ -1782,11 +1823,10 @@ side: BorderSide(
                                                               Text(
                                                                 valueOrDefault<
                                                                     String>(
-                                                                  functions.formatQuantity(
-                                                                    listaProdutoItem.saldoEstoque,
-                                                                    unidade: listaProdutoItem.unidade,
-                                                                  ),
-                                                                  '0',
+                                                                  listaProdutoItem.embalagem.isNotEmpty
+                                                                      ? listaProdutoItem.embalagem
+                                                                      : listaProdutoItem.unidade,
+                                                                  'UN',
                                                                 ),
                                                                 style: AppTheme.of(
                                                                         context)

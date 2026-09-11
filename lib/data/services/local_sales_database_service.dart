@@ -206,6 +206,15 @@ class LocalSalesDatabaseService {
     for (final e in {
       'pro00_descri': 'TEXT',
       'pro00_commax': 'REAL',
+      'pro00_codbar': 'TEXT',
+      'pro00_deslon': 'TEXT',
+      'pro00_codmar': 'INTEGER',
+      'pro00_codfab': 'INTEGER',
+      'pro00_ref001': 'TEXT',
+      'pro00_ref002': 'TEXT',
+      'pro00_embala': 'TEXT',
+      'pro00_unidad': 'TEXT',
+      'pro00_codimg': 'INTEGER',
     }.entries) {
       try {
         await db.execute('ALTER TABLE cadpro00 ADD COLUMN ${e.key} ${e.value}');
@@ -227,7 +236,31 @@ class LocalSalesDatabaseService {
         pro00_codigo INTEGER,
         pro00_prifil INTEGER DEFAULT 1,
         pro00_qtdest REAL DEFAULT 0,
+        pro00_codbar TEXT,
+        pro00_descri TEXT,
+        pro00_deslon TEXT,
+        pro00_codmar INTEGER,
+        pro00_codfab INTEGER,
+        pro00_ref001 TEXT,
+        pro00_ref002 TEXT,
+        pro00_embala TEXT,
+        pro00_unidad TEXT,
+        pro00_codimg INTEGER,
         PRIMARY KEY (pro00_codigo, pro00_prifil)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS cadmar00 (
+        mar00_codigo INTEGER PRIMARY KEY,
+        mar00_descri TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS cadfor00 (
+        for00_codigo INTEGER PRIMARY KEY,
+        for00_descri TEXT
       )
     ''');
 

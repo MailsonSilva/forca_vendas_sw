@@ -39,6 +39,10 @@ class ItemPedidoStruct extends BaseStruct {
     double? mulver,
     double? unidadeComercial,
     String? embalagem,
+    // Atributos de Identificação Comercial (EAN, Marca, Referência)
+    String? marca,
+    String? referencia,
+    String? codbar,
   })  : _codigoProduto = codigoProduto,
         _descricao = descricao,
         _unidade = unidade,
@@ -50,7 +54,10 @@ class ItemPedidoStruct extends BaseStruct {
         _codigoCombo = codigoCombo,
         _mulver = mulver,
         _unidadeComercial = unidadeComercial,
-        _embalagem = embalagem;
+        _embalagem = embalagem,
+        _marca = marca,
+        _referencia = referencia,
+        _codbar = codbar;
 
   // "codigo_produto" field.
   String? _codigoProduto;
@@ -140,6 +147,24 @@ class ItemPedidoStruct extends BaseStruct {
   set embalagem(String? val) => _embalagem = val;
   bool hasEmbalagem() => _embalagem != null;
 
+  // "marca" field.
+  String? _marca;
+  String get marca => _marca ?? '';
+  set marca(String? val) => _marca = val;
+  bool hasMarca() => _marca != null;
+
+  // "referencia" field.
+  String? _referencia;
+  String get referencia => _referencia ?? '';
+  set referencia(String? val) => _referencia = val;
+  bool hasReferencia() => _referencia != null;
+
+  // "codbar" field.
+  String? _codbar;
+  String get codbar => _codbar ?? '';
+  set codbar(String? val) => _codbar = val;
+  bool hasCodbar() => _codbar != null;
+
   static ItemPedidoStruct fromMap(Map<String, dynamic> data) =>
       ItemPedidoStruct(
         codigoProduto: data['codigo_produto'] as String?,
@@ -154,6 +179,9 @@ class ItemPedidoStruct extends BaseStruct {
         mulver: castToType<double>(data['mulver']),
         unidadeComercial: castToType<double>(data['unidade_comercial']),
         embalagem: data['embalagem'] as String?,
+        marca: data['marca'] as String?,
+        referencia: data['referencia'] as String?,
+        codbar: data['codbar'] as String?,
       );
 
   static ItemPedidoStruct? maybeFromMap(dynamic data) => data is Map
@@ -173,6 +201,9 @@ class ItemPedidoStruct extends BaseStruct {
         'mulver': _mulver,
         'unidade_comercial': _unidadeComercial,
         'embalagem': _embalagem,
+        'marca': _marca,
+        'referencia': _referencia,
+        'codbar': _codbar,
       }.withoutNulls;
 
   @override
@@ -341,6 +372,9 @@ ItemPedidoStruct createItemPedidoStruct({
   double? mulver,
   double? unidadeComercial,
   String? embalagem,
+  String? marca,
+  String? referencia,
+  String? codbar,
 }) =>
     ItemPedidoStruct(
       codigoProduto: codigoProduto,
@@ -355,4 +389,7 @@ ItemPedidoStruct createItemPedidoStruct({
       mulver: mulver,
       unidadeComercial: unidadeComercial,
       embalagem: embalagem,
+      marca: marca,
+      referencia: referencia,
+      codbar: codbar,
     );

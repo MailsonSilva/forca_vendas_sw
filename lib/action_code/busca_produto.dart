@@ -139,6 +139,12 @@ Future<List<ProdutoResultStruct>> buscaProduto(
         if (estCols.contains(c)) { estPenCol = c; break; }
       }
 
+      // 4.1 Mapeamento de cadmar00 e cadfor00
+      final bool hasMar = allTables.contains('cadmar00') || allTables.contains('mar00');
+      final String tblMar = allTables.contains('cadmar00') ? 'cadmar00' : 'mar00';
+      final bool hasFor = allTables.contains('cadfor00') || allTables.contains('for00');
+      final String tblFor = allTables.contains('cadfor00') ? 'cadfor00' : 'for00';
+
       // 5. Mapeamento de tabelas auxiliares
       final bool hasDat = allTables.contains('estprodat00');
       final bool hasPrm = allTables.contains('estprmreg00');
@@ -194,20 +200,35 @@ Future<List<ProdutoResultStruct>> buscaProduto(
       List<dynamic> whereBinds = [];
 
       if (busca.isNotEmpty) {
-        final isNumeric = RegExp(r'^\d+$').hasMatch(busca);
-        if (isNumeric) {
-          if (proCols.contains(colProBar)) {
-            condicoes.add('(p.$colProCod = ? OR p.$colProBar = ?)');
-            whereBinds.addAll([busca, busca]);
-          } else {
-            condicoes.add('p.$colProCod = ?');
-            whereBinds.add(busca);
-          }
-        } else {
-          final termo = '%${busca.toUpperCase()}%';
-          condicoes.add('UPPER(p.$colProDesc) LIKE ?');
-          whereBinds.add(termo);
+        final termo = '%$busca%';
+        List<String> orParts = [];
+        List<dynamic> orBinds = [];
+
+        orParts.add('p.$colProCod = ?');
+        orBinds.add(busca);
+
+        orParts.add('UPPER(p.$colProDesc) LIKE ?');
+        orBinds.add('%${busca.toUpperCase()}%');
+
+        if (proCols.contains(colProBar)) {
+          orParts.add('p.$colProBar LIKE ?');
+          orBinds.add(termo);
         }
+        if (proCols.contains('pro00_ref001')) {
+          orParts.add('p.pro00_ref001 LIKE ?');
+          orBinds.add(termo);
+        }
+        if (proCols.contains('pro00_ref002')) {
+          orParts.add('p.pro00_ref002 LIKE ?');
+          orBinds.add(termo);
+        }
+        if (hasMar && proCols.contains('pro00_codmar')) {
+          orParts.add('UPPER(m.mar00_descri) LIKE ?');
+          orBinds.add('%${busca.toUpperCase()}%');
+        }
+
+        condicoes.add('(${orParts.join(' OR ')})');
+        whereBinds.addAll(orBinds);
       }
 
       if (linha.isNotEmpty && proCols.contains('pro00_codlin')) {
@@ -287,16 +308,48 @@ Future<List<ProdutoResultStruct>> buscaProduto(
           ? 'LEFT JOIN estprmreg00 prm ON prm.pro00_codpro = p.$colProCod '
           : '';
 
+      String joinMarca = '';
+      if (hasMar && proCols.contains('pro00_codmar')) {
+        joinMarca = 'LEFT JOIN $tblMar m ON m.mar00_codigo = p.pro00_codmar ';
+      }
+
+      String joinFabricante = '';
+      if (hasFor && proCols.contains('pro00_codfab')) {
+        joinFabricante = 'LEFT JOIN $tblFor f ON f.for00_codigo = p.pro00_codfab ';
+      }
+
       finalBinds.addAll(whereBinds);
       finalBinds.add(currentOffset);
 
-      // 9. Colunas opcionais PRD B4
+      // 9. Colunas opcionais PRD B4 e atributos comerciais (EAN, Marca, Referências)
       String selMulver = proCols.contains('pro00_mulver') ? 'COALESCE(p.pro00_mulver, 1) AS mulver' : '1 AS mulver';
       String selPcomin = proCols.contains('pro00_pcomin') ? 'COALESCE(p.pro00_pcomin, 0) AS pcomin' : '0 AS pcomin';
       String selPcomax = proCols.contains('pro00_pcomax') ? 'COALESCE(p.pro00_pcomax, 999999) AS pcomax' : '999999 AS pcomax';
       String selCommax = proCols.contains('pro00_commax') ? 'COALESCE(p.pro00_commax, 100) AS commax' : '100 AS commax';
       String selCodtrb = proCols.contains('pro00_codtrb') ? 'COALESCE(p.pro00_codtrb, 0) AS codtrb' : '0 AS codtrb';
       String selFreadpco = proCols.contains('pro00_freadpco') ? 'COALESCE(p.pro00_freadpco, 1) AS freadpco' : '1 AS freadpco';
+
+      String selMarca = (hasMar && proCols.contains('pro00_codmar'))
+          ? "COALESCE(m.mar00_descri, 'SEM MARCA') AS marca_nome"
+          : "'SEM MARCA' AS marca_nome";
+      String selFab = (hasFor && proCols.contains('pro00_codfab'))
+          ? "COALESCE(f.for00_descri, '') AS fabricante_nome"
+          : "'' AS fabricante_nome";
+      String selCodBar = proCols.contains(colProBar)
+          ? "COALESCE(p.$colProBar, '') AS codbar"
+          : "'' AS codbar";
+      String selRef1 = proCols.contains('pro00_ref001')
+          ? "p.pro00_ref001 AS ref001"
+          : "'' AS ref001";
+      String selRef2 = proCols.contains('pro00_ref002')
+          ? "p.pro00_ref002 AS ref002"
+          : "'' AS ref002";
+      String selEmbala = proCols.contains('pro00_embala')
+          ? "COALESCE(p.pro00_embala, p.$colProUnid, 'UN') AS embalagem"
+          : "COALESCE(p.$colProUnid, 'UN') AS embalagem";
+      String selCodImg = proCols.contains('pro00_codimg')
+          ? "p.pro00_codimg AS codimg"
+          : "NULL AS codimg";
 
       String selPreco = (hasPco && pcoPrecoCol != null)
           ? 'COALESCE(t.$pcoPrecoCol, 0) AS preco_venda'
@@ -321,13 +374,17 @@ Future<List<ProdutoResultStruct>> buscaProduto(
       final String query =
           "SELECT DISTINCT p.$colProCod AS pro00_codigo, p.$colProDesc AS pro00_descri, p.$colProUnid AS pro00_unidad, "
           "$selPreco, $selEstAtual, $selEstPen, $selSaldo, "
-          "$selMulver, $selPcomin, $selPcomax, $selCommax, $selCodtrb, $selFreadpco "
+          "$selMulver, $selPcomin, $selPcomax, $selCommax, $selCodtrb, $selFreadpco, "
+          "$selMarca, $selFab, $selCodBar, $selRef1, $selRef2, $selEmbala, $selCodImg "
           "FROM $tabelaPro p "
           "$joinTabela "
           "$joinEstoque "
           "$joinData "
           "$joinPrm "
+          "$joinMarca "
+          "$joinFabricante "
           " $whereClause "
+          "GROUP BY p.$colProCod "
           "ORDER BY p.$colProDesc "
           "LIMIT 500 OFFSET ?";
 
@@ -374,6 +431,13 @@ Future<List<ProdutoResultStruct>> buscaProduto(
                 commax: parseDouble(m['commax'] ?? 100),
                 codtrb: parseInt(m['codtrb']),
                 freadpco: (parseInt(m['freadpco'] ?? 1) != 0),
+                marca: (m['marca_nome'] ?? m['marca'] ?? m['mar00_descri'] ?? 'SEM MARCA').toString(),
+                fabricante: (m['fabricante_nome'] ?? m['fabricante'] ?? m['for00_descri'] ?? '').toString(),
+                codbar: (m['codbar'] ?? m['pro00_codbar'] ?? '').toString(),
+                referencia1: m['ref001']?.toString() ?? m['pro00_ref001']?.toString(),
+                referencia2: m['ref002']?.toString() ?? m['pro00_ref002']?.toString(),
+                embalagem: (m['embalagem'] ?? m['pro00_embala'] ?? m['pro00_unidad'] ?? 'UN').toString(),
+                imagemId: parseInt(m['codimg'] ?? m['pro00_codimg']),
               ))
           .toList();
     } finally {
