@@ -82,7 +82,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
     _model.buscaProdutoFieldFocusNode ??= FocusNode();
   }
 
-@override
+  @override
   void dispose() {
     _model.dispose();
     super.dispose();
@@ -109,14 +109,16 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                   width: double.infinity,
                   decoration: const BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(20.0)),
                   ),
                   child: SafeArea(
                     top: false,
                     bottom: true,
                     child: Padding(
                       padding: EdgeInsets.only(
-                        bottom: MediaQuery.of(builderCtx).viewInsets.bottom + 16.0,
+                        bottom:
+                            MediaQuery.of(builderCtx).viewInsets.bottom + 16.0,
                         left: 16.0,
                         right: 16.0,
                         top: 12.0,
@@ -168,12 +170,16 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                   color: Color(0xFF57636C),
                                   size: 20.0,
                                 ),
-                                onPressed: () => Navigator.of(modalContext).pop(null),
+                                onPressed: () =>
+                                    Navigator.of(modalContext).pop(null),
                               ),
                             ],
                           ),
                           const SizedBox(height: 8.0),
-                          const Divider(height: 1.0, thickness: 1.0, color: Color(0xFFE0E3E7)),
+                          const Divider(
+                              height: 1.0,
+                              thickness: 1.0,
+                              color: Color(0xFFE0E3E7)),
                           const SizedBox(height: 14.0),
                           Container(
                             width: double.infinity,
@@ -181,7 +187,8 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12.0),
-                              border: Border.all(color: const Color(0xFFE0E3E7)),
+                              border:
+                                  Border.all(color: const Color(0xFFE0E3E7)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,24 +211,31 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                 ),
                                 const SizedBox(height: 12.0),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
                                       'Un: ${produto.unidade}',
-                                      style: const TextStyle(color: Colors.grey, fontSize: 13.0),
+                                      style: const TextStyle(
+                                          color: Colors.grey, fontSize: 13.0),
                                     ),
                                     Text(
                                       'Preço: ${produto.preco.toMoeda()}',
-                                      style: const TextStyle(color: Colors.grey, fontSize: 13.0),
+                                      style: const TextStyle(
+                                          color: Colors.grey, fontSize: 13.0),
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: 8.0),
                                 Row(
                                   children: [
-                                    const Icon(Icons.inventory_2_outlined, color: Colors.grey, size: 16.0),
+                                    const Icon(Icons.inventory_2_outlined,
+                                        color: Colors.grey, size: 16.0),
                                     const SizedBox(width: 4.0),
-                                    const Text('Estoque disponível: ', style: TextStyle(color: Colors.grey, fontSize: 12.0)),
+                                    const Text('Estoque disponível: ',
+                                        style: TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 12.0)),
                                     Text(
                                       validaEstoque
                                           ? functions.formatQuantity(
@@ -230,23 +244,31 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                             )
                                           : 'Ilimitado',
                                       style: TextStyle(
-                                        color: (!validaEstoque || produto.saldoEstoque > 0) ? AppTheme.of(builderCtx).primary : Colors.red,
+                                        color: (!validaEstoque ||
+                                                produto.saldoEstoque > 0)
+                                            ? AppTheme.of(builderCtx).primary
+                                            : Colors.red,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 12.0,
                                       ),
                                     ),
                                   ],
                                 ),
-                                if (validaEstoque && produto.saldoEstoque <= 0) ...[
+                                if (validaEstoque &&
+                                    produto.saldoEstoque <= 0) ...[
                                   const SizedBox(height: 12.0),
                                   const Row(
                                     children: [
-                                      Icon(Icons.warning_amber_rounded, color: Colors.red, size: 18.0),
+                                      Icon(Icons.warning_amber_rounded,
+                                          color: Colors.red, size: 18.0),
                                       SizedBox(width: 6.0),
                                       Expanded(
                                         child: Text(
                                           'Produto indisponível: Estoque esgotado (Saldo: 0)',
-                                          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13.0),
+                                          style: TextStyle(
+                                              color: Colors.red,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13.0),
                                         ),
                                       ),
                                     ],
@@ -265,25 +287,33 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                   borderRadius: BorderRadius.circular(8.0),
                                 ),
                                 child: IconButton(
-                                  icon: const Icon(Icons.remove, color: Colors.white),
+                                  icon: const Icon(Icons.remove,
+                                      color: Colors.white),
                                   onPressed: quantidade > 1
                                       ? () => setModalState(() => quantidade--)
                                       : null,
-                                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                                  constraints: const BoxConstraints(
+                                      minWidth: 48, minHeight: 48),
                                 ),
                               ),
                               Container(
-                                constraints: const BoxConstraints(minWidth: 64.0),
+                                constraints:
+                                    const BoxConstraints(minWidth: 64.0),
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
-                                  border: Border.all(color: AppTheme.of(builderCtx).primary),
+                                  border: Border.all(
+                                      color: AppTheme.of(builderCtx).primary),
                                   borderRadius: BorderRadius.circular(8.0),
                                 ),
-                                padding: const EdgeInsets.symmetric(vertical: 12.0),
-                                margin: const EdgeInsets.symmetric(horizontal: 8.0),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12.0),
+                                margin:
+                                    const EdgeInsets.symmetric(horizontal: 8.0),
                                 child: Text(
                                   '$quantidade',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18.0),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18.0),
                                 ),
                               ),
                               Container(
@@ -292,11 +322,14 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                   borderRadius: BorderRadius.circular(8.0),
                                 ),
                                 child: IconButton(
-                                  icon: const Icon(Icons.add, color: Colors.white),
-                                  onPressed: (!validaEstoque || quantidade < produto.saldoEstoque)
+                                  icon: const Icon(Icons.add,
+                                      color: Colors.white),
+                                  onPressed: (!validaEstoque ||
+                                          quantidade < produto.saldoEstoque)
                                       ? () => setModalState(() => quantidade++)
                                       : null,
-                                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                                  constraints: const BoxConstraints(
+                                      minWidth: 48, minHeight: 48),
                                 ),
                               ),
                             ],
@@ -307,7 +340,8 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                             children: [
                               const Text(
                                 'Total do Item',
-                                style: TextStyle(color: Colors.grey, fontSize: 16.0),
+                                style: TextStyle(
+                                    color: Colors.grey, fontSize: 16.0),
                               ),
                               Text(
                                 (produto.preco * quantidade).toMoeda(),
@@ -326,43 +360,66 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                 child: OutlinedButton(
                                   style: OutlinedButton.styleFrom(
                                     side: const BorderSide(color: Colors.grey),
-                                    padding: const EdgeInsets.symmetric(vertical: 16.0),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 16.0),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(8.0)),
                                   ),
-                                  onPressed: () => Navigator.of(modalContext).pop(null),
-                                  child: const Text('Cancelar', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                                  onPressed: () =>
+                                      Navigator.of(modalContext).pop(null),
+                                  child: const Text('Cancelar',
+                                      style: TextStyle(
+                                          color: Colors.grey,
+                                          fontWeight: FontWeight.bold)),
                                 ),
                               ),
                               const SizedBox(width: 12.0),
                               Expanded(
                                 child: ElevatedButton.icon(
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppTheme.of(builderCtx).primary,
-                                    padding: const EdgeInsets.symmetric(vertical: 16.0),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                                    backgroundColor:
+                                        AppTheme.of(builderCtx).primary,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 16.0),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(8.0)),
                                   ),
                                   onPressed: quantidade > 0
                                       ? () {
-                                          final mul = (produto.mulver != 0) ? produto.mulver : 1.0;
+                                          final mul = (produto.mulver != 0)
+                                              ? produto.mulver
+                                              : 1.0;
                                           final item = ItemPedidoStruct(
                                             codigoProduto: produto.codigo,
                                             descricao: produto.descricao,
                                             unidade: produto.unidade,
                                             precoUnitario: produto.preco,
                                             quantidade: quantidade.toDouble(),
-                                            totalItem: produto.preco * quantidade,
+                                            totalItem:
+                                                produto.preco * quantidade,
                                             mulver: mul,
-                                            unidadeComercial: quantidade.toDouble() * mul,
-                                            embalagem: produto.embalagem.isNotEmpty ? produto.embalagem : produto.unidade,
+                                            unidadeComercial:
+                                                quantidade.toDouble() * mul,
+                                            embalagem:
+                                                produto.embalagem.isNotEmpty
+                                                    ? produto.embalagem
+                                                    : produto.unidade,
                                             marca: produto.marca,
-                                            referencia: produto.referenciaFormatada,
+                                            referencia:
+                                                produto.referenciaFormatada,
                                             codbar: produto.codbar,
                                           );
                                           Navigator.of(modalContext).pop(item);
                                         }
                                       : null,
-                                  icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white, size: 20.0),
-                                  label: const Text('Adicionar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                  icon: const Icon(Icons.shopping_cart_outlined,
+                                      color: Colors.white, size: 20.0),
+                                  label: const Text('Adicionar',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold)),
                                 ),
                               ),
                             ],
@@ -418,8 +475,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
             style: AppTheme.of(context).titleLarge.override(
                   font: GoogleFonts.plusJakartaSans(
                     fontWeight: FontWeight.w600,
-                    fontStyle:
-                        AppTheme.of(context).titleLarge.fontStyle,
+                    fontStyle: AppTheme.of(context).titleLarge.fontStyle,
                   ),
                   color: AppTheme.of(context).secondaryBackground,
                   fontSize: 22.0,
@@ -439,7 +495,8 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
               color: AppTheme.of(context).primaryBackground,
             ),
             child: Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 16.0),
+              padding:
+                  const EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 16.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.start,
@@ -486,7 +543,8 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                             obscureText: false,
                             decoration: InputDecoration(
                               labelText: 'Produto',
-                              hintText: 'Pesquise por descrição, EAN, marca ou referência...',
+                              hintText:
+                                  'Pesquise por descrição, EAN, marca ou referência...',
                               enabledBorder: OutlineInputBorder(
                                 borderSide: BorderSide(
                                   color: AppTheme.of(context).alternate,
@@ -516,7 +574,8 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                 borderRadius: BorderRadius.circular(8.0),
                               ),
                               filled: true,
-                              fillColor: AppTheme.of(context).secondaryBackground,
+                              fillColor:
+                                  AppTheme.of(context).secondaryBackground,
                               prefixIcon: Icon(
                                 Icons.search,
                                 color: AppTheme.of(context).secondaryText,
@@ -536,8 +595,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                             width: double.infinity,
                             height: 50.0,
                             decoration: BoxDecoration(
-                              color: AppTheme.of(context)
-                                  .secondaryBackground,
+                              color: AppTheme.of(context).secondaryBackground,
                               boxShadow: const [
                                 BoxShadow(
                                   blurRadius: 4.0,
@@ -568,14 +626,13 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                   children: [
                                     Icon(
                                       Icons.filter_alt_outlined,
-                                      color:
-                                          AppTheme.of(context).primary,
+                                      color: AppTheme.of(context).primary,
                                       size: 24.0,
                                     ),
                                     Expanded(
                                       child: Padding(
-                                        padding: const EdgeInsetsDirectional.fromSTEB(
-                                            8.0, 0.0, 0.0, 0.0),
+                                        padding: const EdgeInsetsDirectional
+                                            .fromSTEB(8.0, 0.0, 0.0, 0.0),
                                         child: Text(
                                           'Filtros Avançados',
                                           style: AppTheme.of(context)
@@ -584,21 +641,18 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                 font: GoogleFonts.inter(
                                                   fontWeight: FontWeight.w500,
                                                   fontStyle:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .bodyMedium
                                                           .fontStyle,
                                                 ),
-                                                color:
-                                                    AppTheme.of(context)
-                                                        .primary,
+                                                color: AppTheme.of(context)
+                                                    .primary,
                                                 fontSize: 16.0,
                                                 letterSpacing: 0.0,
                                                 fontWeight: FontWeight.w500,
-                                                fontStyle:
-                                                    AppTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontStyle,
+                                                fontStyle: AppTheme.of(context)
+                                                    .bodyMedium
+                                                    .fontStyle,
                                               ),
                                         ),
                                       ),
@@ -609,15 +663,13 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                             _model.dadosCarregados) {
                                           return Icon(
                                             Icons.keyboard_arrow_up,
-                                            color: AppTheme.of(context)
-                                                .primary,
+                                            color: AppTheme.of(context).primary,
                                             size: 24.0,
                                           );
                                         } else {
                                           return Icon(
                                             Icons.keyboard_arrow_down,
-                                            color: AppTheme.of(context)
-                                                .primary,
+                                            color: AppTheme.of(context).primary,
                                             size: 24.0,
                                           );
                                         }
@@ -636,8 +688,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                             child: Container(
                               width: double.infinity,
                               decoration: BoxDecoration(
-                                color: AppTheme.of(context)
-                                    .secondaryBackground,
+                                color: AppTheme.of(context).secondaryBackground,
                                 boxShadow: const [
                                   BoxShadow(
                                     blurRadius: 4.0,
@@ -671,28 +722,23 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                               .override(
                                                 font: GoogleFonts.inter(
                                                   fontWeight:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .labelMedium
                                                           .fontWeight,
                                                   fontStyle:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .labelMedium
                                                           .fontStyle,
                                                 ),
-                                                color:
-                                                    AppTheme.of(context)
-                                                        .secondaryText,
+                                                color: AppTheme.of(context)
+                                                    .secondaryText,
                                                 letterSpacing: 0.0,
-                                                fontWeight:
-                                                    AppTheme.of(context)
-                                                        .labelMedium
-                                                        .fontWeight,
-                                                fontStyle:
-                                                    AppTheme.of(context)
-                                                        .labelMedium
-                                                        .fontStyle,
+                                                fontWeight: AppTheme.of(context)
+                                                    .labelMedium
+                                                    .fontWeight,
+                                                fontStyle: AppTheme.of(context)
+                                                    .labelMedium
+                                                    .fontStyle,
                                                 lineHeight: 1.38,
                                               ),
                                         ),
@@ -716,31 +762,26 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                           },
                                           width: 200.0,
                                           height: 40.0,
-                                          textStyle: AppTheme.of(
-                                                  context)
+                                          textStyle: AppTheme.of(context)
                                               .bodyMedium
                                               .override(
                                                 font: GoogleFonts.inter(
                                                   fontWeight:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .bodyMedium
                                                           .fontWeight,
                                                   fontStyle:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .bodyMedium
                                                           .fontStyle,
                                                 ),
                                                 letterSpacing: 0.0,
-                                                fontWeight:
-                                                    AppTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontWeight,
-                                                fontStyle:
-                                                    AppTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontStyle,
+                                                fontWeight: AppTheme.of(context)
+                                                    .bodyMedium
+                                                    .fontWeight,
+                                                fontStyle: AppTheme.of(context)
+                                                    .bodyMedium
+                                                    .fontStyle,
                                               ),
                                           hintText: 'Todas as linhas',
                                           icon: Icon(
@@ -749,18 +790,15 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                 .secondaryText,
                                             size: 24.0,
                                           ),
-                                          fillColor:
-                                              AppTheme.of(context)
-                                                  .secondaryBackground,
+                                          fillColor: AppTheme.of(context)
+                                              .secondaryBackground,
                                           elevation: 2.0,
                                           borderColor:
-                                              AppTheme.of(context)
-                                                  .secondary,
+                                              AppTheme.of(context).secondary,
                                           borderWidth: 1.0,
                                           borderRadius: 8.0,
-                                          margin:
-                                              const EdgeInsetsDirectional.fromSTEB(
-                                                  12.0, 0.0, 12.0, 0.0),
+                                          margin: const EdgeInsetsDirectional
+                                              .fromSTEB(12.0, 0.0, 12.0, 0.0),
                                           hidesUnderline: true,
                                           isOverButton: false,
                                           isSearchable: false,
@@ -780,28 +818,23 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                               .override(
                                                 font: GoogleFonts.inter(
                                                   fontWeight:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .labelMedium
                                                           .fontWeight,
                                                   fontStyle:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .labelMedium
                                                           .fontStyle,
                                                 ),
-                                                color:
-                                                    AppTheme.of(context)
-                                                        .secondaryText,
+                                                color: AppTheme.of(context)
+                                                    .secondaryText,
                                                 letterSpacing: 0.0,
-                                                fontWeight:
-                                                    AppTheme.of(context)
-                                                        .labelMedium
-                                                        .fontWeight,
-                                                fontStyle:
-                                                    AppTheme.of(context)
-                                                        .labelMedium
-                                                        .fontStyle,
+                                                fontWeight: AppTheme.of(context)
+                                                    .labelMedium
+                                                    .fontWeight,
+                                                fontStyle: AppTheme.of(context)
+                                                    .labelMedium
+                                                    .fontStyle,
                                                 lineHeight: 1.38,
                                               ),
                                         ),
@@ -825,31 +858,26 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                           },
                                           width: 200.0,
                                           height: 40.0,
-                                          textStyle: AppTheme.of(
-                                                  context)
+                                          textStyle: AppTheme.of(context)
                                               .bodyMedium
                                               .override(
                                                 font: GoogleFonts.inter(
                                                   fontWeight:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .bodyMedium
                                                           .fontWeight,
                                                   fontStyle:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .bodyMedium
                                                           .fontStyle,
                                                 ),
                                                 letterSpacing: 0.0,
-                                                fontWeight:
-                                                    AppTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontWeight,
-                                                fontStyle:
-                                                    AppTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontStyle,
+                                                fontWeight: AppTheme.of(context)
+                                                    .bodyMedium
+                                                    .fontWeight,
+                                                fontStyle: AppTheme.of(context)
+                                                    .bodyMedium
+                                                    .fontStyle,
                                               ),
                                           hintText: 'Todos os grupos',
                                           icon: Icon(
@@ -858,18 +886,15 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                 .secondaryText,
                                             size: 24.0,
                                           ),
-                                          fillColor:
-                                              AppTheme.of(context)
-                                                  .secondaryBackground,
+                                          fillColor: AppTheme.of(context)
+                                              .secondaryBackground,
                                           elevation: 2.0,
                                           borderColor:
-                                              AppTheme.of(context)
-                                                  .secondary,
+                                              AppTheme.of(context).secondary,
                                           borderWidth: 1.0,
                                           borderRadius: 8.0,
-                                          margin:
-                                              const EdgeInsetsDirectional.fromSTEB(
-                                                  12.0, 0.0, 12.0, 0.0),
+                                          margin: const EdgeInsetsDirectional
+                                              .fromSTEB(12.0, 0.0, 12.0, 0.0),
                                           hidesUnderline: true,
                                           isOverButton: false,
                                           isSearchable: false,
@@ -889,28 +914,23 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                               .override(
                                                 font: GoogleFonts.inter(
                                                   fontWeight:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .labelMedium
                                                           .fontWeight,
                                                   fontStyle:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .labelMedium
                                                           .fontStyle,
                                                 ),
-                                                color:
-                                                    AppTheme.of(context)
-                                                        .secondaryText,
+                                                color: AppTheme.of(context)
+                                                    .secondaryText,
                                                 letterSpacing: 0.0,
-                                                fontWeight:
-                                                    AppTheme.of(context)
-                                                        .labelMedium
-                                                        .fontWeight,
-                                                fontStyle:
-                                                    AppTheme.of(context)
-                                                        .labelMedium
-                                                        .fontStyle,
+                                                fontWeight: AppTheme.of(context)
+                                                    .labelMedium
+                                                    .fontWeight,
+                                                fontStyle: AppTheme.of(context)
+                                                    .labelMedium
+                                                    .fontStyle,
                                                 lineHeight: 1.38,
                                               ),
                                         ),
@@ -934,31 +954,26 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                           },
                                           width: 200.0,
                                           height: 40.0,
-                                          textStyle: AppTheme.of(
-                                                  context)
+                                          textStyle: AppTheme.of(context)
                                               .bodyMedium
                                               .override(
                                                 font: GoogleFonts.inter(
                                                   fontWeight:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .bodyMedium
                                                           .fontWeight,
                                                   fontStyle:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .bodyMedium
                                                           .fontStyle,
                                                 ),
                                                 letterSpacing: 0.0,
-                                                fontWeight:
-                                                    AppTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontWeight,
-                                                fontStyle:
-                                                    AppTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontStyle,
+                                                fontWeight: AppTheme.of(context)
+                                                    .bodyMedium
+                                                    .fontWeight,
+                                                fontStyle: AppTheme.of(context)
+                                                    .bodyMedium
+                                                    .fontStyle,
                                               ),
                                           hintText: 'Todos os Fabricantes',
                                           icon: Icon(
@@ -967,18 +982,15 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                 .secondaryText,
                                             size: 24.0,
                                           ),
-                                          fillColor:
-                                              AppTheme.of(context)
-                                                  .secondaryBackground,
+                                          fillColor: AppTheme.of(context)
+                                              .secondaryBackground,
                                           elevation: 2.0,
                                           borderColor:
-                                              AppTheme.of(context)
-                                                  .secondary,
+                                              AppTheme.of(context).secondary,
                                           borderWidth: 1.0,
                                           borderRadius: 8.0,
-                                          margin:
-                                              const EdgeInsetsDirectional.fromSTEB(
-                                                  12.0, 0.0, 12.0, 0.0),
+                                          margin: const EdgeInsetsDirectional
+                                              .fromSTEB(12.0, 0.0, 12.0, 0.0),
                                           hidesUnderline: true,
                                           isOverButton: false,
                                           isSearchable: false,
@@ -998,28 +1010,23 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                               .override(
                                                 font: GoogleFonts.inter(
                                                   fontWeight:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .labelMedium
                                                           .fontWeight,
                                                   fontStyle:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .labelMedium
                                                           .fontStyle,
                                                 ),
-                                                color:
-                                                    AppTheme.of(context)
-                                                        .secondaryText,
+                                                color: AppTheme.of(context)
+                                                    .secondaryText,
                                                 letterSpacing: 0.0,
-                                                fontWeight:
-                                                    AppTheme.of(context)
-                                                        .labelMedium
-                                                        .fontWeight,
-                                                fontStyle:
-                                                    AppTheme.of(context)
-                                                        .labelMedium
-                                                        .fontStyle,
+                                                fontWeight: AppTheme.of(context)
+                                                    .labelMedium
+                                                    .fontWeight,
+                                                fontStyle: AppTheme.of(context)
+                                                    .labelMedium
+                                                    .fontStyle,
                                                 lineHeight: 1.38,
                                               ),
                                         ),
@@ -1043,31 +1050,26 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                           },
                                           width: 200.0,
                                           height: 40.0,
-                                          textStyle: AppTheme.of(
-                                                  context)
+                                          textStyle: AppTheme.of(context)
                                               .bodyMedium
                                               .override(
                                                 font: GoogleFonts.inter(
                                                   fontWeight:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .bodyMedium
                                                           .fontWeight,
                                                   fontStyle:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .bodyMedium
                                                           .fontStyle,
                                                 ),
                                                 letterSpacing: 0.0,
-                                                fontWeight:
-                                                    AppTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontWeight,
-                                                fontStyle:
-                                                    AppTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontStyle,
+                                                fontWeight: AppTheme.of(context)
+                                                    .bodyMedium
+                                                    .fontWeight,
+                                                fontStyle: AppTheme.of(context)
+                                                    .bodyMedium
+                                                    .fontStyle,
                                               ),
                                           hintText: 'Todas as Marcas',
                                           icon: Icon(
@@ -1076,18 +1078,15 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                 .secondaryText,
                                             size: 24.0,
                                           ),
-                                          fillColor:
-                                              AppTheme.of(context)
-                                                  .secondaryBackground,
+                                          fillColor: AppTheme.of(context)
+                                              .secondaryBackground,
                                           elevation: 2.0,
                                           borderColor:
-                                              AppTheme.of(context)
-                                                  .secondary,
+                                              AppTheme.of(context).secondary,
                                           borderWidth: 1.0,
                                           borderRadius: 8.0,
-                                          margin:
-                                              const EdgeInsetsDirectional.fromSTEB(
-                                                  12.0, 0.0, 12.0, 0.0),
+                                          margin: const EdgeInsetsDirectional
+                                              .fromSTEB(12.0, 0.0, 12.0, 0.0),
                                           hidesUnderline: true,
                                           isOverButton: false,
                                           isSearchable: false,
@@ -1107,28 +1106,23 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                               .override(
                                                 font: GoogleFonts.inter(
                                                   fontWeight:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .labelMedium
                                                           .fontWeight,
                                                   fontStyle:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .labelMedium
                                                           .fontStyle,
                                                 ),
-                                                color:
-                                                    AppTheme.of(context)
-                                                        .secondaryText,
+                                                color: AppTheme.of(context)
+                                                    .secondaryText,
                                                 letterSpacing: 0.0,
-                                                fontWeight:
-                                                    AppTheme.of(context)
-                                                        .labelMedium
-                                                        .fontWeight,
-                                                fontStyle:
-                                                    AppTheme.of(context)
-                                                        .labelMedium
-                                                        .fontStyle,
+                                                fontWeight: AppTheme.of(context)
+                                                    .labelMedium
+                                                    .fontWeight,
+                                                fontStyle: AppTheme.of(context)
+                                                    .labelMedium
+                                                    .fontStyle,
                                                 lineHeight: 1.38,
                                               ),
                                         ),
@@ -1151,31 +1145,26 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                           },
                                           width: 250.0,
                                           height: 40.0,
-                                          textStyle: AppTheme.of(
-                                                  context)
+                                          textStyle: AppTheme.of(context)
                                               .bodyMedium
                                               .override(
                                                 font: GoogleFonts.inter(
                                                   fontWeight:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .bodyMedium
                                                           .fontWeight,
                                                   fontStyle:
-                                                      AppTheme.of(
-                                                              context)
+                                                      AppTheme.of(context)
                                                           .bodyMedium
                                                           .fontStyle,
                                                 ),
                                                 letterSpacing: 0.0,
-                                                fontWeight:
-                                                    AppTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontWeight,
-                                                fontStyle:
-                                                    AppTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontStyle,
+                                                fontWeight: AppTheme.of(context)
+                                                    .bodyMedium
+                                                    .fontWeight,
+                                                fontStyle: AppTheme.of(context)
+                                                    .bodyMedium
+                                                    .fontStyle,
                                               ),
                                           hintText: 'Todas',
                                           icon: Icon(
@@ -1184,18 +1173,15 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                 .secondaryText,
                                             size: 24.0,
                                           ),
-                                          fillColor:
-                                              AppTheme.of(context)
-                                                  .secondaryBackground,
+                                          fillColor: AppTheme.of(context)
+                                              .secondaryBackground,
                                           elevation: 2.0,
                                           borderColor:
-                                              AppTheme.of(context)
-                                                  .secondary,
+                                              AppTheme.of(context).secondary,
                                           borderWidth: 1.0,
                                           borderRadius: 8.0,
-                                          margin:
-                                              const EdgeInsetsDirectional.fromSTEB(
-                                                  12.0, 0.0, 12.0, 0.0),
+                                          margin: const EdgeInsetsDirectional
+                                              .fromSTEB(12.0, 0.0, 12.0, 0.0),
                                           hidesUnderline: true,
                                           isOverButton: false,
                                           isSearchable: false,
@@ -1249,7 +1235,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                     safeSetState(() {});
                                                   }
                                                 },
-side: BorderSide(
+                                                side: BorderSide(
                                                   width: 2,
                                                   color: AppTheme.of(context)
                                                       .secondaryText,
@@ -1257,9 +1243,8 @@ side: BorderSide(
                                                 activeColor:
                                                     AppTheme.of(context)
                                                         .primary,
-                                                checkColor:
-                                                    AppTheme.of(context)
-                                                        .primaryBackground,
+                                                checkColor: AppTheme.of(context)
+                                                    .primaryBackground,
                                               ),
                                             ),
                                             Container(
@@ -1308,7 +1293,7 @@ side: BorderSide(
                                                     safeSetState(() {});
                                                   }
                                                 },
-side: BorderSide(
+                                                side: BorderSide(
                                                   width: 2,
                                                   color: AppTheme.of(context)
                                                       .secondaryText,
@@ -1316,9 +1301,8 @@ side: BorderSide(
                                                 activeColor:
                                                     AppTheme.of(context)
                                                         .primary,
-                                                checkColor:
-                                                    AppTheme.of(context)
-                                                        .primaryBackground,
+                                                checkColor: AppTheme.of(context)
+                                                    .primaryBackground,
                                               ),
                                             ),
                                             Container(
@@ -1333,8 +1317,9 @@ side: BorderSide(
                                       ].divide(const SizedBox(width: 12.0)),
                                     ),
                                     Padding(
-                                      padding: const EdgeInsetsDirectional.fromSTEB(
-                                          0.0, 8.0, 0.0, 0.0),
+                                      padding:
+                                          const EdgeInsetsDirectional.fromSTEB(
+                                              0.0, 8.0, 0.0, 0.0),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.max,
                                         mainAxisAlignment:
@@ -1395,17 +1380,17 @@ side: BorderSide(
                                               ),
                                               options: AppButtonOptions(
                                                 height: 42.0,
-                                                padding: const EdgeInsetsDirectional
-                                                    .fromSTEB(
+                                                padding:
+                                                    const EdgeInsetsDirectional
+                                                        .fromSTEB(
                                                         0.0, 0.0, 0.0, 0.0),
                                                 iconPadding:
                                                     const EdgeInsetsDirectional
                                                         .fromSTEB(
-                                                            0.0, 0.0, 0.0, 0.0),
+                                                        0.0, 0.0, 0.0, 0.0),
                                                 iconColor: Colors.white,
-                                                color:
-                                                    AppTheme.of(context)
-                                                        .secondary,
+                                                color: AppTheme.of(context)
+                                                    .secondary,
                                                 textStyle: const TextStyle(
                                                   color: Colors.white,
                                                 ),
@@ -1453,17 +1438,17 @@ side: BorderSide(
                                               ),
                                               options: AppButtonOptions(
                                                 height: 42.0,
-                                                padding: const EdgeInsetsDirectional
-                                                    .fromSTEB(
+                                                padding:
+                                                    const EdgeInsetsDirectional
+                                                        .fromSTEB(
                                                         0.0, 0.0, 0.0, 0.0),
                                                 iconPadding:
                                                     const EdgeInsetsDirectional
                                                         .fromSTEB(
-                                                            0.0, 0.0, 0.0, 0.0),
+                                                        0.0, 0.0, 0.0, 0.0),
                                                 iconColor: Colors.white,
-                                                color:
-                                                    AppTheme.of(context)
-                                                        .primary,
+                                                color: AppTheme.of(context)
+                                                    .primary,
                                                 textStyle: const TextStyle(
                                                   color: Colors.white,
                                                 ),
@@ -1508,8 +1493,9 @@ side: BorderSide(
                                     final listaProdutoItem =
                                         listaProduto[listaProdutoIndex];
                                     return Padding(
-                                      padding: const EdgeInsetsDirectional.fromSTEB(
-                                          16.0, 0.0, 16.0, 0.0),
+                                      padding:
+                                          const EdgeInsetsDirectional.fromSTEB(
+                                              16.0, 0.0, 16.0, 0.0),
                                       child: InkWell(
                                         splashColor: Colors.transparent,
                                         focusColor: Colors.transparent,
@@ -1517,10 +1503,12 @@ side: BorderSide(
                                         highlightColor: Colors.transparent,
                                         onTap: () async {
                                           if (widget.isSelectionMode) {
-                                            _abrirModalAdicionarCarrinho(listaProdutoItem);
+                                            _abrirModalAdicionarCarrinho(
+                                                listaProdutoItem);
                                           } else {
                                             context.pushNamed(
-                                              DetalheProdutoPageWidget.routeName,
+                                              DetalheProdutoPageWidget
+                                                  .routeName,
                                               queryParameters: {
                                                 'produtoRef': serializeParam(
                                                   listaProdutoItem.codigo,
@@ -1589,30 +1577,33 @@ side: BorderSide(
                                                                   .codigo,
                                                               '00000',
                                                             ),
-                                                            style: AppTheme
-                                                                    .of(context)
-                                                                .bodySmall
-                                                                .override(
-                                                                  font:
-                                                                      GoogleFonts
+                                                            style:
+                                                                AppTheme.of(
+                                                                        context)
+                                                                    .bodySmall
+                                                                    .override(
+                                                                      font: GoogleFonts
                                                                           .inter(
-                                                                    fontWeight: AppTheme.of(
-                                                                            context)
-                                                                        .bodySmall
-                                                                        .fontWeight,
-                                                                    fontStyle: AppTheme.of(
-                                                                            context)
-                                                                        .bodySmall
-                                                                        .fontStyle,
-                                                                  ),
-                                                                  color: AppTheme.of(
-                                                                          context)
-                                                                      .secondaryText,
-                                                                  letterSpacing:
-                                                                      0.0,
-                                                                  fontWeight: FontWeight.w700,
-                                                                  fontStyle: AppTheme.of(context).bodySmall.fontStyle,
-                                                                ),
+                                                                        fontWeight: AppTheme.of(context)
+                                                                            .bodySmall
+                                                                            .fontWeight,
+                                                                        fontStyle: AppTheme.of(context)
+                                                                            .bodySmall
+                                                                            .fontStyle,
+                                                                      ),
+                                                                      color: AppTheme.of(
+                                                                              context)
+                                                                          .secondaryText,
+                                                                      letterSpacing:
+                                                                          0.0,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .w700,
+                                                                      fontStyle: AppTheme.of(
+                                                                              context)
+                                                                          .bodySmall
+                                                                          .fontStyle,
+                                                                    ),
                                                           ),
                                                           Expanded(
                                                             flex: 1,
@@ -1624,8 +1615,8 @@ side: BorderSide(
                                                                 'Descrição',
                                                               ),
                                                               maxLines: 1,
-                                                              style: AppTheme
-                                                                      .of(context)
+                                                              style: AppTheme.of(
+                                                                      context)
                                                                   .bodyLarge
                                                                   .override(
                                                                     font: GoogleFonts
@@ -1658,49 +1649,88 @@ side: BorderSide(
                                                         ].divide(const SizedBox(
                                                             width: 8.0)),
                                                       ),
-                                                      const SizedBox(height: 4.0),
+                                                      const SizedBox(
+                                                          height: 4.0),
                                                       Row(
-                                                        mainAxisSize: MainAxisSize.max,
+                                                        mainAxisSize:
+                                                            MainAxisSize.max,
                                                         children: [
                                                           Text(
                                                             'Marca: ${listaProdutoItem.marca.isNotEmpty ? listaProdutoItem.marca : "SEM MARCA"}',
-                                                            style: AppTheme.of(context).bodySmall.override(
-                                                              font: GoogleFonts.inter(fontWeight: FontWeight.w600),
-                                                              color: AppTheme.of(context).secondaryText,
-                                                              fontSize: 11.0,
-                                                            ),
+                                                            style:
+                                                                AppTheme.of(
+                                                                        context)
+                                                                    .bodySmall
+                                                                    .override(
+                                                                      font: GoogleFonts.inter(
+                                                                          fontWeight:
+                                                                              FontWeight.w600),
+                                                                      color: AppTheme.of(
+                                                                              context)
+                                                                          .secondaryText,
+                                                                      fontSize:
+                                                                          11.0,
+                                                                    ),
                                                           ),
                                                           Text(
                                                             '  |  ',
-                                                            style: TextStyle(color: AppTheme.of(context).alternate, fontSize: 11.0),
+                                                            style: TextStyle(
+                                                                color: AppTheme.of(
+                                                                        context)
+                                                                    .alternate,
+                                                                fontSize: 11.0),
                                                           ),
                                                           Expanded(
                                                             child: Text(
                                                               'Ref: ${listaProdutoItem.referenciaFormatada}',
                                                               maxLines: 1,
-                                                              overflow: TextOverflow.ellipsis,
-                                                              style: AppTheme.of(context).bodySmall.override(
-                                                                font: GoogleFonts.inter(fontWeight: FontWeight.w500),
-                                                                color: AppTheme.of(context).secondaryText,
-                                                                fontSize: 11.0,
-                                                              ),
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                              style: AppTheme.of(
+                                                                      context)
+                                                                  .bodySmall
+                                                                  .override(
+                                                                    font: GoogleFonts.inter(
+                                                                        fontWeight:
+                                                                            FontWeight.w500),
+                                                                    color: AppTheme.of(
+                                                                            context)
+                                                                        .secondaryText,
+                                                                    fontSize:
+                                                                        11.0,
+                                                                  ),
                                                             ),
                                                           ),
                                                         ],
                                                       ),
-                                                      if (listaProdutoItem.codbar.isNotEmpty)
+                                                      if (listaProdutoItem
+                                                          .codbar.isNotEmpty)
                                                         Padding(
-                                                          padding: const EdgeInsets.only(top: 2.0),
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .only(
+                                                                  top: 2.0),
                                                           child: Text(
                                                             'EAN: ${listaProdutoItem.codbar}',
-                                                            style: AppTheme.of(context).bodySmall.override(
-                                                              font: GoogleFonts.inter(fontWeight: FontWeight.w500),
-                                                              color: AppTheme.of(context).secondaryText,
-                                                              fontSize: 11.0,
-                                                            ),
+                                                            style:
+                                                                AppTheme.of(
+                                                                        context)
+                                                                    .bodySmall
+                                                                    .override(
+                                                                      font: GoogleFonts.inter(
+                                                                          fontWeight:
+                                                                              FontWeight.w500),
+                                                                      color: AppTheme.of(
+                                                                              context)
+                                                                          .secondaryText,
+                                                                      fontSize:
+                                                                          11.0,
+                                                                    ),
                                                           ),
                                                         ),
-                                                      const SizedBox(height: 6.0),
+                                                      const SizedBox(
+                                                          height: 6.0),
                                                       Row(
                                                         mainAxisSize:
                                                             MainAxisSize.max,
@@ -1791,7 +1821,7 @@ side: BorderSide(
                                                                     .start,
                                                             children: [
                                                               Text(
-                                                                'Emb',
+                                                                'UN.',
                                                                 style: AppTheme.of(
                                                                         context)
                                                                     .bodySmall
@@ -1823,9 +1853,13 @@ side: BorderSide(
                                                               Text(
                                                                 valueOrDefault<
                                                                     String>(
-                                                                  listaProdutoItem.embalagem.isNotEmpty
-                                                                      ? listaProdutoItem.embalagem
-                                                                      : listaProdutoItem.unidade,
+                                                                  listaProdutoItem
+                                                                          .embalagem
+                                                                          .isNotEmpty
+                                                                      ? listaProdutoItem
+                                                                          .embalagem
+                                                                      : listaProdutoItem
+                                                                          .unidade,
                                                                   'UN',
                                                                 ),
                                                                 style: AppTheme.of(
@@ -1895,7 +1929,9 @@ side: BorderSide(
                                                                     ),
                                                               ),
                                                               Text(
-                                                                listaProdutoItem.preco.toMoeda(),
+                                                                listaProdutoItem
+                                                                    .preco
+                                                                    .toMoeda(),
                                                                 style: AppTheme.of(
                                                                         context)
                                                                     .bodyMedium
@@ -1908,9 +1944,12 @@ side: BorderSide(
                                                                             .bodyMedium
                                                                             .fontStyle,
                                                                       ),
-                                                                      color: (listaProdutoItem.preco > 0)
-                                                                          ? const Color(0xFF2E7D32)
-                                                                          : AppTheme.of(context).primaryText,
+                                                                      color: (listaProdutoItem.preco >
+                                                                              0)
+                                                                          ? const Color(
+                                                                              0xFF2E7D32)
+                                                                          : AppTheme.of(context)
+                                                                              .primaryText,
                                                                       fontSize:
                                                                           16.0,
                                                                       letterSpacing:
@@ -1929,11 +1968,12 @@ side: BorderSide(
                                                         ].divide(const SizedBox(
                                                             width: 16.0)),
                                                       ),
-                                                    ].divide(
-                                                        const SizedBox(height: 4.0)),
+                                                    ].divide(const SizedBox(
+                                                        height: 4.0)),
                                                   ),
                                                 ),
-                                              ].divide(const SizedBox(width: 12.0)),
+                                              ].divide(
+                                                  const SizedBox(width: 12.0)),
                                             ),
                                           ),
                                         ),
@@ -1963,4 +2003,3 @@ side: BorderSide(
     );
   }
 }
-

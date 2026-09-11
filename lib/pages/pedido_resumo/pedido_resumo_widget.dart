@@ -2,8 +2,12 @@ import '/core/app_theme.dart';
 import '/core/app_util.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:printing/printing.dart';
 import 'pedido_resumo_model.dart';
 import '/action_code/carregar_pedido_resumo.dart';
+import '../../modules/pdf/dtos/espelho_pedido_dto.dart';
+import '../../modules/pdf/services/carregar_espelho_pedido_service.dart';
+import '../../modules/pdf/services/pdf_generator_service.dart';
 export 'pedido_resumo_model.dart';
 
 class PedidoResumoWidget extends StatefulWidget {
@@ -27,6 +31,7 @@ class _PedidoResumoWidgetState extends State<PedidoResumoWidget> {
 
   PedidoResumoData? _dados;
   bool _loading = true;
+  bool _gerandoPdf = false;
 
   @override
   void initState() {
@@ -46,6 +51,231 @@ class _PedidoResumoWidgetState extends State<PedidoResumoWidget> {
       _dados = d;
       _loading = false;
     });
+  }
+
+  Future<void> _abrirOpcoesPdf() async {
+    if (widget.pedidoId == null) return;
+    if (_dados == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aguarde o carregamento do pedido...')),
+      );
+      return;
+    }
+
+    setState(() => _gerandoPdf = true);
+    EspelhoPedidoDTO? espelho;
+    try {
+      espelho = await carregarEspelhoPedido(widget.pedidoId!);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao carregar dados do espelho: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _gerandoPdf = false);
+    }
+
+    if (espelho == null || !mounted) {
+      if (mounted && espelho == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Dados do pedido não encontrados para gerar o PDF.')),
+        );
+      }
+      return;
+    }
+
+    FiltroItensPdf filtroSelecionado = FiltroItensPdf.todos;
+    final hasCortes = espelho.itens.any((i) => i.corte > 0);
+    final hasBonif = espelho.itens.any((i) => i.isBonificacao);
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (bottomContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            Widget buildFiltroOption(String title, String subtitle, FiltroItensPdf value) {
+              final isSelected = filtroSelecionado == value;
+              final primaryColor = AppTheme.of(context).primary;
+                      return InkWell(
+                        onTap: () => setModalState(() => filtroSelecionado = value),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(vertical: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected ? primaryColor.withValues(alpha: 0.08) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isSelected ? primaryColor : Colors.grey[300]!,
+                              width: isSelected ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                                color: isSelected ? primaryColor : Colors.grey[600],
+                                size: 20,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(title, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.w600, fontSize: 14)),
+                                    Text(subtitle, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    return SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Center(
+                              child: Container(
+                                width: 40,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Icon(Icons.picture_as_pdf_rounded, color: AppTheme.of(context).primary, size: 26),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Espelho do Pedido #${widget.pedidoId}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Filtre os itens e escolha como deseja emitir o PDF:',
+                              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                            ),
+                            const Divider(height: 16),
+
+                            buildFiltroOption(
+                              'Todos os itens (Padrão)',
+                              '${espelho!.itens.length} itens no pedido',
+                              FiltroItensPdf.todos,
+                            ),
+                            if (hasCortes)
+                              buildFiltroOption(
+                                'Apenas cortes de estoque',
+                                'Itens que sofreram corte parcial ou total',
+                                FiltroItensPdf.apenasCortes,
+                              ),
+                            if (hasCortes)
+                              buildFiltroOption(
+                                'Sem cortes (Itens faturados)',
+                                'Apenas produtos liberados/faturados',
+                                FiltroItensPdf.semCortes,
+                              ),
+                            if (hasBonif)
+                              buildFiltroOption(
+                                'Apenas bonificações',
+                                'Apenas produtos bonificados/brinde',
+                                FiltroItensPdf.apenasBonificados,
+                              ),
+
+                            const SizedBox(height: 14),
+
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.share_rounded, color: Colors.white),
+                      label: const Text('Compartilhar PDF (WhatsApp / Email)', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.of(context).primary,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(bottomContext);
+                        _executarCompartilhamento(espelho!, filtroSelecionado);
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      icon: Icon(Icons.print_rounded, color: AppTheme.of(context).primary),
+                      label: Text('Visualizar / Imprimir', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.of(context).primary)),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: AppTheme.of(context).primary),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(bottomContext);
+                        _executarVisualizacaoImpressao(espelho!, filtroSelecionado);
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _executarCompartilhamento(EspelhoPedidoDTO espelho, FiltroItensPdf filtro) async {
+    setState(() => _gerandoPdf = true);
+    try {
+      final service = PdfGeneratorService();
+      await service.shareOrderPdf(pedido: espelho, filtro: filtro);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao compartilhar PDF: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _gerandoPdf = false);
+    }
+  }
+
+  Future<void> _executarVisualizacaoImpressao(EspelhoPedidoDTO espelho, FiltroItensPdf filtro) async {
+    setState(() => _gerandoPdf = true);
+    try {
+      final service = PdfGeneratorService();
+      await Printing.layoutPdf(
+        onLayout: (format) => service.generateOrderPdf(
+          pedido: espelho,
+          filtro: filtro,
+          pageFormat: format,
+        ),
+        name: 'Pedido_${espelho.numeroPedido}',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao abrir visualização do PDF: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _gerandoPdf = false);
+    }
   }
 
   String _fmt(double v) => v.toMoeda();
@@ -114,11 +344,33 @@ class _PedidoResumoWidgetState extends State<PedidoResumoWidget> {
             ),
             elevation: 2.0,
             actions: [
-              IconButton(
-                icon: const Icon(Icons.list_alt_rounded, color: Colors.white),
-                tooltip: 'Histórico de Pedidos',
-                onPressed: () => context.go('/pedidos'),
-              ),
+              if (_gerandoPdf)
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    ),
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: TextButton.icon(
+                    onPressed: _abrirOpcoesPdf,
+                    icon: const Icon(Icons.picture_as_pdf_rounded, color: Colors.white, size: 22),
+                    label: const Text(
+                      'PDF',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
           body: SafeArea(
