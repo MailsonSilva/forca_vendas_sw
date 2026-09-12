@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -17,6 +18,7 @@ EspelhoPedidoDTO _createPedido({
   double valorSubstituicaoTributaria = 150.0,
   double valorDescontoTotal = 50.0,
   double valorTotalFaturado = 4500.0,
+  Uint8List? clienteFotoBytes,
 }) {
   return EspelhoPedidoDTO(
     numeroPedido: numeroPedido,
@@ -30,6 +32,7 @@ EspelhoPedidoDTO _createPedido({
     clienteCpfCnpj: clienteCpfCnpj,
     clienteIE: clienteIE,
     clienteEndereco: 'Rua Teste, 100 - São Paulo/SP',
+    clienteFotoBytes: clienteFotoBytes,
     planoPagamento: '30/60/90',
     linhaProduto: 'Linha Teste',
     agenteCobrador: 'Agente Teste',
@@ -267,6 +270,45 @@ void main() {
           numeroNotaFiscal: '',
           numeroPedido: 2,
           observacao: 'Pedido para entrega imediata',
+        );
+        final doc = pw.Document();
+        doc.addPage(
+          pw.MultiPage(
+            pageFormat: PdfPageFormat.a4,
+            margin: const pw.EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            header: (pw.Context context) =>
+                template.buildHeader(pedido, context, boldFont, regularFont),
+            footer: (pw.Context context) =>
+                template.buildFooter(context, regularFont),
+            build: (pw.Context context) => [
+              template.buildCustomerAndOrderInfo(pedido, boldFont, regularFont),
+              template.buildItemsTable(pedido.itens, boldFont, regularFont),
+              template.buildFinancialAndDuplicates(pedido, boldFont, regularFont),
+              template.buildTotalsSummary(pedido, boldFont, regularFont),
+              template.buildNotes(pedido.observacao, boldFont, regularFont),
+            ],
+          ),
+        );
+
+        final bytes = await doc.save();
+        expect(bytes, isNotEmpty);
+        expect(doc.document.pdfPageList.pages.length, 1);
+      });
+
+      test('generates exactly 1 page and valid layout when clienteFotoBytes is provided', () async {
+        final fakePng = Uint8List.fromList([
+          0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
+          0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+          0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00,
+          0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+          0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49,
+          0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82
+        ]);
+        final pedido = _createPedido(
+          numeroNotaFiscal: '',
+          numeroPedido: 3,
+          clienteFotoBytes: fakePng,
+          observacao: 'Pedido com logotipo da empresa',
         );
         final doc = pw.Document();
         doc.addPage(

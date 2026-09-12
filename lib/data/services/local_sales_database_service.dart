@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
+import '/core/services/empresa_logo_service.dart';
 
 /// Responsavel pelo arquivo SQLite local da forca de vendas.
 ///
@@ -87,6 +88,19 @@ class LocalSalesDatabaseService {
 
     await db.execute('''
       CREATE TABLE IF NOT EXISTS pac00 (
+        pac00_pacrep INTEGER,
+        pac00_paccod INTEGER,
+        pac00_pacsrc TEXT PRIMARY KEY,
+        pac00_pacdat TEXT,
+        pac00_pacqtd INTEGER DEFAULT 0,
+        pac00_pactot REAL DEFAULT 0,
+        pac00_sttpac INTEGER DEFAULT 0,
+        pac00_sttenv INTEGER DEFAULT 0
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS pckvenpac00 (
         pac00_pacrep INTEGER,
         pac00_paccod INTEGER,
         pac00_pacsrc TEXT PRIMARY KEY,
@@ -458,6 +472,46 @@ class LocalSalesDatabaseService {
     final tempFile = File(p.join(databasesPath, _tempDatabaseName));
     final finalFile = File(p.join(databasesPath, databaseName));
 
+    // 1. PROTEÇÃO DE DADOS TRANSACIONAIS NA ATUALIZAÇÃO DA CARGA:
+    // Nunca apague ou perca as tabelas de movimentação de vendas:
+    // 'pckvendig000', 'pckvendig010', 'pac00', 'pckvenpac00'.
+    final List<Map<String, dynamic>> backupPckvendig000 = [];
+    final List<Map<String, dynamic>> backupPckvendig010 = [];
+    final List<Map<String, dynamic>> backupPac00 = [];
+    final List<Map<String, dynamic>> backupPckvenpac00 = [];
+
+    if (await finalFile.exists()) {
+      Database? existingDb;
+      try {
+        existingDb = await openDatabase(finalFile.path, readOnly: true);
+
+        try {
+          final r000 = await existingDb.query('pckvendig000');
+          backupPckvendig000.addAll(r000);
+        } catch (_) {}
+
+        try {
+          final r010 = await existingDb.query('pckvendig010');
+          backupPckvendig010.addAll(r010);
+        } catch (_) {}
+
+        try {
+          final rPac = await existingDb.query('pac00');
+          backupPac00.addAll(rPac);
+        } catch (_) {}
+
+        try {
+          final rPckPac = await existingDb.query('pckvenpac00');
+          backupPckvenpac00.addAll(rPckPac);
+        } catch (_) {}
+      } catch (_) {
+      } finally {
+        if (existingDb != null && existingDb.isOpen) {
+          await existingDb.close();
+        }
+      }
+    }
+
     await tempFile.parent.create(recursive: true);
     await tempFile.writeAsBytes(sqliteBytes, flush: true);
 
@@ -467,6 +521,42 @@ class LocalSalesDatabaseService {
         await finalFile.delete();
       }
       await tempFile.rename(finalFile.path);
+
+      // 2. Garante schema das tabelas de digitação/pacotes e restaura os dados pré-existentes
+      Database? newDb;
+      try {
+        newDb = await openDatabase(finalFile.path);
+        await _ensureSchemaAndMigrate(newDb);
+
+        if (backupPckvendig000.isNotEmpty ||
+            backupPckvendig010.isNotEmpty ||
+            backupPac00.isNotEmpty ||
+            backupPckvenpac00.isNotEmpty) {
+          final batch = newDb.batch();
+          for (final row in backupPckvendig000) {
+            batch.insert('pckvendig000', row, conflictAlgorithm: ConflictAlgorithm.replace);
+          }
+          for (final row in backupPckvendig010) {
+            batch.insert('pckvendig010', row, conflictAlgorithm: ConflictAlgorithm.replace);
+          }
+          for (final row in backupPac00) {
+            batch.insert('pac00', row, conflictAlgorithm: ConflictAlgorithm.replace);
+          }
+          for (final row in backupPckvenpac00) {
+            batch.insert('pckvenpac00', row, conflictAlgorithm: ConflictAlgorithm.replace);
+          }
+          await batch.commit(noResult: true);
+        }
+
+        // 3. Extrai e persiste com segurança a nova logo recebida na carga (cadace00.srv00_imglog)
+        try {
+          await EmpresaLogoService.instance.extrairLogoDaCarga(newDb);
+        } catch (_) {}
+      } finally {
+        if (newDb != null && newDb.isOpen) {
+          await newDb.close();
+        }
+      }
     } finally {
       if (await tempFile.exists()) {
         await tempFile.delete();

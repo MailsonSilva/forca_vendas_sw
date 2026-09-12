@@ -2,6 +2,7 @@ import '/core/app_theme.dart';
 import '/core/app_util.dart';
 import '/core/app_widgets.dart';
 import '/action_code/index.dart' as actions;
+import '../../core/services/empresa_logo_service.dart';
 import '/index.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -106,14 +107,11 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                   Padding(
                                     padding: const EdgeInsetsDirectional.fromSTEB(
                                         0.0, 0.0, 0.0, 18.0),
-                                    child: ClipRRect(
+                                    child: EmpresaLogoService.instance.obterLogoLoginWidget(
+                                      width: 260.0,
+                                      height: 94.6,
+                                      fit: BoxFit.cover,
                                       borderRadius: BorderRadius.circular(8.0),
-                                      child: Image.asset(
-                                        'assets/images/DentixIA_Logo_(500_x_500_px).png',
-                                        width: 260.0,
-                                        height: 94.6,
-                                        fit: BoxFit.cover,
-                                      ),
                                     ),
                                   ),
                                   Column(

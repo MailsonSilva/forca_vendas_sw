@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '/app_state.dart';
 import '/backend/ftp/ftp_client.dart';
+import '/core/services/empresa_logo_service.dart';
 import '/data/services/crg_codec.dart';
 import '/data/services/local_sales_database_service.dart';
 import '/domain/models/sales_access_config.dart';
@@ -39,6 +40,10 @@ class SalesDatabaseRepository {
       final crgBytes = await ftp.retr(crgName);
       final databaseBytes = _crgCodec.decodeDatabase(crgBytes);
       await _localDatabase.replaceWithValidatedBytes(databaseBytes);
+
+      try {
+        await EmpresaLogoService.instance.sincronizarLogoDoBanco();
+      } catch (_) {}
 
       return SalesDatabaseInstallResult(
         message: 'Base local atualizada.',

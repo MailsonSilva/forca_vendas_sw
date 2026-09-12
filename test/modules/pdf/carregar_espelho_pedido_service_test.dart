@@ -1,16 +1,19 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:forca_de_vendas/modules/pdf/dtos/espelho_pedido_dto.dart';
 import 'package:forca_de_vendas/modules/pdf/services/carregar_espelho_pedido_service.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
 
   late Database db;
 
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
     db = await openDatabase(inMemoryDatabasePath, version: 1, onCreate: (db, version) async {
       await db.execute('''
         CREATE TABLE pckvendig000 (
@@ -242,6 +245,68 @@ void main() {
     expect(espelho.totalQtdPedido, equals(30.0));
     expect(espelho.totalQtdFatura, equals(28.0));
     expect(espelho.valorLiquido, equals(1400.0));
+  });
+
+  test('carregarEspelhoPedido carrega clienteFotoBytes de cadace00 quando config_exibir_logo_pdf for true', () async {
+    SharedPreferences.setMockInitialValues({'config_exibir_logo_pdf': true});
+    final fakeLogo = Uint8List.fromList([0x89, 0x50, 0x4E, 0x47, 10, 20, 30]);
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS cadace00 (
+        ace00_codigo INTEGER PRIMARY KEY,
+        srv00_imglog BLOB
+      )
+    ''');
+    await db.insert('cadace00', {
+      'ace00_codigo': 1,
+      'srv00_imglog': fakeLogo,
+    });
+
+    final espelho = await carregarEspelhoPedido(1234, db: db);
+    expect(espelho, isNotNull);
+    expect(espelho!.clienteFotoBytes, equals(fakeLogo));
+  });
+
+  test('carregarEspelhoPedido retorna clienteFotoBytes nulo quando config_exibir_logo_pdf for false', () async {
+    SharedPreferences.setMockInitialValues({'config_exibir_logo_pdf': false});
+    final fakeLogo = Uint8List.fromList([0x89, 0x50, 0x4E, 0x47, 10, 20, 30]);
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS cadace00 (
+        ace00_codigo INTEGER PRIMARY KEY,
+        srv00_imglog BLOB
+      )
+    ''');
+    await db.insert('cadace00', {
+      'ace00_codigo': 1,
+      'srv00_imglog': fakeLogo,
+    });
+
+    final espelho = await carregarEspelhoPedido(1234, db: db);
+    expect(espelho, isNotNull);
+    expect(espelho!.clienteFotoBytes, isNull);
+  });
+
+  test('carregarEspelhoPedido decodifica clienteFotoBytes quando srv00_imglog for String Base64 com data URI', () async {
+    SharedPreferences.setMockInitialValues({'config_exibir_logo_pdf': true});
+    final fakePng = Uint8List.fromList([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 55, 66]);
+    final base64String = 'data:image/png;base64,${base64Encode(fakePng)}';
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS cadace00 (
+        ace00_codigo INTEGER PRIMARY KEY,
+        srv00_imglog BLOB
+      )
+    ''');
+    await db.delete('cadace00');
+    await db.insert('cadace00', {
+      'ace00_codigo': 1,
+      'srv00_imglog': base64String,
+    });
+
+    final espelho = await carregarEspelhoPedido(1234, db: db);
+    expect(espelho, isNotNull);
+    expect(espelho!.clienteFotoBytes, equals(fakePng));
   });
 
   test('carregarEspelhoPedido retorna null se o pedido não existir', () async {

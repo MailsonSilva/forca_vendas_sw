@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:sqflite/sqflite.dart';
+import '../../../core/services/empresa_logo_service.dart';
 import '../../../data/services/local_sales_database_service.dart';
 import '../dtos/espelho_pedido_dto.dart';
 
@@ -135,6 +137,7 @@ Future<EspelhoPedidoDTO?> carregarEspelhoPedido(int pedidoId, {Database? db}) as
     String linhaDesc = _getString(m, ['ped00_lindes', 'lindes']);
     String agenteDesc = agtCod.isNotEmpty ? 'Agente $agtCod' : '';
     String vendedorNome = '';
+    Uint8List? clienteFotoBytes;
 
     // Dados padrão da empresa emitente (do modelo base)
     String empEnd = 'AV. LOURENÇO VIEIRA DA SILVA, 16 - QUADRA 56';
@@ -259,6 +262,26 @@ Future<EspelhoPedidoDTO?> carregarEspelhoPedido(int pedidoId, {Database? db}) as
           } catch (_) {}
         }
       }
+
+      // Logomarca da empresa (cadace00.srv00_imglog)
+      final bool exibirLogo = await EmpresaLogoService.instance.isExibirLogoPdfHabilitado();
+      if (exibirLogo) {
+        for (final d in <Database>[catDb, activeDb]) {
+          if (!d.isOpen) continue;
+          try {
+            final tAce = await d.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='cadace00'");
+            if (tAce.isNotEmpty) {
+              final aceRows = await d.rawQuery('SELECT srv00_imglog FROM cadace00 WHERE srv00_imglog IS NOT NULL LIMIT 1');
+              if (aceRows.isNotEmpty && aceRows.first['srv00_imglog'] != null) {
+                final raw = aceRows.first['srv00_imglog'];
+                clienteFotoBytes = EmpresaLogoService.decodificarBase64OuBinario(raw);
+                if (clienteFotoBytes != null && clienteFotoBytes.isNotEmpty) break;
+              }
+            }
+          } catch (_) {}
+        }
+        clienteFotoBytes ??= await EmpresaLogoService.instance.obterLogoBytes(db: catDb);
+      }
     } finally {
       if (openedCatDb && catDb != null && catDb.isOpen) {
         await catDb.close();
@@ -379,6 +402,7 @@ Future<EspelhoPedidoDTO?> carregarEspelhoPedido(int pedidoId, {Database? db}) as
       clienteCidade: clienteCidade,
       clienteUf: clienteUf,
       clienteTelefone: clienteTelefone,
+      clienteFotoBytes: clienteFotoBytes,
       planoPagamento: planoDesc,
       linhaProduto: linhaDesc,
       agenteCobrador: agenteDesc,

@@ -1284,38 +1284,65 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                               elevation: 0,
                             ),
                             onPressed: () async {
-                              final tempOrderId = await obterProximoNumeroPedido();
-                              if (!context.mounted) return;
-                              AppState().update(() {
-                                AppState().pedido_numero = tempOrderId;
-                              });
+                              try {
+                                int tempOrderId = 0;
+                                try {
+                                  tempOrderId = await obterProximoNumeroPedido();
+                                } catch (e) {
+                                  print('Aviso ao obter proximo numero do pedido: $e');
+                                  tempOrderId = 1;
+                                }
+                                if (tempOrderId <= 0) tempOrderId = 1;
 
-                              // Persiste o cabeçalho inicial como rascunho imediatamente
-                              await salvarCarrinhoPedido(
-                                pedidoId: tempOrderId,
-                                clienteCodigo: _model.selectedCliente!.cli00Codigo,
-                                linhaCodigo: _model.selectedLinha?.codigo,
-                                planoCodigo: _model.selectedPlano?.codigo,
-                                carrinhoItens: [],
-                              );
-                              if (!context.mounted) return;
+                                if (!context.mounted) return;
+                                AppState().update(() {
+                                  AppState().pedido_numero = tempOrderId;
+                                });
 
-                              context.pushNamed(
-                                PedidoItensListaWidget.routeName,
-                                queryParameters: {
-                                  'pedidoId': tempOrderId.toString(),
-                                  'clienteNome': _model.selectedCliente!.cli00Descri,
-                                  'clienteCodigo': _model.selectedCliente!.cli00Codigo.toString(),
-                                  'clienteCnpj': _model.selectedCliente!.cli00Cpfcnp,
-                                  'clienteCidade': '${_model.selectedCliente!.cli00Ciddes} - ${_model.selectedCliente!.cli00Estsgl}',
-                                  'clienteLimite': _model.selectedCliente!.cli00Crelim.toString(),
-                                  'linhaCodigo': _model.selectedLinha?.codigo ?? '',
-                                  'linhaDescricao': _model.selectedLinha?.descricao ?? '',
-                                  'planoCodigo': _model.selectedPlano?.codigo ?? '',
-                                  'planoDescricao': _model.selectedPlano?.descricao ?? '',
-                                  'clienteEndereco': '${_model.selectedCliente!.cli00Endere}, ${_model.selectedCliente!.cli00Endnum} - ${_model.selectedCliente!.cli00Bairro}',
-                                },
-                              );
+                                final cli = _model.selectedCliente;
+
+                                // Persiste o cabeçalho inicial como rascunho de forma segura
+                                try {
+                                  await salvarCarrinhoPedido(
+                                    pedidoId: tempOrderId,
+                                    clienteCodigo: cli?.cli00Codigo ?? 0,
+                                    linhaCodigo: _model.selectedLinha?.codigo,
+                                    planoCodigo: _model.selectedPlano?.codigo,
+                                    carrinhoItens: [],
+                                  );
+                                } catch (e) {
+                                  print('Aviso ao salvar rascunho inicial do pedido: $e');
+                                }
+
+                                if (!context.mounted) return;
+
+                                context.pushNamed(
+                                  PedidoItensListaWidget.routeName,
+                                  queryParameters: {
+                                    'pedidoId': tempOrderId.toString(),
+                                    'clienteNome': cli?.cli00Descri ?? '',
+                                    'clienteCodigo': (cli?.cli00Codigo ?? 0).toString(),
+                                    'clienteCnpj': cli?.cli00Cpfcnp ?? '',
+                                    'clienteCidade': '${cli?.cli00Ciddes ?? ''} - ${cli?.cli00Estsgl ?? ''}',
+                                    'clienteLimite': (cli?.cli00Crelim ?? 0.0).toString(),
+                                    'linhaCodigo': _model.selectedLinha?.codigo ?? '',
+                                    'linhaDescricao': _model.selectedLinha?.descricao ?? '',
+                                    'planoCodigo': _model.selectedPlano?.codigo ?? '',
+                                    'planoDescricao': _model.selectedPlano?.descricao ?? '',
+                                    'clienteEndereco': '${cli?.cli00Endere ?? ''}, ${cli?.cli00Endnum ?? ''} - ${cli?.cli00Bairro ?? ''}',
+                                  },
+                                );
+                              } catch (e, s) {
+                                print('Erro ao iniciar digitacao: $e\n$s');
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Nao foi possivel iniciar a digitacao: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
                             },
                             icon: const Icon(Icons.edit_outlined, color: Colors.white),
                             label: Text(

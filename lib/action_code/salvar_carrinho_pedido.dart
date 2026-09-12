@@ -434,6 +434,6 @@ Future<bool> salvarCarrinhoPedido({
       return true;
   } catch (e, stack) {
     print('>>> ERRO REAL NO SALVAR_CARRINHO_PEDIDO: $e \n $stack');
-    throw Exception('Falha ao salvar carrinho no SQLite: $e');
+    return false;
   }
 }
