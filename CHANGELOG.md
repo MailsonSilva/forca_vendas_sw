@@ -7,6 +7,57 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [5.3.0] - 2026-09-12
+
+### 🌟 Adicionado (Novas Funcionalidades e Recursos Visuais)
+
+#### 1. Módulo de Geração, Visualização e Compartilhamento de PDF do Pedido (Espelho de Venda)
+- **Arquitetura Desacoplada e Modular (`lib/modules/pdf/`)**:
+  - Implementação do contrato de interface `IPdfOrderTemplate` e template padrão em folha A4 `StandardPdfOrderTemplate`.
+  - Serviço de geração `PdfGeneratorService` e composição gráfica com os pacotes `pdf` e `printing`, com suporte a tipografia internacional, acentuação gráfica UTF-8 e glifo da moeda brasileira (R$).
+  - Substituição definitiva do mecanismo legado em C++/Qt (`QPrinter` / `QPainter`), eliminando restrições de permissões no Android (`Scoped Storage` / `FileUriExposedException`) através de compartilhamento nativo seguro com `share_plus` em cache temporário.
+- **Extração Completa de Dados do Pedido (`CarregarEspelhoPedidoService`)**:
+  - Consulta relacional agregada com dados do pedido (`dig00`), itens (`dig01`), cliente (`cadcli00`), vendedor (`cadrep00`), agente cobrador, condição de pagamento e duplicatas/parcelas geradas.
+  - Suporte a filtros de itens no espelho: `Todos os Itens`, `Apenas Cortes`, `Sem Cortes` e `Apenas Bonificados` (`FiltroItensPdf`).
+  - Apuração de totais de venda, bonificações, descontos comerciais e substituição tributária (ST).
+- **Integração na Interface (`PedidoResumoWidget`)**:
+  - Ações dedicadas para visualização imediata do PDF, compartilhamento direto via WhatsApp e outros canais, e envio para impressoras compatíveis.
+
+#### 2. Logomarca Dinâmica da Empresa e Central de Configurações
+- **Gerenciador de Identidade Visual (`EmpresaLogoService`)**:
+  - Persistência e recuperação do logotipo da distribuidora a partir da tabela de parâmetros `cadace00.srv00_imglog` (BLOB / Base64).
+  - Cache local da imagem (`empresa_logo.png`) no diretório da aplicação (`getApplicationDocumentsDirectory()`) para carregamento instantâneo sem overhead de queries.
+  - Fallback elegante para o logotipo padrão da Suportware (`assets/images/logo.png`) quando a empresa não possuir logotipo cadastrado.
+  - Aplicação na tela de login/acesso e no cabeçalho do espelho de pedidos em PDF.
+- **Tela de Configurações do Aplicativo (`ConfiguracaoPageWidget`)**:
+  - Seção de Impressão com controle reativo: *"Exibir logotipo da empresa no PDF do pedido"* (`config_exibir_logo_pdf`), persistido em `SharedPreferences`.
+  - Seção de Ajuda e Atendimento com atalho *"Falar com o Suporte Técnico"*, acionando atendimento via WhatsApp (+55 98 8128-3380) através de `url_launcher`.
+- **Integridade e Proteção do Banco SQLite (`LocalSalesDatabaseProtection`)**:
+  - Rotinas de proteção e sanitização na inicialização do banco para suportar campos binários e garantir compatibilidade entre versões de carga.
+
+#### 3. Pesquisa e Exibição de Produtos com Código EAN, Marca e Referências
+- **Busca Multicritério Reativa (`BuscaProdutoPageWidget`)**:
+  - Otimização da busca para permitir localização instantânea de produtos por Código de Barras / EAN (`pro00_codbar`), Nome da Marca (`cadmar00.mar00_descri`) e Referências de Fábrica (`pro00_ref001`, `pro00_ref002`), além da tradicional descrição do produto (`pro00_descri`).
+- **Enriquecimento dos Cards de Produto e Carrinho de Compras**:
+  - Implementação do card modular `ItemPedidoCardWidget` e atualização da lista de produtos e itens do pedido (`PedidoItensListaWidget`).
+  - Apresentação organizada em badges e rótulos de fácil leitura: Marca, Referência 1/2 e Código EAN diretamente na listagem e no resumo da digitação.
+- **Camada de Dados e Modelos**:
+  - Criação do DTO `ProdutoLookupDto` e enriquecimento das structs `ItemPedidoStruct` e `ProdutoResultStruct`.
+  - Consultas com joins e índices otimizados no repositório `ProdutoRepository`.
+
+### 🛡️ Testes e Garantia de Qualidade
+- **Suíte de Testes Unitários e de Widgets**:
+  - Cobertura do módulo de PDF: `test/modules/pdf/` (`espelho_pedido_dto_test.dart`, `pdf_filtro_itens_test.dart`, `pdf_generator_service_test.dart`, `standard_pdf_order_template_test.dart`, `carregar_espelho_pedido_service_test.dart`).
+  - Cobertura de Logotipo e Configuração: `test/core/services/empresa_logo_service_test.dart`, `test/pages/configuracao_page_test.dart` e `test/database/local_sales_database_protection_test.dart`.
+  - Cobertura da Pesquisa de Produtos: `test/data/repositories/produto_repository_test.dart`, `test/domain/models/produto_lookup_dto_test.dart`, `test/busca_produto_test.dart` e `test/pedido_itens_lista_card_test.dart`.
+
+### 📚 Documentação e Especificações
+- Registrada [`00_ESPECIFICACAO_GERACAO_PDF_PEDIDO.md`](docs/specs/00_ESPECIFICACAO_GERACAO_PDF_PEDIDO.md).
+- Registrada [`ESPECIFICACAO_TECNICA_LOGOMARCA DINÂMICA (CADACE00), CONFIGURACAO_DE_EXIBICAO_E_SUPORTE.md`](docs/specs/ESPECIFICACAO_TECNICA_LOGOMARCA%20DIN%C3%82MICA%20(CADACE00),%20CONFIGURACAO_DE_EXIBICAO_E_SUPORTE.md).
+- Registrada [`00_ESPECIFICACAO_PESQUISA_PRODUTOS_EAN_MARCA_REFERENCIA.md`](docs/specs/00_ESPECIFICACAO_PESQUISA_PRODUTOS_EAN_MARCA_REFERENCIA.md).
+
+---
+
 ## [5.2.0] - 2026-09-10
 
 ### 🌟 Adicionado (Novas Funcionalidades e Padronizações)

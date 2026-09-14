@@ -45,11 +45,11 @@ class StandardPdfOrderTemplate implements IPdfOrderTemplate {
         children: [
           // 1. Quadro Imagem do Cliente (Superior Esquerdo)
           pw.Container(
-            width: 50,
-            height: 50,
-            decoration: pw.BoxDecoration(
+            width: 44,
+            height: 44,
+            /*decoration: pw.BoxDecoration(
               border: pw.Border.all(color: PdfColors.black, width: 0.6),
-            ),
+            ),*/
             alignment: pw.Alignment.center,
             child: pedido.clienteFotoBytes != null &&
                     pedido.clienteFotoBytes!.isNotEmpty

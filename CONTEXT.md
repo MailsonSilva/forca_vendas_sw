@@ -84,4 +84,41 @@
   - **Compartilhamento Direto**: Botão de ação que utiliza `share_plus` (`Share.shareXFiles`) para enviar o arquivo da imagem diretamente para WhatsApp, Telegram ou outros apps do cliente.
   - **Área de Transferência**: Botão de cópia rápida dos dados/caminho da imagem via `Clipboard.setData` com feedback visual imediato.
 
+## Módulo: Geração e Impressão de PDF do Pedido (Espelho de Venda)
+
+### 1. Arquitetura e Templates (`lib/modules/pdf/`)
+- **Contrato de Template (`IPdfOrderTemplate`)**: Interface extensível para geração de espelhos de venda. Permite implementar layouts customizados sem alterar a lógica de negócio ou de persistência.
+- **Template Padrão (`StandardPdfOrderTemplate`)**: Renderização estruturada em folha A4 contendo:
+  - Cabeçalho com identificação da empresa, logomarca dinâmica ou fallback institucional, dados do pedido e vendedor.
+  - Foto do cliente (`clienteFotoBytes`), dados cadastrais (Razão Social, Nome Fantasia, CNPJ/CPF, Inscrição Estadual, Endereço completo).
+  - Grade analítica de itens com Código, EAN, Descrição, Marca, Quantidades, Preço Unitário, Desconto(%) e Total.
+  - Agrupamento de itens bonificados (`isBonificacao = true`).
+  - Quadro de previsão financeira com duplicatas/parcelas (vencimentos e valores).
+  - Resumo de fechamento com total bruto, descontos, bonificações, substituição tributária (ST) e valor total líquido.
+- **Filtros de Itens (`FiltroItensPdf`)**:
+  - `todos`: Lista completa de itens do pedido.
+  - `apenasCortes`: Itens com corte total ou parcial no faturamento do ERP (`fatqtd < digqtd`).
+  - `semCortes`: Itens faturados integralmente (`fatqtd == digqtd`).
+  - `apenasBonificados`: Itens registrados com bonificação (`isBonificacao == true`).
+- **Segurança e Compartilhamento Nativo (`PdfGeneratorService`)**:
+  - Eliminação de dependência de caminhos estáticos em disco. Os bytes do PDF são gerados em memória (`Uint8List`) e salvos sob demanda no diretório de cache (`getTemporaryDirectory()`), compartilhados com segurança via `share_plus` (`XFile`) ou impressos diretamente via `Printing.layoutPdf`.
+
+## Módulo: Identidade Visual e Logomarca Dinâmica (CADACE00)
+
+### 1. Gerenciamento e Cache (`EmpresaLogoService`)
+- **Origem do Binário (`cadace00.srv00_imglog`)**: Logotipo da distribuidora importado via sincronização/carga do ERP no SQLite local.
+- **Cache Otimizado em Disco**: O binário extraído é mantido em cache local (`empresa_logo.png`) no diretório de documentos do app (`getApplicationDocumentsDirectory()`), evitando overhead de consultas SQL a cada inicialização de tela.
+- **Fallback Automático**: Caso o registro em `cadace00` esteja nulo ou a imagem não seja fornecida, o sistema utiliza o asset padrão institucional (`assets/images/logo.png`).
+- **Preferência de Impressão no PDF**:
+  - Chave `config_exibir_logo_pdf` em `SharedPreferences` (padrão: `true`). Permite ao representante desativar a impressão do logotipo nos espelhos de pedido quando necessário via menu de Configurações.
+
+## Módulo: Pesquisa de Produtos e Identificação Comercial
+
+### 1. Atributos Comerciais de Produto
+- **Código de Barras / EAN (`pro00_codbar`)**: Código universal do item, permitindo localização rápida por leitor de código de barras ou digitação.
+- **Marca do Produto (`cadmar00.mar00_descri` / `pro00_codmar`)**: Nome da marca vinculada ao item via relacionamento com a tabela de marcas.
+- **Referências de Fabricante (`pro00_ref001`, `pro00_ref002`)**: Códigos de fábrica do fabricante/fornecedor (`cadfor00`), essenciais para vendas de peças, insumos e produtos com códigos industriais.
+- **Exibição Padronizada (`ItemPedidoCardWidget`)**: Apresentação ostensiva em badges e tipografia secundária na lista de produtos (`BuscaProdutoPageWidget`) e na grade de itens do carrinho (`PedidoItensListaWidget`).
+
+
 

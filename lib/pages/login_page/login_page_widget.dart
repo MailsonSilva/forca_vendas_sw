@@ -91,77 +91,137 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                           child: Container(
                             width: double.infinity,
                             decoration: BoxDecoration(
-                              color: AppTheme.of(context)
-                                  .secondaryBackground,
+                              color: AppTheme.of(context).secondaryBackground,
                               borderRadius: BorderRadius.circular(16.0),
                             ),
                             child: Padding(
                               padding: const EdgeInsets.all(24.0),
-                            child: SingleChildScrollView(
-                              primary: false,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsetsDirectional.fromSTEB(
-                                        0.0, 0.0, 0.0, 18.0),
-                                    child: EmpresaLogoService.instance.obterLogoLoginWidget(
-                                      width: 260.0,
-                                      height: 94.6,
-                                      fit: BoxFit.cover,
-                                      borderRadius: BorderRadius.circular(8.0),
-                                    ),
-                                  ),
-                                  Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        'Login de Acesso',
-                                        style: AppTheme.of(context)
-                                            .bodyMedium
-                                            .override(
-                                              font: GoogleFonts.inter(
-                                                fontWeight:
-                                                    AppTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontWeight,
-                                                fontStyle:
-                                                    AppTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontStyle,
-                                              ),
-                                              color:
-                                                  AppTheme.of(context)
-                                                      .secondaryText,
-                                              letterSpacing: 0.0,
-                                              fontWeight:
-                                                  AppTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontWeight,
-                                              fontStyle:
-                                                  AppTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontStyle,
-                                            ),
+                              child: SingleChildScrollView(
+                                primary: false,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Padding(
+                                      padding:
+                                          const EdgeInsetsDirectional.fromSTEB(
+                                              0.0, 0.0, 0.0, 18.0),
+                                      child: EmpresaLogoService.instance
+                                          .obterLogoLoginWidget(
+                                        width: 260.0,
+                                        height: 94.6,
+                                        fit: BoxFit.contain,
+                                        borderRadius:
+                                            BorderRadius.circular(8.0),
                                       ),
-                                    ].divide(const SizedBox(height: 4.0)),
-                                  ),
-                                  if (AppState().is_first_access)
+                                    ),
+                                    Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          'Login de Acesso',
+                                          style: AppTheme.of(context)
+                                              .bodyMedium
+                                              .override(
+                                                font: GoogleFonts.inter(
+                                                  fontWeight:
+                                                      AppTheme.of(context)
+                                                          .bodyMedium
+                                                          .fontWeight,
+                                                  fontStyle:
+                                                      AppTheme.of(context)
+                                                          .bodyMedium
+                                                          .fontStyle,
+                                                ),
+                                                color: AppTheme.of(context)
+                                                    .secondaryText,
+                                                letterSpacing: 0.0,
+                                                fontWeight: AppTheme.of(context)
+                                                    .bodyMedium
+                                                    .fontWeight,
+                                                fontStyle: AppTheme.of(context)
+                                                    .bodyMedium
+                                                    .fontStyle,
+                                              ),
+                                        ),
+                                      ].divide(const SizedBox(height: 4.0)),
+                                    ),
+                                    if (AppState().is_first_access)
+                                      TextFormField(
+                                        controller: _model
+                                            .empresaCodigoFieldTextController,
+                                        focusNode:
+                                            _model.empresaCodigoFieldFocusNode,
+                                        textInputAction: TextInputAction.next,
+                                        obscureText: false,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Código da Empresa',
+                                          hintText:
+                                              'Digite o código da empresa',
+                                          enabledBorder: OutlineInputBorder(
+                                            borderSide: BorderSide(
+                                              color: Color(0x00000000),
+                                              width: 1.0,
+                                            ),
+                                            borderRadius: BorderRadius.only(
+                                              topLeft: Radius.circular(4.0),
+                                              topRight: Radius.circular(4.0),
+                                            ),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderSide: BorderSide(
+                                              color: Color(0x00000000),
+                                              width: 1.0,
+                                            ),
+                                            borderRadius: BorderRadius.only(
+                                              topLeft: Radius.circular(4.0),
+                                              topRight: Radius.circular(4.0),
+                                            ),
+                                          ),
+                                          errorBorder: OutlineInputBorder(
+                                            borderSide: BorderSide(
+                                              color: Color(0x00000000),
+                                              width: 1.0,
+                                            ),
+                                            borderRadius: BorderRadius.only(
+                                              topLeft: Radius.circular(4.0),
+                                              topRight: Radius.circular(4.0),
+                                            ),
+                                          ),
+                                          focusedErrorBorder:
+                                              OutlineInputBorder(
+                                            borderSide: BorderSide(
+                                              color: Color(0x00000000),
+                                              width: 1.0,
+                                            ),
+                                            borderRadius: BorderRadius.only(
+                                              topLeft: Radius.circular(4.0),
+                                              topRight: Radius.circular(4.0),
+                                            ),
+                                          ),
+                                          filled: true,
+                                        ),
+                                        style: const TextStyle(),
+                                        maxLines: null,
+                                        validator: _model
+                                            .empresaCodigoFieldTextControllerValidator
+                                            .asValidator(context),
+                                      ),
                                     TextFormField(
                                       controller: _model
-                                          .empresaCodigoFieldTextController,
+                                          .vendedorCodigoFieldTextController,
                                       focusNode:
-                                          _model.empresaCodigoFieldFocusNode,
-                                      textInputAction: TextInputAction.next,
+                                          _model.vendedorCodigoFieldFocusNode,
+                                      textInputAction: TextInputAction.go,
                                       obscureText: false,
                                       decoration: const InputDecoration(
-                                        labelText: 'Código da Empresa',
-                                        hintText: 'Digite o código da empresa',
+                                        labelText: 'Código do Vendedor',
+                                        hintText: 'Digite o código do vendedor',
                                         enabledBorder: OutlineInputBorder(
                                           borderSide: BorderSide(
                                             color: Color(0x00000000),
@@ -206,109 +266,137 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                       ),
                                       style: const TextStyle(),
                                       maxLines: null,
+                                      keyboardType: TextInputType.number,
                                       validator: _model
-                                          .empresaCodigoFieldTextControllerValidator
+                                          .vendedorCodigoFieldTextControllerValidator
                                           .asValidator(context),
                                     ),
-                                  TextFormField(
-                                    controller: _model
-                                        .vendedorCodigoFieldTextController,
-                                    focusNode:
-                                        _model.vendedorCodigoFieldFocusNode,
-                                    textInputAction: TextInputAction.go,
-                                    obscureText: false,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Código do Vendedor',
-                                      hintText: 'Digite o código do vendedor',
-                                      enabledBorder: OutlineInputBorder(
-                                        borderSide: BorderSide(
-                                          color: Color(0x00000000),
-                                          width: 1.0,
-                                        ),
-                                        borderRadius: BorderRadius.only(
-                                          topLeft: Radius.circular(4.0),
-                                          topRight: Radius.circular(4.0),
-                                        ),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderSide: BorderSide(
-                                          color: Color(0x00000000),
-                                          width: 1.0,
-                                        ),
-                                        borderRadius: BorderRadius.only(
-                                          topLeft: Radius.circular(4.0),
-                                          topRight: Radius.circular(4.0),
-                                        ),
-                                      ),
-                                      errorBorder: OutlineInputBorder(
-                                        borderSide: BorderSide(
-                                          color: Color(0x00000000),
-                                          width: 1.0,
-                                        ),
-                                        borderRadius: BorderRadius.only(
-                                          topLeft: Radius.circular(4.0),
-                                          topRight: Radius.circular(4.0),
-                                        ),
-                                      ),
-                                      focusedErrorBorder: OutlineInputBorder(
-                                        borderSide: BorderSide(
-                                          color: Color(0x00000000),
-                                          width: 1.0,
-                                        ),
-                                        borderRadius: BorderRadius.only(
-                                          topLeft: Radius.circular(4.0),
-                                          topRight: Radius.circular(4.0),
-                                        ),
-                                      ),
-                                      filled: true,
-                                    ),
-                                    style: const TextStyle(),
-                                    maxLines: null,
-                                    keyboardType: TextInputType.number,
-                                    validator: _model
-                                        .vendedorCodigoFieldTextControllerValidator
-                                        .asValidator(context),
-                                  ),
-                                  AppButtonWidget(
-                                    onPressed: () async {
-                                      AppState().is_loading = true;
-                                      safeSetState(() {});
-                                      if (AppState().is_first_access) {
-                                        _model.firstAccessResult =
-                                            await actions.firstAccessLogin(
-                                          _model
-                                              .empresaCodigoFieldTextController
-                                              .text,
-                                          _model
-                                              .vendedorCodigoFieldTextController
-                                              .text,
-                                        );
-                                        if (!context.mounted) return;
-                                        if (_model.firstAccessResult!.success) {
-                                          AppState().is_first_access = false;
-                                          safeSetState(() {});
-                                          _model.firstAccessLogin =
-                                              await actions.offlineLogin(
+                                    AppButtonWidget(
+                                      onPressed: () async {
+                                        AppState().is_loading = true;
+                                        safeSetState(() {});
+                                        if (AppState().is_first_access) {
+                                          _model.firstAccessResult =
+                                              await actions.firstAccessLogin(
+                                            _model
+                                                .empresaCodigoFieldTextController
+                                                .text,
                                             _model
                                                 .vendedorCodigoFieldTextController
                                                 .text,
                                           );
                                           if (!context.mounted) return;
                                           if (_model
-                                              .firstAccessLogin!.success) {
-                                            AppState().vendedor_codigo =
-                                                _model.firstAccessLogin!
-                                                    .vendedorCodigo;
+                                              .firstAccessResult!.success) {
+                                            AppState().is_first_access = false;
+                                            safeSetState(() {});
+                                            _model.firstAccessLogin =
+                                                await actions.offlineLogin(
+                                              _model
+                                                  .vendedorCodigoFieldTextController
+                                                  .text,
+                                            );
+                                            if (!context.mounted) return;
+                                            if (_model
+                                                .firstAccessLogin!.success) {
+                                              AppState().vendedor_codigo =
+                                                  _model.firstAccessLogin!
+                                                      .vendedorCodigo;
+                                              safeSetState(() {});
+                                              AppState().vendedor_nome = _model
+                                                  .firstAccessLogin!
+                                                  .vendedorNome;
+                                              safeSetState(() {});
+                                              AppState().vendedor_equipe =
+                                                  _model.firstAccessLogin!
+                                                      .vendedorEquipe;
+                                              safeSetState(() {});
+                                              final empTxt = _model
+                                                  .empresaCodigoFieldTextController
+                                                  .text
+                                                  .trim();
+                                              if (empTxt.isNotEmpty) {
+                                                AppState().empresa_codigo =
+                                                    empTxt;
+                                                safeSetState(() {});
+                                              }
+                                              AppState().is_loading = false;
+                                              safeSetState(() {});
+
+                                              context.pushNamed(
+                                                  HomePageWidget.routeName);
+                                            } else {
+                                              AppState().is_loading = false;
+                                              safeSetState(() {});
+                                              await showDialog(
+                                                context: context,
+                                                builder: (alertDialogContext) {
+                                                  return AlertDialog(
+                                                    title: const Text(
+                                                        'Login nao validado'),
+                                                    content: const Text(
+                                                        'Vendedor nao encontrado no banco local.'),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                                alertDialogContext),
+                                                        child: const Text('OK'),
+                                                      ),
+                                                    ],
+                                                  );
+                                                },
+                                              );
+                                            }
+                                          } else {
+                                            AppState().is_loading = false;
+                                            safeSetState(() {});
+                                            await showDialog(
+                                              context: context,
+                                              builder: (alertDialogContext) {
+                                                return AlertDialog(
+                                                  title: const Text(
+                                                      'Falha na carga inicial'),
+                                                  content: Text(_model
+                                                      .firstAccessResult!
+                                                      .message),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                              alertDialogContext),
+                                                      child: const Text('OK'),
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            );
+                                          }
+                                        } else {
+                                          _model.offlineLogin =
+                                              await actions.offlineLogin(
+                                            _model
+                                                .vendedorCodigoFieldTextController
+                                                .text,
+                                          );
+                                          if (!context.mounted) return;
+                                          if (_model.offlineLogin!.success) {
+                                            AppState().vendedor_codigo = _model
+                                                .offlineLogin!.vendedorCodigo;
                                             safeSetState(() {});
                                             AppState().vendedor_nome = _model
-                                                .firstAccessLogin!.vendedorNome;
+                                                .offlineLogin!.vendedorNome;
                                             safeSetState(() {});
                                             AppState().vendedor_equipe = _model
-                                                .firstAccessLogin!.vendedorEquipe;
+                                                .offlineLogin!.vendedorEquipe;
                                             safeSetState(() {});
-                                            final empTxt = _model.empresaCodigoFieldTextController.text.trim();
+                                            final empTxt = _model
+                                                .empresaCodigoFieldTextController
+                                                .text
+                                                .trim();
                                             if (empTxt.isNotEmpty) {
-                                              AppState().empresa_codigo = empTxt;
+                                              AppState().empresa_codigo =
+                                                  empTxt;
                                               safeSetState(() {});
                                             }
                                             AppState().is_loading = false;
@@ -339,120 +427,44 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                               },
                                             );
                                           }
-                                        } else {
-                                          AppState().is_loading = false;
-                                          safeSetState(() {});
-                                          await showDialog(
-                                            context: context,
-                                            builder: (alertDialogContext) {
-                                              return AlertDialog(
-                                                title: const Text(
-                                                    'Falha na carga inicial'),
-                                                content: Text(_model
-                                                    .firstAccessResult!
-                                                    .message),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(
-                                                            alertDialogContext),
-                                                    child: const Text('OK'),
-                                                  ),
-                                                ],
-                                              );
-                                            },
-                                          );
                                         }
-                                      } else {
-                                        _model.offlineLogin =
-                                            await actions.offlineLogin(
-                                          _model
-                                              .vendedorCodigoFieldTextController
-                                              .text,
-                                        );
-                                        if (!context.mounted) return;
-                                        if (_model.offlineLogin!.success) {
-                                          AppState().vendedor_codigo = _model
-                                              .offlineLogin!.vendedorCodigo;
-                                          safeSetState(() {});
-                                          AppState().vendedor_nome =
-                                              _model.offlineLogin!.vendedorNome;
-                                          safeSetState(() {});
-                                          AppState().vendedor_equipe =
-                                              _model.offlineLogin!.vendedorEquipe;
-                                          safeSetState(() {});
-                                          final empTxt = _model.empresaCodigoFieldTextController.text.trim();
-                                          if (empTxt.isNotEmpty) {
-                                            AppState().empresa_codigo = empTxt;
-                                            safeSetState(() {});
-                                          }
-                                          AppState().is_loading = false;
-                                          safeSetState(() {});
 
-                                          context.pushNamed(
-                                              HomePageWidget.routeName);
-                                        } else {
-                                          AppState().is_loading = false;
-                                          safeSetState(() {});
-                                          await showDialog(
-                                            context: context,
-                                            builder: (alertDialogContext) {
-                                              return AlertDialog(
-                                                title:
-                                                    const Text('Login nao validado'),
-                                                content: const Text(
-                                                    'Vendedor nao encontrado no banco local.'),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(
-                                                            alertDialogContext),
-                                                    child: const Text('OK'),
-                                                  ),
-                                                ],
-                                              );
-                                            },
-                                          );
-                                        }
-                                      }
-
-                                      safeSetState(() {});
-                                    },
-                                    text: 'ENTRAR',
-                                    options: AppButtonOptions(
-                                      width: double.infinity,
-                                      height: 50.0,
-                                      padding: const EdgeInsetsDirectional.fromSTEB(
-                                          0.0, 0.0, 0.0, 0.0),
-                                      iconPadding:
-                                          const EdgeInsetsDirectional.fromSTEB(
-                                              0.0, 0.0, 0.0, 0.0),
-                                      color:
-                                          AppTheme.of(context).primary,
-                                      textStyle: TextStyle(
-                                        color: AppTheme.of(context)
-                                            .secondaryBackground,
+                                        safeSetState(() {});
+                                      },
+                                      text: 'ENTRAR',
+                                      options: AppButtonOptions(
+                                        width: double.infinity,
+                                        height: 50.0,
+                                        padding: const EdgeInsetsDirectional
+                                            .fromSTEB(0.0, 0.0, 0.0, 0.0),
+                                        iconPadding: const EdgeInsetsDirectional
+                                            .fromSTEB(0.0, 0.0, 0.0, 0.0),
+                                        color: AppTheme.of(context).primary,
+                                        textStyle: TextStyle(
+                                          color: AppTheme.of(context)
+                                              .secondaryBackground,
+                                        ),
+                                        borderRadius:
+                                            BorderRadius.circular(8.0),
                                       ),
+                                    ),
+                                    ClipRRect(
                                       borderRadius: BorderRadius.circular(8.0),
+                                      child: Image.asset(
+                                        'assets/images/logo-empresa.png',
+                                        width: 200.0,
+                                        height: 50.2,
+                                        fit: BoxFit.contain,
+                                      ),
                                     ),
-                                  ),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8.0),
-                                    child: Image.asset(
-                                      'assets/images/logo-empresa.png',
-                                      width: 200.0,
-                                      height: 50.2,
-                                      fit: BoxFit.contain,
-                                    ),
-                                  ),
-                                ].divide(const SizedBox(height: 20.0)),
+                                  ].divide(const SizedBox(height: 20.0)),
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
                   ),
                 ),
               ),
