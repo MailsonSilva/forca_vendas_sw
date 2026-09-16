@@ -45,6 +45,14 @@ class SalesDatabaseRepository {
         await EmpresaLogoService.instance.sincronizarLogoDoBanco();
       } catch (_) {}
 
+      // Renomeia o arquivo original no FTP (removendo extensão e sufixando data/hora)
+      try {
+        final novoNomeCrg = gerarNomeArquivoRenomeado(crgName, DateTime.now());
+        await ftp.rename(crgName, novoNomeCrg);
+      } catch (_) {}
+
+      AppState().dataHoraUltimaCarga = DateTime.now();
+
       return SalesDatabaseInstallResult(
         message: 'Base local atualizada.',
         config: config,
@@ -52,6 +60,21 @@ class SalesDatabaseRepository {
     } finally {
       await ftp?.quit();
     }
+  }
+
+  /// Gera a nomenclatura pós-download exigida pelo servidor FTP:
+  /// ven+codigo do vendedor+.YYYY-MM-DD HH-mm-ss (data e hora separados por traço)
+  /// Exemplo: ven105.2025-03-07 14-08-02
+  static String gerarNomeArquivoRenomeado(String nomeArquivoOriginal, DateTime dataHora) {
+    final dotIndex = nomeArquivoOriginal.lastIndexOf('.');
+    final base = dotIndex != -1 ? nomeArquivoOriginal.substring(0, dotIndex) : nomeArquivoOriginal;
+    final y = dataHora.year.toString().padLeft(4, '0');
+    final m = dataHora.month.toString().padLeft(2, '0');
+    final d = dataHora.day.toString().padLeft(2, '0');
+    final h = dataHora.hour.toString().padLeft(2, '0');
+    final min = dataHora.minute.toString().padLeft(2, '0');
+    final s = dataHora.second.toString().padLeft(2, '0');
+    return '$base.$y-$m-$d $h-$min-$s';
   }
 
   Future<void> uploadLocalDatabase({

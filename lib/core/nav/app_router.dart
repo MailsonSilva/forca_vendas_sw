@@ -120,12 +120,22 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         AppRoute(
           name: ExtratoClientePageWidget.routeName,
           path: ExtratoClientePageWidget.routePath,
-          builder: (context, params) => ExtratoClientePageWidget(
-            codigoCliente: params.getParam(
-              'codigoCliente',
-              ParamType.String,
-            ),
-          ),
+          builder: (context, params) {
+            final codStr = params.getParam('codigoCliente', ParamType.String) ??
+                params.getParam('clienteId', ParamType.String) ??
+                params.getParam('clienteId', ParamType.int)?.toString();
+            final cliId = params.getParam('clienteId', ParamType.int) ??
+                params.getParam('codigoCliente', ParamType.int) ??
+                int.tryParse(codStr ?? '');
+            return ExtratoClientePageWidget(
+              codigoCliente: codStr,
+              clienteId: cliId,
+              modoBloqueio: params.getParam(
+                'modoBloqueio',
+                ParamType.bool,
+              ) ?? false,
+            );
+          },
         ),
         AppRoute(
           name: ClientePageWidget.routeName,

@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../app_state.dart';
 import '../data/services/local_sales_database_service.dart';
 import '../core/formatters/currency_formatter.dart';
 
@@ -21,6 +24,10 @@ class TituloDuplicataItem {
   final double taxaJurosDiaria;
   final double valorJuros;
   final double totalComJuros;
+  // SPEC-042: Mapeamento de Vendedor, Agente Cobrador e Tipo de Cobrança
+  final int codVen;
+  final int codAgt;
+  final int codCob;
 
   TituloDuplicataItem({
     required this.codigo,
@@ -36,6 +43,9 @@ class TituloDuplicataItem {
     this.taxaJurosDiaria = 0.0,
     this.valorJuros = 0.0,
     required this.totalComJuros,
+    this.codVen = 0,
+    this.codAgt = 0,
+    this.codCob = 0,
   });
 }
 
@@ -197,7 +207,18 @@ class ReceberDuplicatasService {
   static double _asDouble(dynamic val) {
     if (val == null) return 0.0;
     if (val is num) return val.toDouble();
-    return double.tryParse(val.toString()) ?? 0.0;
+    var str = val.toString().trim().replaceAll('R\$', '').replaceAll(' ', '');
+    if (str.isEmpty) return 0.0;
+    if (str.contains(',') && str.contains('.')) {
+      if (str.indexOf('.') < str.indexOf(',')) {
+        str = str.replaceAll('.', '').replaceAll(',', '.');
+      } else {
+        str = str.replaceAll(',', '');
+      }
+    } else if (str.contains(',')) {
+      str = str.replaceAll(',', '.');
+    }
+    return double.tryParse(str) ?? 0.0;
   }
 
   /// Carrega e processa a lista de duplicatas de um cliente
@@ -210,41 +231,115 @@ class ReceberDuplicatasService {
   }) async {
     final hoje = hojeRef ?? DateTime.now();
     final List<TituloDuplicataItem> titulos = [];
-    final shouldClose = dbOverride == null;
+    final List<Database> dbsToSearch = [];
+    final List<Database> dbsToClose = [];
 
     try {
-      final db = dbOverride ??
-          (dbPathOverride != null
-              ? await openDatabase(dbPathOverride)
-              : await LocalSalesDatabaseService.getDatabase(readOnly: true));
+      if (dbOverride != null) {
+        dbsToSearch.add(dbOverride);
+      }
+      if (dbPathOverride != null) {
+        try {
+          final d = await openDatabase(dbPathOverride);
+          dbsToSearch.add(d);
+          dbsToClose.add(d);
+        } catch (_) {}
+      }
 
       try {
-        final taxaJuros = taxaJurosOverride ?? 0.0;
-        // Identificar tabelas disponíveis
-        String targetTable = 'dup00';
-        for (final tbl in ['dup00', 'findup00', 'cadrecdup00', 'caddup00']) {
+        final databasesPath = await getDatabasesPath();
+        final mainDbPath = await LocalSalesDatabaseService.getDatabasePath();
+
+        final pathsToTry = <String>{};
+        if (dbOverride == null && dbPathOverride == null) {
+          pathsToTry.add(mainDbPath);
+        }
+        pathsToTry.add(p.join(databasesPath, 'dbforcadig001.db'));
+        pathsToTry.add(p.join(databasesPath, 'dbforcacad001.db'));
+
+        for (final pth in pathsToTry) {
+          if (dbOverride != null && pth == mainDbPath) continue;
           try {
-            final test = await db.rawQuery('SELECT 1 FROM $tbl LIMIT 1');
-            if (test.isNotEmpty || test.isEmpty) {
+            if (await File(pth).exists()) {
+              final d = await openDatabase(pth, readOnly: true);
+              dbsToSearch.add(d);
+              dbsToClose.add(d);
+            }
+          } catch (_) {}
+        }
+      } catch (_) {}
+
+      final candidateTables = [
+        'finrecdup00',
+        'dup00',
+        'caddup00',
+        'finrecdup',
+        'findup00',
+        'cadrecdup00',
+      ];
+
+      for (final db in dbsToSearch) {
+        if (titulos.isNotEmpty) break;
+
+        String targetTable = '';
+        String targetColCli = '';
+        String targetColVen = '';
+
+        for (final tbl in candidateTables) {
+          try {
+            final cols = await db.rawQuery('PRAGMA table_info($tbl)');
+            if (cols.isEmpty) continue;
+            final colNames = cols.map((r) => r['name'].toString().toLowerCase()).toSet();
+
+            String colCliExpr;
+            if (colNames.contains('dup00_codcli') && colNames.contains('dup00_clicod')) {
+              colCliExpr = 'COALESCE(dup00_codcli, dup00_clicod)';
+            } else if (colNames.contains('dup00_codcli')) {
+              colCliExpr = 'dup00_codcli';
+            } else if (colNames.contains('dup00_clicod')) {
+              colCliExpr = 'dup00_clicod';
+            } else if (colNames.contains('codcli')) {
+              colCliExpr = 'codcli';
+            } else if (colNames.contains('clicod')) {
+              colCliExpr = 'clicod';
+            } else if (colNames.contains('cli00_codigo')) {
+              colCliExpr = 'cli00_codigo';
+            } else {
+              continue;
+            }
+
+            final count = Sqflite.firstIntValue(await db.rawQuery(
+              'SELECT COUNT(*) FROM $tbl WHERE (CAST($colCliExpr AS INTEGER) = CAST(? AS INTEGER) OR $colCliExpr = ?)',
+              [codCli, codCli.toString()],
+            )) ?? 0;
+
+            if (count > 0) {
               targetTable = tbl;
+              targetColCli = colCliExpr;
+              targetColVen = colNames.contains('dup00_datven')
+                  ? 'dup00_datven'
+                  : (colNames.contains('datven') ? 'datven' : 'vencimento');
               break;
+            } else if (targetTable.isEmpty) {
+              targetTable = tbl;
+              targetColCli = colCliExpr;
+              targetColVen = colNames.contains('dup00_datven')
+                  ? 'dup00_datven'
+                  : (colNames.contains('datven') ? 'datven' : 'vencimento');
             }
           } catch (_) {}
         }
 
-        final cols = await db.rawQuery('PRAGMA table_info($targetTable)');
-        final colNames = cols.map((r) => r['name'].toString().toLowerCase()).toSet();
-        String colCli = colNames.contains('dup00_codcli')
-            ? 'dup00_codcli'
-            : (colNames.contains('codcli') ? 'codcli' : 'cli00_codigo');
-        String colVen = colNames.contains('dup00_datven')
-            ? 'dup00_datven'
-            : (colNames.contains('datven') ? 'datven' : 'vencimento');
+        if (targetTable.isEmpty) continue;
 
         final rows = await db.rawQuery(
-          'SELECT * FROM $targetTable WHERE $colCli = ? ORDER BY $colVen ASC',
-          [codCli],
+          'SELECT * FROM $targetTable WHERE (CAST($targetColCli AS INTEGER) = CAST(? AS INTEGER) OR $targetColCli = ?) ORDER BY $targetColVen ASC',
+          [codCli, codCli.toString()],
         );
+
+        if (rows.isEmpty) continue;
+
+        final Map<int, double> cacheTaxasRep = {};
 
         for (final r in rows) {
           final codigo = int.tryParse((r['dup00_codigo'] ?? r['codigo'] ?? '0').toString()) ?? 0;
@@ -264,18 +359,45 @@ class ReceberDuplicatasService {
             valDev = (valOri - valPag).clamp(0.0, double.infinity);
           }
 
-          // Se o saldo já foi totalmente quitado na retaguarda, ignoramos
-          if (valDev <= 0.0) continue;
+          if (valDev <= 0.0 && valOri > 0 && valPag < valOri) {
+            valDev = valOri - valPag;
+          }
 
-          final diasAtraso = calcularDiasAtraso(dtVen, hoje: hoje);
-          final isVencido = diasAtraso > 0;
-          final juros = isVencido
+          if (valDev <= 0.0 && valOri > 0 && valPag >= valOri) continue;
+
+          final codVen = int.tryParse((r['dup00_codven'] ?? r['codven'] ?? '0').toString()) ?? 0;
+          final codAgt = int.tryParse((r['dup00_codagt'] ?? r['codagt'] ?? '0').toString()) ?? 0;
+          final codCob = int.tryParse((r['dup00_codcob'] ?? r['codcob'] ?? '0').toString()) ?? 0;
+
+          double taxaAplicada = taxaJurosOverride ?? 0.0;
+          if (taxaAplicada <= 0.0 && codVen > 0) {
+            if (!cacheTaxasRep.containsKey(codVen)) {
+              cacheTaxasRep[codVen] = await obterTaxaJurosVendedor(codVen, dbOverride: db);
+            }
+            taxaAplicada = cacheTaxasRep[codVen] ?? 0.0;
+          }
+          if (taxaAplicada <= 0.0 && AppState().vendedor_codigo > 0) {
+            if (!cacheTaxasRep.containsKey(AppState().vendedor_codigo)) {
+              cacheTaxasRep[AppState().vendedor_codigo] =
+                  await obterTaxaJurosVendedor(AppState().vendedor_codigo, dbOverride: db);
+            }
+            taxaAplicada = cacheTaxasRep[AppState().vendedor_codigo] ?? 0.0;
+          }
+
+          final diasCalculados = calcularDiasAtraso(dtVen, hoje: hoje);
+          final isVencido = diasCalculados > 0;
+          final diasAtraso = isVencido ? diasCalculados : 0;
+          double juros = isVencido
               ? calcularJurosMora(
                   saldoDevedor: valDev,
-                  taxaJurosDiaria: taxaJuros,
+                  taxaJurosDiaria: taxaAplicada,
                   diasAtraso: diasAtraso,
                 )
               : 0.0;
+
+          if (juros <= 0.0 && r.containsKey('dup00_valjur') && r['dup00_valjur'] != null) {
+            juros = _asDouble(r['dup00_valjur']);
+          }
 
           titulos.add(TituloDuplicataItem(
             codigo: codigo,
@@ -283,22 +405,27 @@ class ReceberDuplicatasService {
             numeroDocumento: doc,
             dataEmissao: dtEmi,
             dataVencimento: dtVen,
-            valorOriginal: valOri,
+            valorOriginal: valOri > 0 ? valOri : valDev,
             valorPago: valPag,
             saldoDevedor: valDev,
             diasAtraso: diasAtraso,
             isVencido: isVencido,
-            taxaJurosDiaria: taxaJuros,
+            taxaJurosDiaria: taxaAplicada,
             valorJuros: juros,
             totalComJuros: valDev + juros,
+            codVen: codVen,
+            codAgt: codAgt,
+            codCob: codCob,
           ));
         }
-      } finally {
-        if (shouldClose) {
-          await db.close();
-        }
       }
-    } catch (_) {}
+    } finally {
+      for (final d in dbsToClose) {
+        try {
+          await d.close();
+        } catch (_) {}
+      }
+    }
 
     return titulos;
   }
@@ -324,27 +451,56 @@ class ReceberDuplicatasService {
               : await LocalSalesDatabaseService.getDatabase(readOnly: true));
 
       try {
-        // 1. Identifica tabelas
-        String dupTable = 'dup00';
-        for (final tbl in ['dup00', 'findup00', 'cadrecdup00']) {
+        // 1. Identifica tabelas candidatas procurando a que contém registros
+        final candidateTables = [
+          'finrecdup00',
+          'dup00',
+          'caddup00',
+          'finrecdup',
+          'findup00',
+          'cadrecdup00',
+        ];
+
+        String dupTable = '';
+        String colDev = '';
+        String colOri = '';
+        String colPag = '';
+
+        for (final tbl in candidateTables) {
           try {
-            await db.rawQuery('SELECT 1 FROM $tbl LIMIT 1');
-            dupTable = tbl;
-            break;
+            final dupCols = await db.rawQuery('PRAGMA table_info($tbl)');
+            if (dupCols.isEmpty) continue;
+            final dupColNames = dupCols.map((r) => r['name'].toString().toLowerCase()).toSet();
+            final cDev = dupColNames.contains('dup00_valdev')
+                ? 'dup00_valdev'
+                : (dupColNames.contains('valdev') ? 'valdev' : 'saldo');
+            final cOri = dupColNames.contains('dup00_valori')
+                ? 'dup00_valori'
+                : (dupColNames.contains('valori') ? 'valori' : 'valor');
+            final cPag = dupColNames.contains('dup00_valpag')
+                ? 'dup00_valpag'
+                : (dupColNames.contains('valpag') ? 'valpag' : 'pago');
+
+            final count = Sqflite.firstIntValue(await db.rawQuery(
+              'SELECT COUNT(*) FROM $tbl WHERE $cDev > 0 OR ($cOri - $cPag) > 0',
+            )) ?? 0;
+
+            if (count > 0) {
+              dupTable = tbl;
+              colDev = cDev;
+              colOri = cOri;
+              colPag = cPag;
+              break;
+            } else if (dupTable.isEmpty) {
+              dupTable = tbl;
+              colDev = cDev;
+              colOri = cOri;
+              colPag = cPag;
+            }
           } catch (_) {}
         }
 
-        final dupCols = await db.rawQuery('PRAGMA table_info($dupTable)');
-        final dupColNames = dupCols.map((r) => r['name'].toString().toLowerCase()).toSet();
-        String colDev = dupColNames.contains('dup00_valdev')
-            ? 'dup00_valdev'
-            : (dupColNames.contains('valdev') ? 'valdev' : 'saldo');
-        String colOri = dupColNames.contains('dup00_valori')
-            ? 'dup00_valori'
-            : (dupColNames.contains('valori') ? 'valori' : 'valor');
-        String colPag = dupColNames.contains('dup00_valpag')
-            ? 'dup00_valpag'
-            : (dupColNames.contains('valpag') ? 'valpag' : 'pago');
+        if (dupTable.isEmpty) return resultado;
 
         // 2. Consulta títulos com saldo devedor
         final dupRows = await db.rawQuery('''
@@ -356,16 +512,17 @@ class ReceberDuplicatasService {
           return resultado;
         }
 
-        // 3. Agrupa títulos por cliente
+        // 3. Agrupa títulos por cliente (SPEC-044/045: priorizar dup00_codcli / dup00_clicod)
         final Map<int, List<Map<String, dynamic>>> titulosPorCliente = {};
         for (final r in dupRows) {
           final codCli = int.tryParse(
-                  (r['dup00_codcli'] ?? r['codcli'] ?? '0').toString()) ??
+                  (r['dup00_codcli'] ?? r['dup00_clicod'] ?? r['codcli'] ?? r['clicod'] ?? '0').toString()) ??
               0;
           if (codCli > 0) {
             titulosPorCliente.putIfAbsent(codCli, () => []).add(r);
           }
         }
+
 
         if (titulosPorCliente.isEmpty) {
           return resultado;
@@ -380,7 +537,7 @@ class ReceberDuplicatasService {
 
         final codsList = titulosPorCliente.keys.join(',');
         final cliRows = await db.rawQuery(
-          'SELECT * FROM cadcli00 WHERE $colCliKey IN ($codsList)',
+          'SELECT * FROM cadcli00 WHERE CAST($colCliKey AS INTEGER) IN ($codsList)',
         );
         final Map<int, Map<String, dynamic>> cliMap = {
           for (final c in cliRows)
@@ -452,6 +609,10 @@ class ReceberDuplicatasService {
               totalAVencer += valDev;
             }
 
+            final codVen = int.tryParse((r['dup00_codven'] ?? r['codven'] ?? '0').toString()) ?? 0;
+            final codAgt = int.tryParse((r['dup00_codagt'] ?? r['codagt'] ?? '0').toString()) ?? 0;
+            final codCob = int.tryParse((r['dup00_codcob'] ?? r['codcob'] ?? '0').toString()) ?? 0;
+
             titulosCliente.add(TituloDuplicataItem(
               codigo: codigo,
               codCli: codCli,
@@ -466,6 +627,9 @@ class ReceberDuplicatasService {
               taxaJurosDiaria: taxaJuros,
               valorJuros: juros,
               totalComJuros: valDev + juros,
+              codVen: codVen,
+              codAgt: codAgt,
+              codCob: codCob,
             ));
           }
 

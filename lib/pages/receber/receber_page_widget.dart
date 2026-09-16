@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../components/extrato_duplicatas/extrato_duplicatas_widget.dart';
+import '../cliente/extrato_cliente_page/extrato_cliente_page_widget.dart';
 import '../../core/app_theme.dart';
 import '../../core/app_util.dart';
 import '../../services/receber_duplicatas_service.dart';
@@ -438,7 +438,7 @@ class _ReceberPageWidgetState extends State<ReceberPageWidget> {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
-          ExtratoDuplicatasWidget.show(context, cliente: item);
+          ExtratoClientePageWidget.show(context, cliente: item);
         },
         child: Container(
           padding: const EdgeInsets.all(16),

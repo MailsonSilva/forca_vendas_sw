@@ -5,6 +5,7 @@ import '../../app_constants.dart';
 import '../../app_state.dart';
 import '../../services/receber_duplicatas_service.dart';
 import '../../core/formatters/currency_formatter.dart';
+import '../../data/services/local_sales_database_service.dart';
 
 class BloqueioFinanceiroResult {
   final bool bloqueado;
@@ -174,6 +175,78 @@ class BloqueioFinanceiroService {
       }
     } catch (_) {}
     return itens;
+  }
+
+  /// SPEC-042: Validação de crédito e inadimplência no momento da seleção do cliente (doCLISelect)
+  /// Bloqueia caso:
+  /// 1. `cli00_titven > 0` (possui saldo vencido cadastrado em cadcli00)
+  /// 2. `cli00_creatu <= 0` (limite estourado ou indisponível)
+  /// 3. Possua títulos em atraso na tabela local dup00
+  static Future<BloqueioFinanceiroResult> verificaInadimplenciaCliente(
+    int cliCodigo, {
+    String? dbPathOverride,
+  }) async {
+    double titVen = 0.0;
+    double creAtu = 0.0;
+    double creLim = 0.0;
+    bool encontrouCliente = false;
+
+    try {
+      final db = await (dbPathOverride != null
+          ? openDatabase(dbPathOverride)
+          : LocalSalesDatabaseService.getDatabase());
+      final shouldClose = dbPathOverride != null;
+
+      try {
+        final r = await db.rawQuery(
+          'SELECT cli00_titven, cli00_creatu, cli00_crelim FROM cadcli00 WHERE cli00_codigo = ? LIMIT 1',
+          [cliCodigo],
+        );
+        if (r.isNotEmpty) {
+          encontrouCliente = true;
+          final row = r.first;
+          titVen = (row['cli00_titven'] is num)
+              ? (row['cli00_titven'] as num).toDouble()
+              : double.tryParse(row['cli00_titven']?.toString() ?? '0') ?? 0.0;
+          creAtu = (row['cli00_creatu'] is num)
+              ? (row['cli00_creatu'] as num).toDouble()
+              : double.tryParse(row['cli00_creatu']?.toString() ?? '0') ?? 0.0;
+          creLim = (row['cli00_crelim'] is num)
+              ? (row['cli00_crelim'] as num).toDouble()
+              : double.tryParse(row['cli00_crelim']?.toString() ?? '0') ?? 0.0;
+        }
+      } finally {
+        if (shouldClose) await db.close();
+      }
+    } catch (_) {}
+
+    // 1. Débitos vencidos no cadastro do cliente
+    if (titVen > 0) {
+      return BloqueioFinanceiroResult(
+        bloqueado: true,
+        motivo: 'Cliente possui débitos em aberto no valor de ${titVen.toMoeda()}!',
+      );
+    }
+
+    // 2. Limite de crédito esgotado
+    if (encontrouCliente && (creAtu <= 0 && creLim > 0)) {
+      return BloqueioFinanceiroResult(
+        bloqueado: true,
+        motivo: 'Limite de crédito esgotado ou indisponível (Saldo: ${creAtu.toMoeda()}).',
+      );
+    }
+
+    // 3. Títulos vencidos na tabela dup00
+    final titulos = await listarTitulosVencidos(cliCodigo, dbPathOverride: dbPathOverride);
+    if (titulos.isNotEmpty) {
+      final totalVenc = titulos.fold<double>(0.0, (acc, t) => acc + t.saldoDevedor);
+      return BloqueioFinanceiroResult(
+        bloqueado: true,
+        motivo: 'Cliente possui ${titulos.length} título(s) vencido(s) no total de ${totalVenc.toMoeda()}!',
+      );
+    }
+
+    return BloqueioFinanceiroResult(bloqueado: false, motivo: '');
   }
 
   /// Verifica duplicatas atrasadas via tabela findup00/dup00 se existir.

@@ -1783,7 +1783,10 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                                     ),
                                                               ),
                                                               Text(
-                                                                '${functions.formatQuantity(listaProdutoItem.saldoEstoque, unidade: listaProdutoItem.unidade)} ${listaProdutoItem.unidade}',
+                                                                functions.formatQuantity(
+                                                                  listaProdutoItem.saldoEstoque,
+                                                                  unidade: listaProdutoItem.unidade,
+                                                                ),
                                                                 style: AppTheme.of(
                                                                         context)
                                                                     .bodyMedium
@@ -1854,12 +1857,16 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                                 valueOrDefault<
                                                                     String>(
                                                                   listaProdutoItem
-                                                                          .embalagem
+                                                                          .unidade
                                                                           .isNotEmpty
                                                                       ? listaProdutoItem
-                                                                          .embalagem
-                                                                      : listaProdutoItem
-                                                                          .unidade,
+                                                                          .unidade
+                                                                      : (listaProdutoItem
+                                                                              .embalagem
+                                                                              .isNotEmpty
+                                                                          ? listaProdutoItem
+                                                                              .embalagem
+                                                                          : 'UN'),
                                                                   'UN',
                                                                 ),
                                                                 style: AppTheme.of(

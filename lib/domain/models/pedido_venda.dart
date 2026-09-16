@@ -92,6 +92,8 @@ class PedidoVenda {
     this.sttEnv = PedidoSttEnv.digitado,
     // PRD 1 §2 — age00_tipo → dig00_digcob (classificação cobrança)
     this.tipoAgente = 0,
+    // SPEC-042 — Campo Observação do Pedido (dig00_digobs)
+    this.observacao = '',
   });
 
   final int codFil;
@@ -109,6 +111,9 @@ class PedidoVenda {
   double fattot;
   final String datSys;
   final List<ItemPedidoVenda> items;
+
+  // SPEC-042 — Observação do pedido (dig00_digobs)
+  final String observacao;
 
   // Snapshots TEXT gravados no ato da digitação (PRD dig00_clides/lindes/plades)
   final String clides;

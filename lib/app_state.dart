@@ -11,6 +11,7 @@ class AppState extends ChangeNotifier {
   static const _dbSyncTextKey = 'app_dbSyncText';
   static const _pastaDownloadKey = 'app_pastaDownload0';
   static const _pastaUploadKey = 'app_pastaUpload0';
+  static const _dataHoraUltimaCargaKey = 'app_data_hora_ultima_carga';
 
   static AppState _instance = AppState._internal();
 
@@ -54,6 +55,12 @@ class AppState extends ChangeNotifier {
     });
     _safeInit(() {
       _pastaUpload0 = prefs.getString(_pastaUploadKey) ?? _pastaUpload0;
+    });
+    _safeInit(() {
+      final str = prefs.getString(_dataHoraUltimaCargaKey);
+      if (str != null && str.isNotEmpty) {
+        _dataHoraUltimaCarga = DateTime.tryParse(str);
+      }
     });
     _safeInit(() {
       _codFilialAtiva = prefs.getInt(_codFilialAtivaKey) ?? _codFilialAtiva;
@@ -323,6 +330,34 @@ class AppState extends ChangeNotifier {
     _ven_passet = value;
     try { prefs.setString(_venPassetKey, value); } catch (_) {}
     notifyListeners();
+  }
+
+  /// Data e hora da última carga recebida com sucesso (fcfGETCRG = 3)
+  DateTime? _dataHoraUltimaCarga;
+  DateTime? get dataHoraUltimaCarga => _dataHoraUltimaCarga;
+  set dataHoraUltimaCarga(DateTime? value) {
+    _dataHoraUltimaCarga = value;
+    try {
+      if (value != null) {
+        prefs.setString(_dataHoraUltimaCargaKey, value.toIso8601String());
+      } else {
+        prefs.remove(_dataHoraUltimaCargaKey);
+      }
+    } catch (_) {}
+    notifyListeners();
+  }
+
+  String get dataHoraUltimaCargaFormatada {
+    if (_dataHoraUltimaCarga == null) {
+      return 'Última atualização: Não realizada';
+    }
+    final dt = _dataHoraUltimaCarga!;
+    final d = dt.day.toString().padLeft(2, '0');
+    final m = dt.month.toString().padLeft(2, '0');
+    final y = dt.year.toString();
+    final h = dt.hour.toString().padLeft(2, '0');
+    final min = dt.minute.toString().padLeft(2, '0');
+    return 'Última atualização: $d/$m/$y às $h:$min';
   }
 }
 

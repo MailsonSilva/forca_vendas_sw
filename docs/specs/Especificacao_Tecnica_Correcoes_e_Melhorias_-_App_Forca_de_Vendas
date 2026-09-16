@@ -1,0 +1,34 @@
+# 📄 Especificação Técnica: Correções e Melhorias - App Força de Vendas
+
+Esta especificação define 4 implementações necessárias no aplicativo Flutter, garantindo o espelhamento correto das regras de negócio do sistema legado em C++/Qt.
+
+## 1. Data e Hora da Última Atualização (Home Page)
+*   **Objetivo:** Exibir visualmente para o usuário o momento exato em que a última carga de dados foi recebida.
+*   **Implementação:** 
+    * Na tela Home, adicionar um widget de texto (ex: `Text`) centralizado na parte inferior, logo acima dos botões de navegação.
+    * O valor exibido deve ser o registro temporal (Timestamp/DateTime) gravado no momento em que a função de carga (`fcfGETCRG = 3`) for concluída com sucesso[cite: 7].
+    * Sugestão de formato: `Última atualização: DD/MM/AAAA às HH:MM`.
+
+## 2. Exibição de Estoque no Card de Produtos
+*   **Objetivo:** Corrigir a concatenação incorreta da sigla de unidade (ex: "PC") ao lado da quantidade de estoque.
+*   **Implementação:**
+    * Na UI, remover qualquer string fixa (como " PC" ou " PR") vinculada ao valor do estoque.
+    * Ler a quantidade pura diretamente do campo `pro00_qtdest` (tabela de produtos)[cite: 9].
+    * Para exibir a unidade comercial correta, fazer a leitura e exibição separada do campo `pro00_unidad`[cite: 9].
+
+## 3. Exibição da Referência do Produto
+*   **Objetivo:** Garantir que o card de produto carregue e exiba o código de barras/referência corretamente.
+*   **Implementação:**
+    * Ajustar a query SQL que carrega a lista de produtos para incluir os campos de referência, especificamente o campo `pro00_codbar` (Código de Barras) presente na estrutura da tabela `cadpro00`[cite: 9].
+    * Realizar o *binding* deste campo no layout do card do produto para que seja visível na listagem e na tela de pesquisa.
+
+## 4. Atualização da Carga de Dados e Renomeação no FTP
+*   **Objetivo:** Refatorar o fluxo de "Baixar Carga" para garantir a substituição integral do banco de dados e aplicar a regra de renomeação de arquivo exigida pelo servidor.
+*   **Implementação - Substituição do Banco:**
+    * Quando a nova carga (arquivo de banco de dados `.db`[cite: 1]) for baixada, o sistema **não** deve fazer inserts/updates parciais. 
+    * O arquivo atual do banco de dados (ex: `dbforcadig001.db`) deve ser fisicamente deletado e substituído de forma integral pelo arquivo recém-baixado[cite: 1].
+    * O aplicativo deve fechar as conexões ativas com o SQLite antes da substituição e reabrir/reinstanciar o banco em memória logo em seguida.
+*   **Implementação - Renomeação no FTP:**
+    * Após o download bem-sucedido, conectar ao cliente FTP e executar a renomeação do arquivo original de carga que está no servidor.
+    * **Regra de Nomenclatura:** O arquivo original deve perder a sua extensão e receber um sufixo com a **data e hora atual do download**.
+    * *Exemplo lógico:* Se o arquivo original era `carga_105.db`, o comando `ftpClient.rename()` deve alterá-lo para algo como `carga_105_20260915_145440` (removendo a extensão e sufixando o momento da baixa).

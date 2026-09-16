@@ -5,8 +5,6 @@ import '/core/app_util.dart';
 import '/functions/proximo_numero_pedido.dart';
 import '/index.dart';
 import '/domain/services/bloqueio_financeiro_service.dart';
-import '/backend/schema/structs/index.dart';
-import '/data/services/local_sales_database_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'pedido_novo_inicio_model.dart';
@@ -25,10 +23,7 @@ class PedidoNovoInicioWidget extends StatefulWidget {
 class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
   late PedidoNovoInicioModel _model;
   final scaffoldKey = GlobalKey<ScaffoldState>();
-  // PRD 1 §4A — pré-carregamento mandatório cli00_codage
-  String? _agentePreCodigo;
-  String? _agentePreDescricao;
-  bool _agentePreLoading = false;
+
 
   @override
   void initState() {
@@ -69,251 +64,9 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
     return val.toMoeda();
   }
 
-  // PRD 1 §4A — busca cli00_codage e descrição do agente em codage00/cadagt00
-  Future<void> _prefetchAgente(ClienteResultStruct c) async {
-    final cod = c.cli00Codage;
-    if (cod == 0) {
-      safeSetState(() {
-        _agentePreCodigo = null;
-        _agentePreDescricao = null;
-        _agentePreLoading = false;
-      });
-      return;
-    }
-    safeSetState(() => _agentePreLoading = true);
-    String? desc;
-    final codStr = cod.toString();
-    try {
-      final db = await LocalSalesDatabaseService.getDatabase();
-      for (final tbl in ['codage00', 'cadagt00', 'cadage00', 'cadcob00', 'codcob00', 'cadcob000', 'cadage000', 'cadagt000']) {
-        try {
-          final exists = await db.rawQuery(
-              "SELECT name FROM sqlite_master WHERE type='table' AND lower(name)=?", [tbl]);
-          if (exists.isEmpty) continue;
-          final cols = await db.rawQuery('PRAGMA table_info($tbl)');
-          final cn = cols.map((r) => r['name'].toString().toLowerCase()).toSet();
-          String? codCol;
-          String? descCol;
-          for (final cand in ['age00_codigo', 'agt00_codigo', 'agt00_codage', 'agt00_codagt', 'cob00_codigo', 'cob00_codcob', 'cad00_codigo', 'codigo']) {
-            if (cn.contains(cand)) { codCol = cand; break; }
-          }
-          for (final cand in ['age00_descri', 'agt00_descri', 'agt00_descricao', 'agt00_nome', 'age00_descricao', 'age00_nome', 'cob00_descri', 'cob00_descricao', 'cob00_nome', 'descricao', 'descri', 'nome']) {
-            if (cn.contains(cand)) { descCol = cand; break; }
-          }
-          if (codCol == null || descCol == null) continue;
-          final r = await db.rawQuery('SELECT $descCol as d FROM $tbl WHERE $codCol = ? LIMIT 1', [cod]);
-          if (r.isNotEmpty && r.first['d'] != null) {
-            desc = r.first['d'].toString();
-            break;
-          }
-        } catch (_) {}
-      }
-    } catch (_) {}
-    if (!mounted) return;
-    safeSetState(() {
-      _agentePreCodigo = codStr;
-      // Se não achou descrição, mantém código; integridade referencial valida depois
-      _agentePreDescricao = (desc != null && desc.trim().isNotEmpty) ? desc : null;
-      _agentePreLoading = false;
-    });
-  }
 
-  /// Modal informativo de títulos vencidos (dup00) ao selecionar o cliente
-  Future<void> _exibirModalTitulosVencidos(BuildContext context, List<TituloVencidoItem> titulos, String clienteNome) async {
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Align(
-          alignment: Alignment.bottomCenter,
-          heightFactor: 1.0,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600.0),
-            child: Material(
-              color: Colors.transparent,
-              child: Container(
-                height: MediaQuery.of(ctx).size.height * 0.75,
-                decoration: BoxDecoration(
-                  color: AppTheme.of(ctx).primaryBackground,
-                  boxShadow: const [
-                    BoxShadow(
-                      blurRadius: 10.0,
-                      color: Color(0x33000000),
-                      offset: Offset(0.0, -2.0),
-                    )
-                  ],
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20.0),
-                    topRight: Radius.circular(20.0),
-                  ),
-                ),
-                child: SafeArea(
-                  top: false,
-                  bottom: true,
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 10.0, bottom: 4.0),
-                        child: Container(
-                          width: 40.0,
-                          height: 4.0,
-                          decoration: BoxDecoration(
-                            color: Colors.grey.withValues(alpha: 0.35),
-                            borderRadius: BorderRadius.circular(2.0),
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          'Títulos Vencidos em Aberto',
-                                          style: AppTheme.of(ctx).titleLarge.override(
-                                                font: GoogleFonts.outfit(
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                                color: AppTheme.of(ctx).primaryText,
-                                                fontSize: 18.0,
-                                              ),
-                                        ),
-                                        Text(
-                                          clienteNome,
-                                          style: AppTheme.of(ctx).bodySmall.override(
-                                                font: GoogleFonts.inter(),
-                                                color: AppTheme.of(ctx).secondaryText,
-                                                fontSize: 12.0,
-                                              ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            AppIconButton(
-                              borderColor: const Color(0xFFE0E3E7),
-                              borderRadius: 12.0,
-                              borderWidth: 1.0,
-                              buttonSize: 38.0,
-                              icon: Icon(
-                                Icons.close_rounded,
-                                color: AppTheme.of(ctx).primaryText,
-                                size: 18.0,
-                              ),
-                              onPressed: () => Navigator.pop(ctx),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Divider(height: 1.0, thickness: 1.0),
-                      Expanded(
-                        child: ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                          itemCount: titulos.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 10),
-                          itemBuilder: (context, idx) {
-                            final t = titulos[idx];
-                            return Container(
-                              padding: const EdgeInsets.all(14.0),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFF8E1),
-                                borderRadius: BorderRadius.circular(12.0),
-                                border: Border.all(color: const Color(0xFFFFE082)),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        'Documento: ${t.numeroDocumento}',
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1D2429)),
-                                      ),
-                                      Text(
-                                        t.valor.toMoeda(),
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFFC62828)),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        'Vencimento: ${t.dataVencimento}',
-                                        style: const TextStyle(fontSize: 13, color: Colors.black87),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFFFCDD2),
-                                          borderRadius: BorderRadius.circular(6.0),
-                                        ),
-                                        child: Text(
-                                          '${t.diasAtraso}d atraso',
-                                          style: const TextStyle(color: Color(0xFFB71C1C), fontSize: 11, fontWeight: FontWeight.bold),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      SafeArea(
-                        top: false,
-                        child: Container(
-                          padding: const EdgeInsets.all(16.0),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, -2))],
-                          ),
-                          child: SizedBox(
-                            width: double.infinity,
-                            height: 48,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.of(context).primary,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                              onPressed: () => Navigator.pop(ctx),
-                              child: const Text(
-                                'Continuar Digitação',
-                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
+
+
 
   void _showClientBottomSheet() {
     String searchQuery = '';
@@ -326,11 +79,15 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             final filtered = _model.clientes.where((c) {
-              final term = searchQuery.toLowerCase();
+              final term = searchQuery.trim().toLowerCase();
+              if (term.isEmpty) return true;
               final name = c.cli00Descri.toLowerCase();
               final fantas = c.cli00Fantas.toLowerCase();
               final cod = c.cli00Codigo.toString();
-              return name.contains(term) || fantas.contains(term) || cod.contains(term);
+              final cpfClean = c.cli00Cpfcnp.replaceAll(RegExp(r'[^0-9]'), '');
+              final termClean = term.replaceAll(RegExp(r'[^0-9]'), '');
+              final matchCpf = termClean.isNotEmpty && cpfClean.contains(termClean);
+              return name.contains(term) || fantas.contains(term) || cod.contains(term) || matchCpf;
             }).toList();
 
             return Align(
@@ -341,7 +98,7 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                 child: Material(
                   color: Colors.transparent,
                   child: Container(
-                    height: MediaQuery.of(context).size.height * 0.8,
+                    height: MediaQuery.of(context).size.height * 0.85,
                     decoration: BoxDecoration(
                       color: AppTheme.of(context).primaryBackground,
                       boxShadow: const [
@@ -425,7 +182,7 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                     child: TextField(
                       autofocus: true,
                       decoration: InputDecoration(
-                        hintText: 'Pesquise por nome, fantasia ou código...',
+                        hintText: 'Pesquise por razão, fantasia, código ou CPF/CNPJ...',
                         prefixIcon: Icon(Icons.search_rounded, color: AppTheme.of(context).secondaryText),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8.0),
@@ -465,39 +222,55 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                             itemBuilder: (context, index) {
                               final c = filtered[index];
                               final isSelected = _model.selectedCliente?.cli00Codigo == c.cli00Codigo;
+                              final hasDebito = (c.cli00Titven) > 0;
+
                               return Container(
-                                margin: const EdgeInsets.only(bottom: 8.0),
+                                margin: const EdgeInsets.only(bottom: 10.0),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? AppTheme.of(context).primary.withValues(alpha: 0.08) : Colors.white,
+                                  color: isSelected
+                                      ? AppTheme.of(context).primary.withValues(alpha: 0.08)
+                                      : (hasDebito ? const Color(0xFFFFF5F5) : Colors.white),
                                   borderRadius: BorderRadius.circular(12.0),
                                   border: Border.all(
-                                    color: isSelected ? AppTheme.of(context).primary : const Color(0xFFE0E3E7),
-                                    width: isSelected ? 2.0 : 1.0,
+                                    color: hasDebito
+                                        ? const Color(0xFFE53935)
+                                        : (isSelected ? AppTheme.of(context).primary : const Color(0xFFE0E3E7)),
+                                    width: (hasDebito || isSelected) ? 1.5 : 1.0,
                                   ),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x0A000000),
+                                      blurRadius: 3,
+                                      offset: Offset(0, 1),
+                                    )
+                                  ],
                                 ),
-                                child: ListTile(
-                                  title: Text(
-                                    '${c.cli00Codigo} - ${c.cli00Descri}',
-                                    style: AppTheme.of(context).bodyLarge.override(
-                                          font: GoogleFonts.inter(fontWeight: FontWeight.w600),
-                                        ),
-                                  ),
-                                  subtitle: Text(
-                                    c.cli00Fantas,
-                                    style: AppTheme.of(context).bodyMedium.override(
-                                          font: GoogleFonts.inter(
-                                            color: AppTheme.of(context).secondaryText,
-                                          ),
-                                        ),
-                                  ),
-                                  trailing: isSelected ? Icon(Icons.check_circle_rounded, color: AppTheme.of(context).primary) : null,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(12.0),
                                   onTap: () async {
                                     final selected = c;
+
+                                    // SPEC-042 Requisito 3: Validação de Crédito e Disparo Compulsório do Extrato
+                                    final statusBloqueio = await BloqueioFinanceiroService.verificaInadimplenciaCliente(selected.cli00Codigo);
+                                    if (statusBloqueio.bloqueado) {
+                                      if (!context.mounted) return;
+                                      // Abre compulsoriamente o Extrato em modo bloqueio
+                                      final bool? liberado = await ExtratoClientePageWidget.show(
+                                        context,
+                                        codigoCliente: selected.cli00Codigo,
+                                        modoBloqueio: true,
+                                      );
+
+                                      // Se o vendedor não confirmou ciência ("Ciência e Liberar Pedido"), bloqueia o avanço
+                                      if (liberado != true) {
+                                        return;
+                                      }
+                                    }
+
                                     safeSetState(() {
                                       _model.selectedCliente = selected;
                                     });
-                                    // PRD 1 §4A — pré-carregamento mandatório cli00_codage
-                                    _prefetchAgente(selected);
+
 
                                     // PRD Seção 2 — Filtragem cruzada de planos para o cliente selecionado
                                     final novosPlanos = await carregarPlanosDisponiveisCliente(
@@ -518,13 +291,163 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                                     if (context.mounted) {
                                       Navigator.pop(context);
                                     }
-
-                                    // Consulta se o cliente possui títulos em atraso (dup00)
-                                    final titulos = await BloqueioFinanceiroService.listarTitulosVencidos(selected.cli00Codigo);
-                                    if (titulos.isNotEmpty && mounted) {
-                                      await _exibirModalTitulosVencidos(this.context, titulos, selected.cli00Descri);
-                                    }
                                   },
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12.0),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // Corpo principal das informações do cliente
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              // Linha 1: Código e Razão Social
+                                              Text(
+                                                '${c.cli00Codigo} - ${c.cli00Descri}',
+                                                style: AppTheme.of(context).bodyLarge.override(
+                                                      font: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                                                      fontSize: 14.0,
+                                                      color: hasDebito ? const Color(0xFFB71C1C) : AppTheme.of(context).primaryText,
+                                                    ),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 3.0),
+                                              // Linha 2: Nome Fantasia
+                                              if (c.cli00Fantas.isNotEmpty)
+                                                Text(
+                                                  c.cli00Fantas,
+                                                  style: AppTheme.of(context).bodyMedium.override(
+                                                        font: GoogleFonts.inter(fontWeight: FontWeight.w500),
+                                                        color: AppTheme.of(context).secondaryText,
+                                                        fontSize: 13.0,
+                                                      ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              const SizedBox(height: 6.0),
+                                              // Linha 3: CPF / CNPJ e Cidade / UF
+                                              Wrap(
+                                                spacing: 12.0,
+                                                runSpacing: 4.0,
+                                                children: [
+                                                  if (c.cli00Cpfcnp.isNotEmpty)
+                                                    Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Icon(Icons.badge_outlined, size: 14.0, color: AppTheme.of(context).secondaryText),
+                                                        const SizedBox(width: 4.0),
+                                                        Text(
+                                                          _formatCpfCnpj(c.cli00Cpfcnp),
+                                                          style: AppTheme.of(context).bodySmall.override(
+                                                                font: GoogleFonts.inter(),
+                                                                fontSize: 12.0,
+                                                                color: AppTheme.of(context).secondaryText,
+                                                              ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  if (c.cli00Ciddes.isNotEmpty || c.cli00Estsgl.isNotEmpty)
+                                                    Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Icon(Icons.location_on_outlined, size: 14.0, color: AppTheme.of(context).secondaryText),
+                                                        const SizedBox(width: 4.0),
+                                                        Text(
+                                                          '${c.cli00Ciddes}${c.cli00Ciddes.isNotEmpty && c.cli00Estsgl.isNotEmpty ? " / " : ""}${c.cli00Estsgl}',
+                                                          style: AppTheme.of(context).bodySmall.override(
+                                                                font: GoogleFonts.inter(),
+                                                                fontSize: 12.0,
+                                                                color: AppTheme.of(context).secondaryText,
+                                                              ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 8.0),
+                                              // Linha 4: Limite Atual e Tag de Débitos Vencidos
+                                              Row(
+                                                children: [
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.blueGrey.withValues(alpha: 0.1),
+                                                      borderRadius: BorderRadius.circular(6.0),
+                                                    ),
+                                                    child: Text(
+                                                      'Limite: ${c.cli00Creatu.toMoeda()}',
+                                                      style: GoogleFonts.inter(
+                                                        fontSize: 12.0,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: Colors.blueGrey.shade800,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  if (hasDebito) ...[
+                                                    const SizedBox(width: 8.0),
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(0xFFFFEBEE),
+                                                        borderRadius: BorderRadius.circular(6.0),
+                                                        border: Border.all(color: const Color(0xFFEF9A9A)),
+                                                      ),
+                                                      child: Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          const Icon(Icons.warning_amber_rounded, size: 13.0, color: Color(0xFFC62828)),
+                                                          const SizedBox(width: 4.0),
+                                                          Text(
+                                                            'Débito: ${c.cli00Titven.toMoeda()}',
+                                                            style: GoogleFonts.inter(
+                                                              fontSize: 11.5,
+                                                              fontWeight: FontWeight.bold,
+                                                              color: const Color(0xFFC62828),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        // Atalho direto de Extrato e Indicador de Seleção
+                                        Column(
+                                          children: [
+                                            // Botão de Atalho de Extrato (SPEC-042 Requisito 2)
+                                            IconButton(
+                                              tooltip: 'Extrato de Títulos',
+                                              icon: const Icon(
+                                                Icons.receipt_long_rounded,
+                                                color: Color(0xFF1976D2),
+                                                size: 24.0,
+                                              ),
+                                              onPressed: () {
+                                                ExtratoClientePageWidget.show(
+                                                  context,
+                                                  codigoCliente: c.cli00Codigo,
+                                                );
+                                              },
+                                            ),
+                                            if (isSelected)
+                                              Padding(
+                                                padding: const EdgeInsets.only(top: 4.0),
+                                                child: Icon(
+                                                  Icons.check_circle_rounded,
+                                                  color: AppTheme.of(context).primary,
+                                                  size: 22.0,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               );
                             },
@@ -1211,47 +1134,12 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                                       _formatCurrency(_model.selectedCliente!.cli00Crelim - _model.selectedCliente!.cli00Creatu),
                                       valueColor: AppTheme.of(context).primary,
                                     ),
-                                    // PRD 1 §4A — agente pré-carregado via cli00_codage
-                                    if (_agentePreCodigo != null)
-                                      _buildSummaryRow(
-                                        'Agente Cobrador',
-                                        _agentePreDescricao != null
-                                            ? '$_agentePreCodigo - $_agentePreDescricao'
-                                            : _agentePreCodigo!,
-                                        valueColor: AppTheme.of(context).primary,
-                                      )
-                                    else if (_agentePreLoading)
-                                      _buildSummaryRow('Agente Cobrador', 'Carregando...'),
+
                                   ],
                                 ),
                               ),
                             ],
-                            // Mostra agente também quando só cliente selecionado (feedback imediato)
-                            if (_model.selectedCliente != null && !hasSelectedAll && _agentePreCodigo != null) ...[
-                              const SizedBox(height: 12.0),
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12.0),
-                                  border: Border.all(color: const Color(0xFFE0E3E7)),
-                                ),
-                                padding: const EdgeInsets.all(12.0),
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.person_outline, size: 18, color: AppTheme.of(context).primary),
-                                    const SizedBox(width: 8),
-                                    Text('Agente: ', style: GoogleFonts.inter(color: const Color(0xFF57636C), fontSize: 13, fontWeight: FontWeight.w600)),
-                                    Expanded(
-                                      child: Text(
-                                        _agentePreDescricao != null ? '$_agentePreCodigo - $_agentePreDescricao' : _agentePreCodigo!,
-                                        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+
                             const SizedBox(height: 24.0),
                           ],
                         ),

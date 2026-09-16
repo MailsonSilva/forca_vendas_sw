@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sqflite/sqflite.dart';
 import '/data/services/local_sales_database_service.dart';
-import '/components/extrato_duplicatas/extrato_duplicatas_widget.dart';
+import '/services/receber_duplicatas_service.dart';
 import 'extrato_cliente_page_model.dart';
 export 'extrato_cliente_page_model.dart';
 
@@ -19,6 +19,13 @@ class _ClienteExtratoInfo {
   final double limiteCredito;
   final double limiteUtilizado;
   final double limiteDisponivel;
+  final double totalVencido;
+  final double totalAVencer;
+  final double totalDevedor;
+  final double totalJuros;
+  final int maiorDiasAtraso;
+  final int qtdTitulosVencidos;
+  final int qtdTitulosTotal;
 
   _ClienteExtratoInfo({
     required this.codigo,
@@ -29,6 +36,13 @@ class _ClienteExtratoInfo {
     required this.limiteCredito,
     required this.limiteUtilizado,
     required this.limiteDisponivel,
+    this.totalVencido = 0.0,
+    this.totalAVencer = 0.0,
+    this.totalDevedor = 0.0,
+    this.totalJuros = 0.0,
+    this.maiorDiasAtraso = 0,
+    this.qtdTitulosVencidos = 0,
+    this.qtdTitulosTotal = 0,
   });
 }
 
@@ -60,43 +74,45 @@ class _PedidoExtratoItem {
   bool get isTransmitido => sttEnv == 2;
 }
 
-class _TituloExtratoItem {
-  final String documento;
-  final String vencimento;
-  final double valor;
-  final bool vencido;
 
-  _TituloExtratoItem({
-    required this.documento,
-    required this.vencimento,
-    required this.valor,
-    required this.vencido,
-  });
-}
-
-class _FaturamentoExtratoItem {
-  final String documento;
-  final String data;
-  final double valor;
-
-  _FaturamentoExtratoItem({
-    required this.documento,
-    required this.data,
-    required this.valor,
-  });
-}
 
 /// Tela de Extrato Detalhado do Cliente
 class ExtratoClientePageWidget extends StatefulWidget {
   const ExtratoClientePageWidget({
     super.key,
     this.codigoCliente,
+    this.clienteId,
+    this.clienteInicial,
+    this.modoBloqueio = false,
   });
 
   final String? codigoCliente;
+  final int? clienteId;
+  final ClienteReceberItem? clienteInicial;
+  final bool modoBloqueio;
 
   static String routeName = 'ExtratoClientePage';
   static String routePath = '/extratoCliente';
+
+  static Future<bool?> show(
+    BuildContext context, {
+    ClienteReceberItem? cliente,
+    int? codigoCliente,
+    int? clienteId,
+    bool modoBloqueio = false,
+  }) {
+    final cod = cliente?.codCli ?? codigoCliente ?? clienteId;
+    return Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ExtratoClientePageWidget(
+          codigoCliente: cod?.toString(),
+          clienteId: cod,
+          clienteInicial: cliente,
+          modoBloqueio: modoBloqueio,
+        ),
+      ),
+    );
+  }
 
   @override
   State<ExtratoClientePageWidget> createState() =>
@@ -111,15 +127,37 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
 
   bool _loading = true;
   _ClienteExtratoInfo? _clienteInfo;
+  ClienteReceberItem? _clienteReceber;
   List<_PedidoExtratoItem> _pedidosLocais = [];
-  List<_TituloExtratoItem> _titulos = [];
-  List<_FaturamentoExtratoItem> _faturamentos = [];
+  List<TituloDuplicataItem> _titulosDetalhados = [];
 
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => ExtratoClientePageModel());
     _tabController = TabController(length: 3, vsync: this);
+    if (widget.clienteInicial != null) {
+      _loading = false;
+      _clienteReceber = widget.clienteInicial;
+      _titulosDetalhados = widget.clienteInicial!.titulos;
+      _clienteInfo = _ClienteExtratoInfo(
+        codigo: widget.clienteInicial!.codCli,
+        razaoSocial: widget.clienteInicial!.razaoSocial,
+        fantasia: widget.clienteInicial!.fantasia,
+        cpfCnpj: '',
+        cidadeUf: widget.clienteInicial!.cidadeUf,
+        limiteCredito: widget.clienteInicial!.limiteCredito,
+        limiteUtilizado: widget.clienteInicial!.limiteAtual,
+        limiteDisponivel: widget.clienteInicial!.limiteCredito - widget.clienteInicial!.limiteAtual,
+        totalVencido: widget.clienteInicial!.totalVencido,
+        totalAVencer: widget.clienteInicial!.totalAVencer,
+        totalDevedor: widget.clienteInicial!.totalDevedor,
+        totalJuros: widget.clienteInicial!.totalJuros,
+        maiorDiasAtraso: widget.clienteInicial!.maiorDiasAtraso,
+        qtdTitulosVencidos: widget.clienteInicial!.qtdTitulosVencidos,
+        qtdTitulosTotal: widget.clienteInicial!.qtdTitulosTotal,
+      );
+    }
     _carregarDados();
   }
 
@@ -131,8 +169,10 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
   }
 
   Future<void> _carregarDados() async {
-    setState(() => _loading = true);
-    final codInt = int.tryParse(widget.codigoCliente ?? '') ?? 0;
+    if (widget.clienteInicial == null) {
+      setState(() => _loading = true);
+    }
+    final codInt = widget.clienteId ?? int.tryParse(widget.codigoCliente ?? '') ?? 0;
     if (codInt == 0) {
       if (mounted) setState(() => _loading = false);
       return;
@@ -218,70 +258,80 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
         }
         _pedidosLocais = pList;
 
-        // 3. Títulos / Duplicatas
-        final List<_TituloExtratoItem> tList = [];
-        final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-        for (final tbl in ['findup00', 'dup00', 'finrec00', 'cadrec00']) {
-          try {
-            final tExists = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND lower(name)=?", [tbl]);
-            if (tExists.isEmpty) continue;
-            final dCols = await db.rawQuery('PRAGMA table_info($tbl)');
-            final cnD = dCols.map((r) => r['name'].toString().toLowerCase()).toSet();
-            String? cCli;
-            String? cNum;
-            String? cVen;
-            String? cVal;
-            for (final c in ['dup00_codcli', 'dup00_clicod', 'rec00_codcli', 'codcli', 'clicod']) {
-              if (cnD.contains(c)) { cCli = c; break; }
-            }
-            for (final c in ['dup00_numero', 'dup00_numdup', 'rec00_numero', 'numero', 'documento']) {
-              if (cnD.contains(c)) { cNum = c; break; }
-            }
-            for (final c in ['dup00_datven', 'rec00_datven', 'datven', 'vencimento']) {
-              if (cnD.contains(c)) { cVen = c; break; }
-            }
-            for (final c in ['dup00_valdup', 'dup00_valor', 'dup00_valabe', 'rec00_valor', 'valor', 'valtot']) {
-              if (cnD.contains(c)) { cVal = c; break; }
-            }
-            if (cCli != null && cNum != null && cVen != null && cVal != null) {
-              final dRows = await db.rawQuery('SELECT * FROM $tbl WHERE $cCli = ? ORDER BY $cVen ASC', [codInt]);
-              for (final dr in dRows) {
-                final numDoc = dr[cNum]?.toString() ?? '';
-                final dtVen = dr[cVen]?.toString() ?? '';
-                final val = (dr[cVal] is num) ? (dr[cVal] as num).toDouble() : (double.tryParse(dr[cVal]?.toString() ?? '') ?? 0.0);
-                final vencido = dtVen.isNotEmpty && dtVen.compareTo(todayStr) < 0;
-                tList.add(_TituloExtratoItem(
-                  documento: numDoc,
-                  vencimento: dtVen,
-                  valor: val,
-                  vencido: vencido,
-                ));
-              }
-              if (tList.isNotEmpty) break;
-            }
-          } catch (_) {}
+        // 3. Títulos / Duplicatas (SPEC-045: centralizado via ReceberDuplicatasService com suporte a finrecdup00 e multi-bancos)
+        final taxaJuros = await ReceberDuplicatasService.obterTaxaJurosVendedor(AppState().vendedor_codigo);
+        var titulosService = await ReceberDuplicatasService.carregarTitulosCliente(
+          codInt,
+          dbOverride: db,
+          taxaJurosOverride: taxaJuros,
+        );
+        if (titulosService.isEmpty) {
+          // Se não encontrou no banco principal, tenta busca multi-banco (dbforcadig001.db)
+          titulosService = await ReceberDuplicatasService.carregarTitulosCliente(
+            codInt,
+            taxaJurosOverride: taxaJuros,
+          );
         }
-        _titulos = tList;
+        if (titulosService.isEmpty && widget.clienteInicial != null && widget.clienteInicial!.titulos.isNotEmpty) {
+          titulosService = widget.clienteInicial!.titulos;
+        }
+        _titulosDetalhados = titulosService;
 
-        // 4. Histórico de faturamento (ESTFATCVD00)
-        final List<_FaturamentoExtratoItem> fList = [];
-        try {
-          final tFat = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='estfatcvd00'");
-          if (tFat.isNotEmpty) {
-            final fRows = await db.rawQuery('SELECT * FROM ESTFATCVD00 WHERE fat00_codcli = ? ORDER BY fat00_datfat DESC', [codInt]);
-            for (final fr in fRows) {
-              final doc = fr['fat00_codmov']?.toString() ?? '';
-              final dat = fr['fat00_datfat']?.toString() ?? '';
-              final val = (fr['fat00_valtot'] is num) ? (fr['fat00_valtot'] as num).toDouble() : (double.tryParse(fr['fat00_valtot']?.toString() ?? '') ?? 0.0);
-              fList.add(_FaturamentoExtratoItem(
-                documento: doc,
-                data: dat,
-                valor: val,
-              ));
-            }
+        // 4. Apuração dos Totais Financeiros das Duplicatas
+        double totVenc = 0.0;
+        double totAVenc = 0.0;
+        double totJuros = 0.0;
+        int maiorAtraso = 0;
+        int qtdVenc = 0;
+        for (final t in titulosService) {
+          if (t.isVencido) {
+            qtdVenc++;
+            totVenc += (t.saldoDevedor + t.valorJuros);
+            totJuros += t.valorJuros;
+            if (t.diasAtraso > maiorAtraso) maiorAtraso = t.diasAtraso;
+          } else {
+            totAVenc += t.saldoDevedor;
           }
-        } catch (_) {}
-        _faturamentos = fList;
+        }
+
+        if (_clienteInfo != null) {
+          _clienteInfo = _ClienteExtratoInfo(
+            codigo: _clienteInfo!.codigo,
+            razaoSocial: _clienteInfo!.razaoSocial,
+            fantasia: _clienteInfo!.fantasia,
+            cpfCnpj: _clienteInfo!.cpfCnpj,
+            cidadeUf: _clienteInfo!.cidadeUf,
+            limiteCredito: _clienteInfo!.limiteCredito,
+            limiteUtilizado: _clienteInfo!.limiteUtilizado,
+            limiteDisponivel: _clienteInfo!.limiteDisponivel,
+            totalVencido: totVenc,
+            totalAVencer: totAVenc,
+            totalDevedor: totVenc + totAVenc,
+            totalJuros: totJuros,
+            maiorDiasAtraso: maiorAtraso,
+            qtdTitulosVencidos: qtdVenc,
+            qtdTitulosTotal: titulosService.length,
+          );
+        }
+
+        _clienteReceber = ClienteReceberItem(
+          codCli: codInt,
+          razaoSocial: _clienteInfo?.razaoSocial ?? 'Cliente $codInt',
+          fantasia: _clienteInfo?.fantasia ?? '',
+          cidadeUf: _clienteInfo?.cidadeUf ?? '',
+          limiteCredito: _clienteInfo?.limiteCredito ?? 0.0,
+          limiteAtual: _clienteInfo?.limiteUtilizado ?? 0.0,
+          totalVencido: totVenc,
+          totalAVencer: totAVenc,
+          totalDevedor: totVenc + totAVenc,
+          totalJuros: totJuros,
+          maiorDiasAtraso: maiorAtraso,
+          qtdTitulosVencidos: qtdVenc,
+          qtdTitulosTotal: titulosService.length,
+          titulos: titulosService,
+        );
+
+
       } finally {
         await db.close();
       }
@@ -324,16 +374,6 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.receipt_long_rounded, color: Colors.white),
-            tooltip: 'Auditoria de Duplicatas (Receber)',
-            onPressed: () {
-              final codInt = int.tryParse(widget.codigoCliente ?? '') ?? 0;
-              if (codInt > 0) {
-                ExtratoDuplicatasWidget.show(context, codigoCliente: codInt);
-              }
-            },
-          ),
-          IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Colors.white),
             tooltip: 'Atualizar',
             onPressed: _carregarDados,
@@ -352,12 +392,12 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
               icon: const Icon(Icons.shopping_bag_outlined, size: 18.0),
             ),
             Tab(
-              text: 'Títulos (${_titulos.length})',
+              text: 'Títulos (${_titulosDetalhados.length})',
               icon: const Icon(Icons.receipt_outlined, size: 18.0),
             ),
-            Tab(
-              text: 'Faturamento (${_faturamentos.length})',
-              icon: const Icon(Icons.history_edu_outlined, size: 18.0),
+            const Tab(
+              text: 'Faturamento',
+              icon: Icon(Icons.analytics_outlined, size: 18.0),
             ),
           ],
         ),
@@ -366,6 +406,7 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
+              bottom: !widget.modoBloqueio,
               child: Column(
                 children: [
                   // ── Resumo do Cliente (Header Card) ─────────────────────────
@@ -385,6 +426,9 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
                 ],
               ),
             ),
+      bottomNavigationBar: (widget.modoBloqueio && !_loading)
+          ? _buildBottomBar(theme)
+          : null,
     );
   }
 
@@ -405,12 +449,18 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
       );
     }
 
+    final temVencido = info.totalVencido > 0 || info.qtdTitulosVencidos > 0;
+
     return Container(
       margin: const EdgeInsets.fromLTRB(12.0, 12.0, 12.0, 6.0),
       padding: const EdgeInsets.all(14.0),
       decoration: BoxDecoration(
         color: theme.secondaryBackground,
         borderRadius: BorderRadius.circular(12.0),
+        border: Border.all(
+          color: temVencido ? Colors.red.shade200 : theme.alternate.withValues(alpha: 0.5),
+          width: temVencido ? 1.5 : 1.0,
+        ),
         boxShadow: const [
           BoxShadow(
             color: Color(0x11000000),
@@ -427,23 +477,50 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
             children: [
               CircleAvatar(
                 radius: 20.0,
-                backgroundColor: theme.primary.withValues(alpha: 0.12),
-                child: Icon(Icons.person, color: theme.primary, size: 24.0),
+                backgroundColor: (temVencido ? Colors.red : theme.primary).withValues(alpha: 0.12),
+                child: Icon(
+                  temVencido ? Icons.warning_amber_rounded : Icons.person,
+                  color: temVencido ? Colors.red.shade700 : theme.primary,
+                  size: 24.0,
+                ),
               ),
               const SizedBox(width: 12.0),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '${info.codigo} - ${info.razaoSocial}',
-                      style: GoogleFonts.inter(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15.0,
-                        color: theme.primaryText,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${info.codigo} - ${info.razaoSocial}',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15.0,
+                              color: theme.primaryText,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: temVencido ? Colors.red.shade50 : Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: temVencido ? Colors.red.shade200 : Colors.green.shade200),
+                          ),
+                          child: Text(
+                            temVencido ? 'Inadimplência Ativa' : 'Em Dia',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: temVencido ? Colors.red.shade800 : Colors.green.shade800,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     if (info.fantasia.isNotEmpty)
                       Text(
@@ -469,9 +546,83 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
               ),
             ],
           ),
-          const SizedBox(height: 12.0),
+          const SizedBox(height: 10.0),
           const Divider(height: 1.0),
           const SizedBox(height: 10.0),
+
+          // Painel de Totais Financeiros das Duplicatas
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: temVencido ? const Color(0xFFFEF2F2) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: temVencido ? Colors.red.shade100 : Colors.blueGrey.shade100),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Total Vencido',
+                      style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.red.shade800),
+                    ),
+                    Text(
+                      _fmtMoeda(info.totalVencido),
+                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.red.shade800),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Total A Vencer',
+                      style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.blueGrey.shade700),
+                    ),
+                    Text(
+                      _fmtMoeda(info.totalAVencer),
+                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blueGrey.shade700),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Total Devedor Geral',
+                      style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
+                    ),
+                    Text(
+                      _fmtMoeda(info.totalDevedor),
+                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
+                    ),
+                  ],
+                ),
+                if (info.maiorDiasAtraso > 0) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Maior Dias de Atraso',
+                        style: GoogleFonts.inter(fontSize: 10, color: Colors.red.shade700),
+                      ),
+                      Text(
+                        '${info.maiorDiasAtraso} dias',
+                        style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red.shade700),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 10.0),
+
+          // Métricas de Limite de Crédito
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -660,7 +811,8 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
   }
 
   Widget _buildTabTitulos(AppTheme theme) {
-    if (_titulos.isEmpty) {
+    final titulos = _titulosDetalhados.where((t) => t.saldoDevedor > 0).toList();
+    if (titulos.isEmpty) {
       return _buildEmptyState(
         icon: Icons.receipt_outlined,
         title: 'Nenhum título a receber',
@@ -668,7 +820,8 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
       );
     }
 
-    final totalAberto = _titulos.fold<double>(0.0, (acc, t) => acc + t.valor);
+    final titulosVencidos = titulos.where((t) => t.isVencido).toList();
+    final totalAberto = titulos.fold<double>(0.0, (acc, t) => acc + t.saldoDevedor);
 
     return Column(
       children: [
@@ -678,81 +831,60 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '${_titulos.length} títulos',
-                style: GoogleFonts.inter(fontSize: 13.0, fontWeight: FontWeight.w600),
+              Expanded(
+                child: Text(
+                  'Títulos Pendentes (${titulos.length})',
+                  style: GoogleFonts.inter(fontSize: 13.0, fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              Text(
-                'Total: ${_fmtMoeda(totalAberto)}',
-                style: GoogleFonts.inter(fontSize: 13.0, fontWeight: FontWeight.bold, color: Colors.redAccent.shade700),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (titulosVencidos.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Text(
+                        'Inadimplência Ativa',
+                        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.red.shade800),
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Text(
+                        'Em Dia',
+                        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue.shade800),
+                      ),
+                    ),
+                  Text(
+                    'Total: ${_fmtMoeda(totalAberto)}',
+                    style: GoogleFonts.inter(fontSize: 13.0, fontWeight: FontWeight.bold, color: Colors.redAccent.shade700),
+                  ),
+                ],
               ),
             ],
           ),
         ),
         Expanded(
-          child: ListView.separated(
+          child: ListView.builder(
             padding: const EdgeInsets.all(12.0),
-            itemCount: _titulos.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8.0),
+            itemCount: titulos.length,
             itemBuilder: (context, index) {
-              final t = _titulos[index];
-              return Container(
-                padding: const EdgeInsets.all(12.0),
-                decoration: BoxDecoration(
-                  color: theme.secondaryBackground,
-                  borderRadius: BorderRadius.circular(10.0),
-                  border: Border.all(color: t.vencido ? Colors.red.shade200 : theme.alternate.withValues(alpha: 0.5)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Documento: ${t.documento}',
-                          style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13.0),
-                        ),
-                        const SizedBox(height: 4.0),
-                        Text(
-                          'Vencimento: ${_fmtData(t.vencimento)}',
-                          style: GoogleFonts.inter(
-                            fontSize: 12.0,
-                            color: t.vencido ? Colors.red.shade700 : theme.secondaryText,
-                            fontWeight: t.vencido ? FontWeight.w600 : FontWeight.normal,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          _fmtMoeda(t.valor),
-                          style: GoogleFonts.inter(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14.0,
-                            color: t.vencido ? Colors.red.shade700 : theme.primaryText,
-                          ),
-                        ),
-                        if (t.vencido)
-                          Container(
-                            margin: const EdgeInsets.only(top: 2.0),
-                            padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 1.0),
-                            decoration: BoxDecoration(
-                              color: Colors.red.shade50,
-                              borderRadius: BorderRadius.circular(4.0),
-                            ),
-                            child: Text(
-                              'Vencido',
-                              style: TextStyle(color: Colors.red.shade700, fontSize: 10.0, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
+              final t = titulos[index];
+              return _buildTituloItemCard(t, theme);
             },
           ),
         ),
@@ -760,57 +892,704 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
     );
   }
 
-  Widget _buildTabFaturamento(AppTheme theme) {
-    if (_faturamentos.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.history_edu_outlined,
-        title: 'Nenhum faturamento registrado',
-        subtitle: 'Não há registros de faturamento histórico para este cliente.',
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.all(12.0),
-      itemCount: _faturamentos.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8.0),
-      itemBuilder: (context, index) {
-        final f = _faturamentos[index];
-        return Container(
-          padding: const EdgeInsets.all(12.0),
-          decoration: BoxDecoration(
-            color: theme.secondaryBackground,
-            borderRadius: BorderRadius.circular(10.0),
-            border: Border.all(color: theme.alternate.withValues(alpha: 0.5)),
+  Widget _buildTituloItemCard(TituloDuplicataItem t, AppTheme theme) {
+    final isVencido = t.isVencido;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isVencido ? Colors.red.shade200 : Colors.grey.shade200,
+          width: isVencido ? 1.5 : 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
-          child: Row(
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Linha 1: Documento e Status Badge
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Fatura #${f.documento}',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13.0),
-                  ),
-                  const SizedBox(height: 4.0),
-                  Text(
-                    'Data: ${_fmtData(f.data)}',
-                    style: GoogleFonts.inter(fontSize: 12.0, color: theme.secondaryText),
-                  ),
-                ],
+              Expanded(
+                child: Text(
+                  'Documento: ${t.numeroDocumento}',
+                  style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              Text(
-                _fmtMoeda(f.valor),
-                style: GoogleFonts.inter(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14.0,
-                  color: Colors.blue.shade700,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isVencido ? Colors.red.shade50 : Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: isVencido ? Colors.red.shade200 : Colors.blue.shade200),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      isVencido ? 'Vencido' : 'A Vencer',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: isVencido ? Colors.red.shade800 : Colors.blue.shade800,
+                      ),
+                    ),
+                    if (isVencido && t.diasAtraso > 0)
+                      Text(
+                        ' (${t.diasAtraso}d)',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red.shade800,
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ],
           ),
-        );
-      },
+          const SizedBox(height: 6),
+
+          // Linha 2: Emissão e Vencimento
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Emissão: ${ReceberDuplicatasService.formatarData(t.dataEmissao)}',
+                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade700),
+              ),
+              Text(
+                'Vencimento: ${ReceberDuplicatasService.formatarData(t.dataVencimento)}',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: isVencido ? Colors.red.shade700 : const Color(0xFF1E293B),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          // Linha 3: Valor Original e Valor Recebido
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Valor Original: ${t.valorOriginal.toMoeda()}',
+                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade800),
+              ),
+              Text(
+                'Recebido: ${t.valorPago.toMoeda()}',
+                style: GoogleFonts.inter(fontSize: 12, color: Colors.green.shade800),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          // Linha 4: Juros e Saldo Devedor
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Juros: ${(isVencido ? t.valorJuros : 0.0).toMoeda()}',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isVencido ? Colors.orange.shade800 : Colors.grey.shade600,
+                ),
+              ),
+              Text(
+                'Saldo Devedor: ${t.saldoDevedor.toMoeda()}',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: isVencido ? const Color(0xFFB91C1C) : const Color(0xFF1E293B),
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 14),
+
+          // Linha 5: Vendedor | Agente Cobrador | Tipo Cobrança
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildMetaTag('Vendedor', t.codVen.toString()),
+              _buildMetaTag('Agente', t.codAgt.toString()),
+              _buildMetaTag('Tipo Cob.', t.codCob.toString()),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetaTag(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        '$label: $value',
+        style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w500, color: Colors.grey.shade700),
+      ),
+    );
+  }
+
+  Widget _buildTabFaturamento(AppTheme theme) {
+    final titulos = _titulosDetalhados.where((t) => t.saldoDevedor > 0).toList();
+    final titulosVencidos = titulos.where((t) => t.isVencido).toList();
+
+    double totalValOriVencidos = 0.0;
+    double totalJuros = 0.0;
+    int somaDiasAtraso = 0;
+
+    for (final t in titulosVencidos) {
+      totalValOriVencidos += t.saldoDevedor;
+      totalJuros += t.valorJuros;
+      somaDiasAtraso += t.diasAtraso;
+    }
+
+    double totalValDevGeral = 0.0;
+    for (final t in titulos) {
+      totalValDevGeral += t.totalComJuros;
+    }
+
+    final info = _clienteInfo;
+    final totalVencido = (info != null && info.totalVencido > 0) ? info.totalVencido : totalValOriVencidos;
+    final totalDevedor = (info != null && info.totalDevedor > 0) ? info.totalDevedor : totalValDevGeral;
+    final totalJurosFinal = (info != null && info.totalJuros > 0) ? info.totalJuros : totalJuros;
+    final diasAtrasoFinal = (info != null && info.maiorDiasAtraso > 0 && somaDiasAtraso == 0)
+        ? info.maiorDiasAtraso
+        : somaDiasAtraso;
+
+    if (titulos.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.analytics_outlined,
+        title: 'Nenhum título pendente',
+        subtitle: 'Não há duplicatas ou pendências financeiras em aberto para este cliente.',
+      );
+    }
+
+    return Column(
+      children: [
+        // ── Lista Rolável de Títulos no Formato do Legado (Conforme Imagem) ──
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(14.0, 10.0, 14.0, 16.0),
+            itemCount: titulos.length + 1,
+            itemBuilder: (context, index) {
+              if (index < titulos.length) {
+                return _buildItemFaturamentoLegado(titulos[index], index, theme);
+              }
+              // Item final: Ações de Cobrança e Compartilhamento
+              return Padding(
+                padding: const EdgeInsets.only(top: 4.0, bottom: 8.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 18),
+                        label: Text(
+                          'Enviar via WhatsApp',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF25D366),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          elevation: 1,
+                        ),
+                        onPressed: () {
+                          final cli = _obterClienteReceberCompleto();
+                          if (cli != null) {
+                            ReceberDuplicatasService.compartilharWhatsApp(
+                              context,
+                              cli,
+                              nomeVendedor: AppState().vendedor_nome,
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.copy_rounded, color: Colors.black87, size: 18),
+                        label: Text(
+                          'Copiar Texto',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.black87),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          side: BorderSide(color: Colors.grey.shade400),
+                        ),
+                        onPressed: () {
+                          final cli = _obterClienteReceberCompleto();
+                          if (cli != null) {
+                            ReceberDuplicatasService.copiarClipboard(
+                              context,
+                              cli,
+                              nomeVendedor: AppState().vendedor_nome,
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+
+        // ── Tabela Inferior Fixa de Totais Legados (Conforme Imagem) ──────────
+        _buildTabelaTotaisLegada(
+          totVencido: totalVencido,
+          totJuros: totalJurosFinal,
+          diasAtraso: diasAtrasoFinal,
+          valorDevedor: totalDevedor,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildItemFaturamentoLegado(TituloDuplicataItem t, int index, AppTheme theme) {
+    final dtEmi = ReceberDuplicatasService.formatarData(t.dataEmissao);
+    final dtVen = ReceberDuplicatasService.formatarData(t.dataVencimento);
+    final txJuros = t.taxaJurosDiaria.toStringAsFixed(2).replaceAll('.', ',');
+    final isVencido = t.isVencido;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10.0),
+        border: Border.all(
+          color: isVencido ? const Color(0xFFFCA5A5) : const Color(0xFFE2E8F0),
+          width: isVencido ? 1.2 : 1.0,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 4.0,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 1. Cabeçalho do Card: Número do Título + Badge de Status
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12.0, 10.0, 12.0, 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Text(
+                        'TÍTULO: ',
+                        style: GoogleFonts.inter(
+                          fontSize: 14.0,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0F172A),
+                        ),
+                      ),
+                      Flexible(
+                        child: Text(
+                          t.numeroDocumento,
+                          style: GoogleFonts.inter(
+                            fontSize: 15.0,
+                            fontWeight: FontWeight.w900,
+                            color: const Color(0xFF0F172A),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
+                  decoration: BoxDecoration(
+                    color: isVencido ? const Color(0xFFFEF2F2) : const Color(0xFFF0FDF4),
+                    borderRadius: BorderRadius.circular(6.0),
+                    border: Border.all(
+                      color: isVencido ? const Color(0xFFFECACA) : const Color(0xFFBBF7D0),
+                    ),
+                  ),
+                  child: Text(
+                    isVencido
+                        ? 'VENCIDO${t.diasAtraso > 0 ? ' (${t.diasAtraso}d)' : ''}'
+                        : 'EM DIA',
+                    style: GoogleFonts.inter(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                      color: isVencido ? const Color(0xFFB91C1C) : const Color(0xFF15803D),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const Divider(height: 1.0, thickness: 1.0, color: Color(0xFFF1F5F9)),
+
+          // 2. Grade de Dados: Emissão, Vencimento, Juros e Dias de Atraso
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildInfoItem(
+                        label: 'EMISSÃO',
+                        value: dtEmi,
+                      ),
+                    ),
+                    const SizedBox(width: 12.0),
+                    Expanded(
+                      child: _buildInfoItem(
+                        label: 'VENCIMENTO',
+                        value: dtVen,
+                        valueColor: isVencido ? const Color(0xFFDC2626) : const Color(0xFF1E293B),
+                        isBold: isVencido,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8.0),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildInfoItem(
+                        label: '% JUROS/DIA',
+                        value: '$txJuros%',
+                      ),
+                    ),
+                    const SizedBox(width: 12.0),
+                    Expanded(
+                      child: _buildInfoItem(
+                        label: 'DIAS/ATRASO',
+                        value: '${t.diasAtraso}',
+                        valueColor: isVencido ? const Color(0xFFDC2626) : const Color(0xFF1E293B),
+                        isBold: isVencido,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8.0),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildInfoItem(
+                        label: 'VALOR TÍTULO',
+                        value: _fmtMoeda(t.saldoDevedor),
+                        isBold: true,
+                      ),
+                    ),
+                    const SizedBox(width: 12.0),
+                    Expanded(
+                      child: _buildInfoItem(
+                        label: 'VALOR JUROS',
+                        value: _fmtMoeda(t.valorJuros),
+                        valueColor: t.valorJuros > 0 ? const Color(0xFFDC2626) : const Color(0xFF1E293B),
+                        isBold: t.valorJuros > 0,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // 3. Barra de Destaque Inferior: SALDO DEVEDOR
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+            decoration: BoxDecoration(
+              color: isVencido ? const Color(0xFFFEF2F2) : const Color(0xFFF8FAFC),
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(9.0),
+                bottomRight: Radius.circular(9.0),
+              ),
+              border: Border(
+                top: BorderSide(
+                  color: isVencido ? const Color(0xFFFECACA) : const Color(0xFFE2E8F0),
+                  width: 1.0,
+                ),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'SALDO DEVEDOR:',
+                  style: GoogleFonts.inter(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: isVencido ? const Color(0xFF991B1B) : const Color(0xFF334155),
+                  ),
+                ),
+                Text(
+                  _fmtMoeda(t.totalComJuros),
+                  style: GoogleFonts.inter(
+                    fontSize: 15.0,
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFFDC2626), // Vermelho vivo idêntico ao legado
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoItem({
+    required String label,
+    required String value,
+    Color? valueColor,
+    bool isBold = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF64748B),
+            letterSpacing: 0.2,
+          ),
+        ),
+        const SizedBox(height: 2.0),
+        Text(
+          value,
+          style: GoogleFonts.inter(
+            fontSize: 13.0,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+            color: valueColor ?? const Color(0xFF1E293B),
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabelaTotaisLegada({
+    required double totVencido,
+    required double totJuros,
+    required int diasAtraso,
+    required double valorDevedor,
+  }) {
+    final borderSide = BorderSide(color: Colors.grey.shade300, width: 1.0);
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: borderSide,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 4,
+            offset: Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Linha 1: Tot.Vencido | <valor> | Total Juros | <valor>
+          Row(
+            children: [
+              _buildTabelaCelula(
+                texto: 'Tot.Vencido',
+                isHeader: true,
+                flex: 3,
+                border: Border(right: borderSide, bottom: borderSide),
+              ),
+              _buildTabelaCelula(
+                texto: _fmtMoeda(totVencido),
+                isHeader: false,
+                alignRight: true,
+                flex: 3,
+                valueColor: totVencido > 0 ? const Color(0xFFB91C1C) : null,
+                border: Border(right: borderSide, bottom: borderSide),
+              ),
+              _buildTabelaCelula(
+                texto: 'Total Juros',
+                isHeader: true,
+                flex: 3,
+                border: Border(right: borderSide, bottom: borderSide),
+              ),
+              _buildTabelaCelula(
+                texto: _fmtMoeda(totJuros),
+                isHeader: false,
+                alignRight: true,
+                flex: 3,
+                border: Border(bottom: borderSide),
+              ),
+            ],
+          ),
+          // Linha 2: Dias/Atraso | <valor> | Valor Devedor | <valor>
+          Row(
+            children: [
+              _buildTabelaCelula(
+                texto: 'Dias/Atraso',
+                isHeader: true,
+                flex: 3,
+                border: Border(right: borderSide),
+              ),
+              _buildTabelaCelula(
+                texto: diasAtraso.toString(),
+                isHeader: false,
+                alignRight: true,
+                flex: 3,
+                border: Border(right: borderSide),
+              ),
+              _buildTabelaCelula(
+                texto: 'Valor Devedor',
+                isHeader: true,
+                flex: 3,
+                border: Border(right: borderSide),
+              ),
+              _buildTabelaCelula(
+                texto: _fmtMoeda(valorDevedor),
+                isHeader: false,
+                alignRight: true,
+                flex: 3,
+                valueColor: const Color(0xFFDC2626),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabelaCelula({
+    required String texto,
+    required bool isHeader,
+    required int flex,
+    bool alignRight = false,
+    BoxBorder? border,
+    Color? valueColor,
+  }) {
+    return Expanded(
+      flex: flex,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 7.0),
+        decoration: BoxDecoration(
+          color: isHeader ? const Color(0xFFF1F5F9) : Colors.white,
+          border: border,
+        ),
+        alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
+        child: Text(
+          texto,
+          style: GoogleFonts.inter(
+            fontSize: 11.5,
+            fontWeight: isHeader ? FontWeight.w600 : FontWeight.bold,
+            color: isHeader
+                ? const Color(0xFF475569)
+                : (valueColor ?? const Color(0xFF0F172A)),
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+  }
+
+  ClienteReceberItem? _obterClienteReceberCompleto() {
+    if (_clienteReceber != null) return _clienteReceber;
+    final info = _clienteInfo;
+    if (info == null) return null;
+    return ClienteReceberItem(
+      codCli: info.codigo,
+      razaoSocial: info.razaoSocial,
+      fantasia: info.fantasia,
+      cidadeUf: info.cidadeUf,
+      limiteCredito: info.limiteCredito,
+      limiteAtual: info.limiteUtilizado,
+      totalVencido: info.totalVencido,
+      totalAVencer: info.totalAVencer,
+      totalDevedor: info.totalDevedor,
+      totalJuros: info.totalJuros,
+      maiorDiasAtraso: info.maiorDiasAtraso,
+      qtdTitulosVencidos: info.qtdTitulosVencidos,
+      qtdTitulosTotal: _titulosDetalhados.length,
+      titulos: _titulosDetalhados,
+    );
+  }
+
+  Widget _buildBottomBar(AppTheme theme) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(color: Colors.grey.shade300, width: 1.0),
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 6.0,
+            offset: Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+          child: SizedBox(
+            width: double.infinity,
+            height: 48.0,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 20.0),
+              label: Text(
+                'Liberar Pedido',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15.0,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626), // Vermelho vivo
+                foregroundColor: Colors.white,
+                elevation: 1.0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10.0),
+                ),
+              ),
+              onPressed: () => Navigator.of(context).pop(true),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -820,27 +1599,29 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
     required String subtitle,
   }) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 56.0, color: const Color(0xFFADB5BD)),
-            const SizedBox(height: 12.0),
+            Icon(icon, size: 48.0, color: const Color(0xFFADB5BD)),
+            const SizedBox(height: 10.0),
             Text(
               title,
+              textAlign: TextAlign.center,
               style: GoogleFonts.inter(
-                fontSize: 16.0,
+                fontSize: 15.0,
                 fontWeight: FontWeight.bold,
                 color: const Color(0xFF495057),
               ),
             ),
-            const SizedBox(height: 6.0),
+            const SizedBox(height: 4.0),
             Text(
               subtitle,
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
-                fontSize: 13.0,
+                fontSize: 12.0,
                 color: const Color(0xFF6C757D),
               ),
             ),

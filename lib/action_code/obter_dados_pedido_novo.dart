@@ -30,10 +30,14 @@ Future<DadosPedidoNovoResult> obterDadosPedidoNovo({int? clienteCodigo}) async {
           cli00_descri, 
           cli00_fantas, 
           cli00_ciddes, 
+          cli00_estsgl,
           cli00_cpfcnp, 
-          cli00_crelim 
+          cli00_crelim,
+          COALESCE(cli00_creatu, 0) as cli00_creatu,
+          COALESCE(cli00_titven, 0) as cli00_titven,
+          COALESCE(cli00_codage, 0) as cli00_codage
         FROM cadcli00 
-        WHERE cli00_active in (0,1) 
+        WHERE (cli00_active in (0,1) OR cli00_active IS NULL)
         ORDER BY cli00_descri
       ''');
       clientes = resClientes.map((m) {
@@ -42,8 +46,12 @@ Future<DadosPedidoNovoResult> obterDadosPedidoNovo({int? clienteCodigo}) async {
           cli00Descri: m['cli00_descri']?.toString() ?? '',
           cli00Fantas: m['cli00_fantas']?.toString() ?? '',
           cli00Ciddes: m['cli00_ciddes']?.toString() ?? '',
+          cli00Estsgl: m['cli00_estsgl']?.toString() ?? '',
           cli00Cpfcnp: m['cli00_cpfcnp']?.toString() ?? '',
           cli00Crelim: (m['cli00_crelim'] as num?)?.toDouble() ?? 0.0,
+          cli00Creatu: (m['cli00_creatu'] as num?)?.toDouble() ?? 0.0,
+          cli00Titven: (m['cli00_titven'] as num?)?.toDouble() ?? 0.0,
+          cli00Codage: (m['cli00_codage'] as num?)?.toInt() ?? 0,
           success: true,
         );
       }).toList();

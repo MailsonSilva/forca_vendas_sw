@@ -29,6 +29,9 @@ abstract class FtpTransport {
   /// Deleta um arquivo no diretório atual.
   Future<void> dele(String fileName);
 
+  /// Renomeia um arquivo no diretório atual (RNFR / RNTO).
+  Future<void> rename(String oldName, String newName);
+
   /// Encerra a conexão de forma limpa.
   Future<void> quit();
 }

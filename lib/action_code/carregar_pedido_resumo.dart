@@ -90,7 +90,7 @@ Future<PedidoResumoData?> carregarPedidoResumo(int pedidoId) async {
     final subtot = _getDouble(m, ['ped00_subtot', 'ped00_subval', 'subtot']);
     final fattot = _getDouble(m, ['ped00_fattot', 'ped00_totfat', 'fattot'], digtot - subtot);
     final qtdItm = _getInt(m, ['ped00_qtditm', 'ped00_qtdite']);
-    final obs = _getString(m, ['ped00_observ', 'ped00_obs', 'ped00_observacao', 'observ', 'obs']);
+    final obs = _getString(m, ['ped00_digobs', 'dig00_digobs', 'digobs', 'ped00_observ', 'ped00_obs', 'ped00_observacao', 'observ', 'obs']);
 
     // tentar buscar quantidade real de itens e totais se colunas estiverem zeradas
     int qtdItensFinal = qtdItm;

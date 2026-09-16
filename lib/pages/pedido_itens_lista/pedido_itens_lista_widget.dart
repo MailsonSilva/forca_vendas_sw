@@ -15,6 +15,7 @@ import '/data/services/local_sales_database_service.dart';
 import '/components/bottom_sheet_selecao_bonificacao/bottom_sheet_selecao_bonificacao_widget.dart';
 import '/components/bottom_sheet_combos/bottom_sheet_combos_widget.dart';
 import '/components/modal_agente_cobrador/modal_agente_cobrador_widget.dart';
+import '/components/modal_observacao_pedido/modal_observacao_pedido_widget.dart';
 import 'widgets/item_pedido_card_widget.dart';
 export 'pedido_itens_lista_model.dart';
 
@@ -845,16 +846,26 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
       return;
     }
 
+    // ── Passo B2 (SPEC-042): Abre campo Observação do Pedido pós-Agente Cobrador ──
+    final String? obsDigitada = await ModalObservacaoPedidoWidget.show(context);
+    if (!mounted) return;
+    if (obsDigitada == null) {
+      return;
+    }
+
     // ── Passo C: Conclui venda passando o mesmo pedidoId que foi pré-salvo ───────
     await _finalizarSelecao(
       pedidoIdDefinitivo,
-      agenteSelecionado.isEmpty ? null : agenteSelecionado,
+      codAgenteSelecionado: agenteSelecionado.isEmpty ? null : agenteSelecionado,
+      observacao: obsDigitada,
     );
   }
 
-
-
-  Future<void> _finalizarSelecao(int pedidoIdDefinitivo, [String? codAgenteSelecionado]) async {
+  Future<void> _finalizarSelecao(
+    int pedidoIdDefinitivo, {
+    String? codAgenteSelecionado,
+    String? observacao,
+  }) async {
     if (_model.carrinhoItens.isEmpty) return;
 
     safeSetState(() {
@@ -874,6 +885,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
         carrinhoItens: _model.carrinhoItens,
         codAgenteCobrador: codAgtInt,
         bonfrcven: _chkBonFrcVen ? 1 : 0,
+        observacao: observacao ?? '',
       );
 
       safeSetState(() {

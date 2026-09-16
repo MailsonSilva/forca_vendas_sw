@@ -46,6 +46,9 @@ class _FakeFtp implements FtpTransport {
   Future<void> dele(String fileName) async {}
 
   @override
+  Future<void> rename(String oldName, String newName) async {}
+
+  @override
   Future<void> quit() async => quitCalled = true;
 }
 

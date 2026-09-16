@@ -17,6 +17,7 @@ Future<bool> salvarCarrinhoPedido({
   int? bonfrcven,
   String? nomePacote,
   List<double>? itensSubtot,
+  String? observacao,
 }) async {
   try {
     final db = await LocalSalesDatabaseService.getDatabase();
@@ -96,6 +97,10 @@ Future<bool> salvarCarrinhoPedido({
         'ped00_bontot': 'REAL',
         'ped00_destot': 'REAL',
         'ped00_pacstr': 'TEXT',
+        'ped00_digobs': 'TEXT',
+        'dig00_digobs': 'TEXT',
+        'ped00_obs': 'TEXT',
+        'ped00_observ': 'TEXT',
       };
       for (final e in ensureCols.entries) {
         try {
@@ -332,6 +337,12 @@ Future<bool> salvarCarrinhoPedido({
         addHeaderIf('ped00_pacote', finalPacStr);
         addHeaderIf('pacstr', finalPacStr);
         addHeaderIf('pacote', finalPacStr);
+      }
+      if (observacao != null && observacao.isNotEmpty) {
+        addHeaderIf('ped00_digobs', observacao);
+        addHeaderIf('dig00_digobs', observacao);
+        addHeaderIf('ped00_obs', observacao);
+        addHeaderIf('ped00_observ', observacao);
       }
 
       final List<Map<String, dynamic>> itemCols = await db.rawQuery('PRAGMA table_info(pckvendig010)');

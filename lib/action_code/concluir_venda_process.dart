@@ -19,6 +19,7 @@ Future<bool> concluirVendaProcess({
   required List<ItemPedidoStruct> carrinhoItens,
   int? codAgenteCobrador,
   int bonfrcven = 0,
+  String observacao = '',
 }) async {
   try {
     // 1. Validação
@@ -272,6 +273,7 @@ Future<bool> concluirVendaProcess({
       bonfrcven: bonfrcven,
       sttDig: PedidoSttDig.digitado,
       sttEnv: PedidoSttEnv.digitado,
+      observacao: observacao,
     );
     pedido.calcularTotais();
 
@@ -292,6 +294,7 @@ Future<bool> concluirVendaProcess({
       subtot: pedido.subtot,
       destot: pedido.destot,
       itensSubtot: itemsVenda.map((i) => i.subtot).toList(),
+      observacao: observacao,
     );
 
     if (!savedOk) {
@@ -324,6 +327,7 @@ Future<bool> concluirVendaProcess({
         subtot: pedido.subtot,
         destot: pedido.destot,
         itensSubtot: itemsVenda.map((i) => i.subtot).toList(),
+        observacao: observacao,
       );
       if (!fallbackOk) {
         print('>>> ERRO CRITICO AO GRAVAR PEDIDO: fallback insert falhou para pedido #$pedidoId');

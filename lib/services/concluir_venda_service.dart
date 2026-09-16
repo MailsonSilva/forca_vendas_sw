@@ -188,6 +188,11 @@ class ConcluirVendaService {
         'ped00_bontot': 'REAL',
         'ped00_destot': 'REAL',
         'ped00_pacstr': 'TEXT',
+        // SPEC-042: Observação do Pedido (dig00_digobs)
+        'ped00_digobs': 'TEXT',
+        'dig00_digobs': 'TEXT',
+        'ped00_obs': 'TEXT',
+        'ped00_observ': 'TEXT',
       }.entries) {
         try { await db.execute('ALTER TABLE pckvendig000 ADD COLUMN ${e.key} ${e.value}'); } catch (_) {}
       }
@@ -230,6 +235,12 @@ class ConcluirVendaService {
       addUpdate('ped00_agtcod', pedido.codAgt);
       addUpdate('ped00_codage', pedido.codAgt);
       addUpdate('ped00_digagt', pedido.codAgt);
+      if (pedido.observacao.isNotEmpty) {
+        addUpdate('ped00_digobs', pedido.observacao);
+        addUpdate('dig00_digobs', pedido.observacao);
+        addUpdate('ped00_obs', pedido.observacao);
+        addUpdate('ped00_observ', pedido.observacao);
+      }
 
       if (updateParts.isNotEmpty) {
         String colNum = 'ped00_numped';

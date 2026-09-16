@@ -152,6 +152,13 @@ class FtpClient implements FtpTransport {
   @override
   Future<void> dele(String fileName) => _cmd('DELE $fileName', [250]);
 
+  /// Renomeia um arquivo remoto no diretorio atual (RNFR / RNTO).
+  @override
+  Future<void> rename(String oldName, String newName) async {
+    await _cmd('RNFR $oldName', [350]);
+    await _cmd('RNTO $newName', [250]);
+  }
+
   /// Lista os nomes dos arquivos no diretorio atual (ou [path]).
   @override
   Future<List<String>> nlst([String? path]) async {

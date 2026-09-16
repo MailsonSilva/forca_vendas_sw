@@ -211,6 +211,7 @@ class LocalSalesDatabaseService {
       'cli00_sttenv': 'INTEGER DEFAULT 0',
       'cli00_crelim': 'REAL DEFAULT 0',
       'cli00_creatu': 'REAL DEFAULT 0',
+      'cli00_codage': 'INTEGER DEFAULT 0',
     }.entries) {
       try {
         await db.execute('ALTER TABLE cadcli00 ADD COLUMN ${e.key} ${e.value}');
@@ -224,6 +225,7 @@ class LocalSalesDatabaseService {
       'pro00_deslon': 'TEXT',
       'pro00_codmar': 'INTEGER',
       'pro00_codfab': 'INTEGER',
+      'pro00_reffor': 'TEXT',
       'pro00_ref001': 'TEXT',
       'pro00_ref002': 'TEXT',
       'pro00_embala': 'TEXT',
@@ -255,6 +257,7 @@ class LocalSalesDatabaseService {
         pro00_deslon TEXT,
         pro00_codmar INTEGER,
         pro00_codfab INTEGER,
+        pro00_reffor TEXT,
         pro00_ref001 TEXT,
         pro00_ref002 TEXT,
         pro00_embala TEXT,
@@ -368,8 +371,19 @@ class LocalSalesDatabaseService {
     try { await db.execute('CREATE VIEW IF NOT EXISTS dig00 AS SELECT * FROM pckvendig000'); } catch (_) {}
     try { await db.execute('DROP VIEW IF EXISTS dig01'); } catch (_) {}
     try { await db.execute('CREATE VIEW IF NOT EXISTS dig01 AS SELECT * FROM pckvendig010'); } catch (_) {}
-    try { await db.execute('DROP VIEW IF EXISTS findup00'); } catch (_) {}
-    try { await db.execute('CREATE VIEW IF NOT EXISTS cadrecdup00 AS SELECT * FROM dup00'); } catch (_) {}
+    // Views de compatibilidade para duplicatas (SPEC-045: finrecdup00 / dup00)
+    try {
+      final hasFinrec = (await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='finrecdup00'")).isNotEmpty;
+      final hasDup00 = (await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='dup00'")).isNotEmpty;
+      if (hasFinrec && !hasDup00) {
+        await db.execute('CREATE VIEW IF NOT EXISTS dup00 AS SELECT * FROM finrecdup00');
+        await db.execute('CREATE VIEW IF NOT EXISTS findup00 AS SELECT * FROM finrecdup00');
+        await db.execute('CREATE VIEW IF NOT EXISTS cadrecdup00 AS SELECT * FROM finrecdup00');
+      } else {
+        try { await db.execute('DROP VIEW IF EXISTS findup00'); } catch (_) {}
+        try { await db.execute('CREATE VIEW IF NOT EXISTS cadrecdup00 AS SELECT * FROM dup00'); } catch (_) {}
+      }
+    } catch (_) {}
     try { await db.execute('DROP VIEW IF EXISTS cli00'); } catch (_) {}
     try { await db.execute('CREATE VIEW IF NOT EXISTS cli00 AS SELECT * FROM cadcli00'); } catch (_) {}
   }

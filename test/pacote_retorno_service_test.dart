@@ -44,6 +44,9 @@ class _FakeRetornoFtp implements FtpTransport {
   }
 
   @override
+  Future<void> rename(String oldName, String newName) async {}
+
+  @override
   Future<void> quit() async {}
 }
 

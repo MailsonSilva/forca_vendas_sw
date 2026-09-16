@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '/action_code/index.dart';
+import '/index.dart';
 import 'configuracao_page_model.dart';
 export 'configuracao_page_model.dart';
 
@@ -233,6 +235,115 @@ class _ConfiguracaoPageWidgetState extends State<ConfiguracaoPageWidget> {
                     ),
                   ),
                 ),
+
+                const SizedBox(height: 24.0),
+
+                // ── SEÇÃO: CONTA / SESSÃO ──
+                Padding(
+                  padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),
+                  child: Text(
+                    'Conta',
+                    style: AppTheme.of(context).bodyMedium.override(
+                          font: GoogleFonts.inter(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          color: AppTheme.of(context).secondaryText,
+                          fontSize: 14.0,
+                          letterSpacing: 0.5,
+                        ),
+                  ),
+                ),
+                Card(
+                  elevation: 1.5,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                  color: AppTheme.of(context).secondaryBackground,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12.0),
+                    onTap: () async {
+                      final bool? confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Sair do Sistema'),
+                          content: const Text(
+                              'Deseja realmente encerrar a sessão e realizar o logout?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('Cancelar'),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('Sair',
+                                  style: TextStyle(color: Colors.white)),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        await logoutVendedor();
+                        if (context.mounted) {
+                          context.goNamed(LoginPageWidget.routeName);
+                        }
+                      }
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10.0),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10.0),
+                            ),
+                            child: const Icon(
+                              Icons.logout_rounded,
+                              color: Colors.red,
+                              size: 24.0,
+                            ),
+                          ),
+                          const SizedBox(width: 14.0),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Sair do Sistema',
+                                  style: AppTheme.of(context).bodyLarge.override(
+                                        font: GoogleFonts.inter(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        color: Colors.red,
+                                        fontSize: 15.0,
+                                      ),
+                                ),
+                                const SizedBox(height: 2.0),
+                                Text(
+                                  'Encerrar sessão e voltar à tela de login',
+                                  style: AppTheme.of(context).labelMedium.override(
+                                        font: GoogleFonts.inter(),
+                                        color: AppTheme.of(context).secondaryText,
+                                        fontSize: 13.0,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            color: AppTheme.of(context).secondaryText,
+                            size: 16.0,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24.0),
               ],
             ),
           ),

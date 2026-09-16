@@ -4,7 +4,6 @@ import '/components/modal_pedidos/modal_pedidos_widget.dart';
 import '/components/modal_relatorios/modal_relatorios_widget.dart';
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
-import '/action_code/index.dart';
 import '/index.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -73,41 +72,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                       AppTheme.of(context).headlineMedium.fontStyle,
                 ),
           ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.logout_rounded, color: Colors.white),
-              tooltip: 'Sair da conta',
-              onPressed: () async {
-                final bool? confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Sair do Sistema'),
-                    content: const Text(
-                        'Deseja realmente encerrar a sessão e realizar o logout?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text('Cancelar'),
-                      ),
-                      ElevatedButton(
-                        style:
-                            ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                        onPressed: () => Navigator.pop(ctx, true),
-                        child: const Text('Sair',
-                            style: TextStyle(color: Colors.white)),
-                      ),
-                    ],
-                  ),
-                );
-                if (confirm == true) {
-                  await logoutVendedor();
-                  if (context.mounted) {
-                    context.goNamed(LoginPageWidget.routeName);
-                  }
-                }
-              },
-            ),
-          ],
+          actions: const [],
           centerTitle: true,
           elevation: 2.0,
         ),
@@ -399,6 +364,23 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                         ),
                       ),
                     ),
+                  ),
+                ),
+              ),
+              // Rodapé: Data e Hora da Última Carga (abaixo dos botões do menu e acima da barra de navegação)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16.0),
+                child: Center(
+                  child: Text(
+                    AppState().dataHoraUltimaCargaFormatada,
+                    textAlign: TextAlign.center,
+                    style: AppTheme.of(context).bodySmall.override(
+                          font: GoogleFonts.inter(
+                            fontWeight: FontWeight.w500,
+                          ),
+                          color: AppTheme.of(context).secondaryText,
+                          fontSize: 12.0,
+                        ),
                   ),
                 ),
               ),

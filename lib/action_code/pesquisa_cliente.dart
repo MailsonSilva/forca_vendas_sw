@@ -34,7 +34,17 @@ Future<List<ClienteResultStruct>> pesquisaCliente(
       }
     }
 
-    // 4. Query com aliases padronizados
+    // 4. Inspeciona colunas existentes em cadcli00 para retrocompatibilidade
+    final tableInfo = await db.rawQuery('PRAGMA table_info(cadcli00)');
+    final colNames = tableInfo.map((c) => c['name'].toString().toLowerCase()).toSet();
+
+    final titvenCol = colNames.contains('cli00_titven') ? 'COALESCE(cli00_titven, 0)' : '0';
+    final titaveCol = colNames.contains('cli00_titave') ? 'COALESCE(cli00_titave, 0)' : '0';
+    final creatuCol = colNames.contains('cli00_creatu') ? 'COALESCE(cli00_creatu, 0)' : '0';
+    final crelimCol = colNames.contains('cli00_crelim') ? 'COALESCE(cli00_crelim, 0)' : '0';
+    final codageCol = colNames.contains('cli00_codage') ? 'COALESCE(cli00_codage, 0)' : '0';
+
+    // 5. Query com aliases padronizados
     final String query = '''
       SELECT 
         cli00_codigo AS codigo,
@@ -51,8 +61,11 @@ Future<List<ClienteResultStruct>> pesquisaCliente(
         cli00_fonnum AS telefone,
         cli00_observ AS email,
         cli00_active AS ativo,
-        COALESCE(cli00_titven, 0) AS cli00Titven,
-        COALESCE(cli00_titave, 0) AS cli00Titave
+        $titvenCol AS cli00Titven,
+        $titaveCol AS cli00Titave,
+        $creatuCol AS cli00Creatu,
+        $crelimCol AS cli00Crelim,
+        $codageCol AS cli00Codage
       FROM cadcli00 
       $whereClause
       ORDER BY cli00_descri 
@@ -69,6 +82,12 @@ Future<List<ClienteResultStruct>> pesquisaCliente(
           double.tryParse(m['cli00Titven']?.toString() ?? '0') ?? 0.0;
       double cli00Titave =
           double.tryParse(m['cli00Titave']?.toString() ?? '0') ?? 0.0;
+      double cli00Creatu =
+          double.tryParse(m['cli00Creatu']?.toString() ?? '0') ?? 0.0;
+      double cli00Crelim =
+          double.tryParse(m['cli00Crelim']?.toString() ?? '0') ?? 0.0;
+      int cli00Codage =
+          int.tryParse(m['cli00Codage']?.toString() ?? '0') ?? 0;
 
       // Mantém a sua lógica dinâmica de atribuição de cor
       Color corDefinida;
@@ -98,6 +117,9 @@ Future<List<ClienteResultStruct>> pesquisaCliente(
         cli00Active: cli00Active,
         cli00Titven: cli00Titven,
         cli00Titave: cli00Titave,
+        cli00Creatu: cli00Creatu,
+        cli00Crelim: cli00Crelim,
+        cli00Codage: cli00Codage,
         success: true,
         corBorda: corDefinida,
       );

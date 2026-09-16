@@ -7,6 +7,64 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [5.4.0] - 2026-09-16
+
+### 🌟 Adicionado & Aprimorado (Novas Funcionalidades e Correções de Negócio)
+
+#### 1. Fluxo de Digitação de Pedidos e Seleção de Cliente (SPEC-042 & SPEC-044)
+- **Card de Identificação Completa do Cliente (`PedidoNovoInicioWidget`)**:
+  - Exibição de Razão Social, Nome Fantasia, Código do Cliente, CPF/CNPJ formatado com máscara (`AppUtil`), Endereço, Bairro, Cidade/UF e Rota.
+  - Indicadores em badges da Tabela de Preço padrão, Prazo Padrão, Limite de Crédito concedido e Limite Disponível calculado.
+  - Badge dinâmico de status financeiro: *"Em Dia"* (verde) ou *"Inadimplência Ativa"* (vermelho).
+- **Remoção de Agente Prematuro (SPEC-044)**:
+  - Removida a exibição do campo `Agente: 501` (`cli00_codage`) na seleção de cliente da tela de Novo Pedido. O vínculo com o agente cobrador é atribuído exclusivamente no fechamento de totais (`ffrmdigvenmov04`).
+- **Observações do Pedido (`dig00_obs`)**:
+  - Implementação do modal desacoplado `ModalObservacaoPedidoWidget` acessível no cabeçalho do pedido.
+  - Campo expansível de texto livre de até 500 caracteres, sincronizado com o estado global e persistido no banco de digitação `dbforcadig001.db`.
+
+#### 2. Validação de Inadimplência e Bloqueio Financeiro (`BloqueioFinanceiroService`)
+- **Regras Oficiais de Bloqueio**:
+  - Bloqueio imediato quando o cliente possui títulos vencidos (`cli00_titven > 0`) ou limite de crédito estourado (`cli00_creatu <= 0`).
+  - Disparo compulsório do Extrato Financeiro do Cliente em `modoBloqueio: true`.
+- **Botão "Liberar Pedido" Padronizado**:
+  - Posicionamento em `Scaffold.bottomNavigationBar`, ocupando 100% da largura da tela com fundo branco e sombra superior.
+  - Altura ergonômica de 48px e rótulo claro **"Liberar Pedido"** com retorno de confirmação de ciência para desbloqueio da digitação.
+
+#### 3. Extrato do Cliente, Títulos e Redesign da Aba Faturamento (SPEC-043, SPEC-044 & SPEC-045)
+- **Motor de Busca Multi-Bancos e Sanitização de Dados (`ReceberDuplicatasService`)**:
+  - Busca inteligente por densidade de registros (`COUNT(*) > 0`) entre os arquivos `dbforcadig001.db` e `dbforcacad001.db`, cobrindo as tabelas `finrecdup00`, `dup00` e `caddup00`.
+  - Tratamento da chave de ligação do cliente com `COALESCE(dup00_codcli, dup00_clicod)`.
+  - Remoção de filtros indevidos por vendedor logado ou data menor que hoje, garantindo o carregamento de todos os títulos em aberto (vencidos e vincendos).
+  - Sanitização de valores monetários com formatação brasileira contendo vírgula (`"310,00"`, `"620,53"`).
+  - Algoritmo em Dart para apuração de dias de atraso e juros de mora (`saldoDevedor * (taxaRep / 100) * diasAtraso`), com parsing resiliente para formatos `DD/MM/AAAA` e ISO.
+- **Unificação do Extrato e Redesign Responsivo da Aba Faturamento**:
+  - Descontinuação do antigo `ExtratoDuplicatasWidget` e consolidação definitiva na aba **Faturamento** do `ExtratoClientePageWidget`.
+  - Cards detalhados e responsivos (`/flutter-build-responsive-layout` & `/flutter-best-practices`):
+    - Cabeçalho com `TÍTULO: <numeroDocumento>` e pill de status (`VENCIDO (Xd)` / `EM DIA`).
+    - Grade alinhada em 2 colunas: `EMISSÃO`, `VENCIMENTO`, `% JUROS/DIA`, `DIAS/ATRASO`, `VALOR TÍTULO`, `VALOR JUROS`.
+    - Faixa destacada para `SALDO DEVEDOR:` com o valor consolidado em vermelho vivo (`Color(0xFFDC2626)`).
+  - Tabela inferior fixa de totais 2x4 (Tot.Vencido, Total Juros, Dias/Atraso, Valor Devedor).
+  - Ações de cobrança com compartilhamento direto via WhatsApp e cópia para a área de transferência.
+
+#### 4. Experiência de Usuário e Usabilidade
+- **Tela de Login (`LoginPageWidget`)**:
+  - Configuração do campo de senha com `TextInputAction.done` / `TextInputAction.go` e callback `onSubmitted`, disparando a autenticação diretamente ao pressionar a tecla IR / Enter / Next no teclado virtual.
+
+### 🛡️ Testes e Garantia de Qualidade
+- **Suíte de Testes Automatizados**:
+  - `test/spec_043_extrato_titulos_test.dart`: Cobertura de queries multi-banco, `finrecdup00`, cálculo de juros, layout da aba Faturamento e botão "Liberar Pedido" em `modoBloqueio`.
+  - `test/spec_042_calculo_juros_extrato_test.dart`: Testes de cálculo de dias de atraso, juros de mora e bloqueio por inadimplência.
+  - `test/spec_042_card_cliente_test.dart`: Testes de renderização dos dados cadastrais e financeiros do cliente.
+  - `test/spec_042_observacao_pedido_test.dart`: Testes do modal e persistência de observação.
+  - `test/receber_page_widget_test.dart`: Validação dos widgets de contas a receber e extrato.
+- **Análise Estática**: `flutter analyze` finalizado com **0 erros e 0 warnings**.
+- **Build Release do APK**: `flutter build apk --split-per-abi` gerado com sucesso (armeabi-v7a, arm64-v8a e x86_64).
+
+### 📚 Documentação
+- Registradas [`SPEC-044.md`](docs/specs/SPEC-044.md), [`SPEC-045.md`](docs/specs/SPEC-045.md), [`SPEC-046.md`](docs/specs/SPEC-046.md) e [`042_Melhorias_no_Fluxo_de_Digitacao_de_Pedidos_Selecao_de_Cliente_e_Extrato_Financeiro`](docs/specs/042_Melhorias_no_Fluxo_de_Digitacao_de_Pedidos_Selecao_de_Cliente_e_Extrato_Financeiro).
+
+---
+
 ## [5.3.0] - 2026-09-12
 
 ### 🌟 Adicionado (Novas Funcionalidades e Recursos Visuais)

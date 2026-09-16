@@ -1,0 +1,43 @@
+# SPEC-042: Melhorias no Fluxo de Digitação de Pedidos, Seleção de Cliente e Extrato Financeiro
+
+| Metadado | Detalhe |
+| :--- | :--- |
+| **Módulo** | Força de Vendas Flutter / Digitação de Pedidos |
+| **Origem Legada** | `ffrmdigvenmov00.cpp`, `ffrmdigvenmov04.cpp`, `ffrmextractcli00.cpp`, `ffrmrelrecdup02.cpp`, `ffrmrelconcli00.cpp` |
+| **Tabelas Envolvidas** | `dig00` (`dbforcadig001.db`), `cadcli00`, `dup00`, `cadrep00` |
+| **Status** | Pronto para Desenvolvimento |
+
+---
+
+## 1. Visão Geral & Objetivos
+Esta especificação consolida o comportamento de regras de negócio trazidas do sistema legado C++/Qt para o novo aplicativo em Flutter, contemplando:
+1. **Inclusão do campo de Observação do Pedido**, acionado logo após a seleção do Agente Cobrador no fechamento da venda.
+2. **Unificação da Pesquisa de Clientes** em "Novo Pedido" com a tela padrão de "Consulta de Clientes", incluindo atalho direto para visualização do extrato.
+3. **Disparo Automático do Extrato Financeiro** por pendências financeiras (inadimplência ou limite estourado) no momento da seleção do cliente.
+4. **Visualização Analítica e Resumo Consolidado de Títulos Vencidos** com apuração de juros e dias de atraso em tempo real.
+
+---
+
+## 2. Fluxo Operacional Unificado
+
+```text
+[Novo Pedido]
+      │
+      ▼
+[Pesquisa Unificada de Clientes (cadcli00)] ──(Ícone/Botão Extrato)──► [Extrato de Títulos (dup00)]
+      │                                                                         │
+ (Seleciona o Cliente)                                                          │
+      │                                                                         ▼
+ (Validação de Pendências: cli00_titven > 0 ou Limite Excedido) ──(Sim)──► [Bloqueio / Exibe Extrato]
+      │                                                                    (Ciência do Vendedor)
+      ▼ (Sem pendências ou Liberado com Ciência)                                │
+[Seleção de Linha de Produtos / Itens do Pedido] ◄──────────────────────────────┘
+      │
+      ▼
+[Fechamento do Pedido: Plano de Pagamento -> Agente Cobrador (dig00_digagt)]
+      │
+      ▼
+[Abre Campo: Observação do Pedido (dig00_digobs)]
+      │
+      ▼
+[Persistência na dig00 e Empacotamento XML <digobs> no .pac]

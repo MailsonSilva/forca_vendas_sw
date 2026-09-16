@@ -214,6 +214,10 @@ Future<List<ProdutoResultStruct>> buscaProduto(
           orParts.add('p.$colProBar LIKE ?');
           orBinds.add(termo);
         }
+        if (proCols.contains('pro00_reffor')) {
+          orParts.add('p.pro00_reffor LIKE ?');
+          orBinds.add(termo);
+        }
         if (proCols.contains('pro00_ref001')) {
           orParts.add('p.pro00_ref001 LIKE ?');
           orBinds.add(termo);
@@ -338,6 +342,9 @@ Future<List<ProdutoResultStruct>> buscaProduto(
       String selCodBar = proCols.contains(colProBar)
           ? "COALESCE(p.$colProBar, '') AS codbar"
           : "'' AS codbar";
+      String selRefFor = proCols.contains('pro00_reffor')
+          ? "COALESCE(p.pro00_reffor, '') AS reffor"
+          : "'' AS reffor";
       String selRef1 = proCols.contains('pro00_ref001')
           ? "p.pro00_ref001 AS ref001"
           : "'' AS ref001";
@@ -359,23 +366,29 @@ Future<List<ProdutoResultStruct>> buscaProduto(
                   ? 'COALESCE(p.pro00_preco, 0) AS preco_venda'
                   : '0 AS preco_venda'));
 
+      final String estDiretoCadpro = proCols.contains('pro00_qtdest') ? 'p.pro00_qtdest' : '0';
+
       String selEstAtual = (hasEst && estQtdCol != null)
-          ? 'COALESCE(e.$estQtdCol, 0) AS estoque_atual'
-          : '0 AS estoque_atual';
+          ? 'COALESCE(e.$estQtdCol, $estDiretoCadpro, 0) AS estoque_atual'
+          : (proCols.contains('pro00_qtdest')
+              ? 'COALESCE(p.pro00_qtdest, 0) AS estoque_atual'
+              : '0 AS estoque_atual');
 
       String selEstPen = (hasEst && estPenCol != null)
           ? 'COALESCE(e.$estPenCol, 0) AS estoque_pendente'
           : '0 AS estoque_pendente';
 
       String selSaldo = (hasEst && estQtdCol != null)
-          ? '(COALESCE(e.$estQtdCol, 0) - ${estPenCol != null ? 'COALESCE(e.$estPenCol, 0)' : '0'} - $subqueryRascunho) AS saldo'
-          : '0 AS saldo';
+          ? '(COALESCE(e.$estQtdCol, $estDiretoCadpro, 0) - ${estPenCol != null ? 'COALESCE(e.$estPenCol, 0)' : '0'} - $subqueryRascunho) AS saldo'
+          : (proCols.contains('pro00_qtdest')
+              ? '(COALESCE(p.pro00_qtdest, 0) - $subqueryRascunho) AS saldo'
+              : '0 AS saldo');
 
       final String query =
           "SELECT DISTINCT p.$colProCod AS pro00_codigo, p.$colProDesc AS pro00_descri, p.$colProUnid AS pro00_unidad, "
           "$selPreco, $selEstAtual, $selEstPen, $selSaldo, "
           "$selMulver, $selPcomin, $selPcomax, $selCommax, $selCodtrb, $selFreadpco, "
-          "$selMarca, $selFab, $selCodBar, $selRef1, $selRef2, $selEmbala, $selCodImg "
+          "$selMarca, $selFab, $selCodBar, $selRefFor, $selRef1, $selRef2, $selEmbala, $selCodImg "
           "FROM $tabelaPro p "
           "$joinTabela "
           "$joinEstoque "
@@ -434,6 +447,7 @@ Future<List<ProdutoResultStruct>> buscaProduto(
                 marca: (m['marca_nome'] ?? m['marca'] ?? m['mar00_descri'] ?? 'SEM MARCA').toString(),
                 fabricante: (m['fabricante_nome'] ?? m['fabricante'] ?? m['for00_descri'] ?? '').toString(),
                 codbar: (m['codbar'] ?? m['pro00_codbar'] ?? '').toString(),
+                reffor: (m['reffor'] ?? m['pro00_reffor'])?.toString().trim(),
                 referencia1: m['ref001']?.toString() ?? m['pro00_ref001']?.toString(),
                 referencia2: m['ref002']?.toString() ?? m['pro00_ref002']?.toString(),
                 embalagem: (m['embalagem'] ?? m['pro00_embala'] ?? m['pro00_unidad'] ?? 'UN').toString(),

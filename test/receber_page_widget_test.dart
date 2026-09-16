@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forca_de_vendas/app_state.dart';
-import 'package:forca_de_vendas/components/extrato_duplicatas/extrato_duplicatas_widget.dart';
+import 'package:forca_de_vendas/pages/cliente/extrato_cliente_page/extrato_cliente_page_widget.dart';
 import 'package:forca_de_vendas/pages/receber/receber_page_widget.dart';
 import 'package:forca_de_vendas/services/receber_duplicatas_service.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -38,7 +38,7 @@ void main() {
     expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
   });
 
-  testWidgets('ExtratoDuplicatasWidget renderiza resumo financeiro e botões de ação', (WidgetTester tester) async {
+  testWidgets('ExtratoClientePageWidget renderiza resumo financeiro e tabs', (WidgetTester tester) async {
     final cliente = ClienteReceberItem(
       codCli: 42,
       razaoSocial: 'COMERCIAL ALVORADA LTDA',
@@ -70,15 +70,14 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(createTestableWidget(ExtratoDuplicatasWidget(clienteInicial: cliente)));
+    await tester.pumpWidget(createTestableWidget(ExtratoClientePageWidget(clienteInicial: cliente)));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Extrato de Duplicatas'), findsOneWidget);
-    expect(find.text('COMERCIAL ALVORADA LTDA'), findsOneWidget);
-    expect(find.text('Compartilhar'), findsOneWidget);
-    expect(find.text('Novo Pedido'), findsOneWidget);
-    expect(find.text('Total Vencido'), findsOneWidget);
-    expect(find.text('Total A Vencer'), findsOneWidget);
+    expect(find.text('Extrato do Cliente'), findsOneWidget);
+    expect(find.textContaining('COMERCIAL ALVORADA LTDA'), findsOneWidget);
+    expect(find.text('Limite Crédito'), findsOneWidget);
+    expect(find.text('Disponível'), findsOneWidget);
+    expect(find.text('Faturamento'), findsOneWidget);
   });
 }

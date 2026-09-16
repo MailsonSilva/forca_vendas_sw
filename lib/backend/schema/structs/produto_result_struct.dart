@@ -41,6 +41,7 @@ class ProdutoResultStruct extends BaseStruct {
     int? codtrb,
     bool? freadpco,
     // Atributos de Produto EAN, Marca, Referência, Embalagem, Imagem
+    String? reffor,
     String? referencia1,
     String? referencia2,
     String? embalagem,
@@ -65,6 +66,7 @@ class ProdutoResultStruct extends BaseStruct {
         _commax = commax,
         _codtrb = codtrb,
         _freadpco = freadpco,
+        _reffor = reffor,
         _referencia1 = referencia1,
         _referencia2 = referencia2,
         _embalagem = embalagem,
@@ -243,10 +245,17 @@ class ProdutoResultStruct extends BaseStruct {
   int? _imagemId;
   int get imagemId => _imagemId ?? 0;
   set imagemId(int? val) => _imagemId = val;
-  bool hasImagemId() => _imagemId != null;
+  // "reffor" field (pro00_reffor)
+  String? _reffor;
+  String get reffor => _reffor ?? '';
+  set reffor(String? val) => _reffor = val;
+  bool hasReffor() => _reffor != null;
 
-  /// Formatação legível da referência para exibição na UI
+  /// Formatação legível da referência para exibição na UI (prioriza pro00_reffor)
   String get referenciaFormatada {
+    if (reffor.trim().isNotEmpty) {
+      return reffor.trim();
+    }
     final refs = <String>[];
     if (referencia1.trim().isNotEmpty) {
       refs.add(referencia1.trim());
@@ -279,6 +288,7 @@ class ProdutoResultStruct extends BaseStruct {
         commax: castToType<double>(data['commax']),
         codtrb: castToType<int>(data['codtrb']),
         freadpco: data['freadpco'] as bool?,
+        reffor: (data['reffor'] ?? data['pro00_reffor']) as String?,
         referencia1: data['referencia1'] as String?,
         referencia2: data['referencia2'] as String?,
         embalagem: data['embalagem'] as String?,
@@ -312,6 +322,7 @@ class ProdutoResultStruct extends BaseStruct {
         'freadpco': _freadpco,
         'referencia1': _referencia1,
         'referencia2': _referencia2,
+        'reffor': _reffor,
         'embalagem': _embalagem,
         'imagemId': _imagemId,
       }.withoutNulls;

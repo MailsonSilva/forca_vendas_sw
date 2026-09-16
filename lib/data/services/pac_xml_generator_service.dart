@@ -26,6 +26,16 @@ import '../../domain/models/pedido_venda.dart';
 class PacXmlGeneratorService {
   static String _fmt3(num? v) => (v ?? 0.0).toStringAsFixed(3);
 
+  static String _escapeXml(String? s) {
+    if (s == null || s.isEmpty) return '';
+    return s
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&apos;');
+  }
+
   static String generate(PedidoVenda pedido) {
     final StringBuffer xml = StringBuffer();
     final DateFormat formatter = DateFormat('yyyy-MM-dd');
@@ -61,8 +71,14 @@ class PacXmlGeneratorService {
     xml.write('dig00_codlat="" ');
     xml.write('dig00_digpwd="${pedido.codRep}" ');
     xml.write('dig00_datenv="$currentDate" ');
-    xml.write('dig00_cobcod="-1"');
+    xml.write('dig00_cobcod="-1" ');
+    xml.write('dig00_digobs="${_escapeXml(pedido.observacao)}"');
     xml.writeln('/>');
+
+    // SPEC-042: nó <dig00> com tag <digobs>
+    xml.writeln('<dig00>');
+    xml.writeln('  <digobs>${_escapeXml(pedido.observacao)}</digobs>');
+    xml.writeln('</dig00>');
 
     // pac01 — itens representados por <row .../>
     xml.writeln('<pac01>');
@@ -142,8 +158,14 @@ class PacXmlGeneratorService {
       xml.write('dig00_codlat="" ');
       xml.write('dig00_digpwd="$codRep" ');
       xml.write('dig00_datenv="$currentDate" ');
-      xml.write('dig00_cobcod="-1"');
+      xml.write('dig00_cobcod="-1" ');
+      xml.write('dig00_digobs="${_escapeXml(pedido.observacao)}"');
       xml.writeln('/>');
+
+      // SPEC-042: nó <dig00> com tag <digobs>
+      xml.writeln('<dig00>');
+      xml.writeln('  <digobs>${_escapeXml(pedido.observacao)}</digobs>');
+      xml.writeln('</dig00>');
 
       // pac01 — itens do pedido
       xml.writeln('<pac01>');
