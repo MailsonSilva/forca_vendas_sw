@@ -96,11 +96,17 @@ Future<bool> salvarCarrinhoPedido({
         'dig00_subtot': 'REAL',
         'ped00_bontot': 'REAL',
         'ped00_destot': 'REAL',
-        'ped00_pacstr': 'TEXT',
         'ped00_digobs': 'TEXT',
         'dig00_digobs': 'TEXT',
         'ped00_obs': 'TEXT',
-        'ped00_observ': 'TEXT',
+        'ped00_pacstr': 'TEXT',
+        // SPEC-046: compatibilidade com colunas legadas dig00_*
+        'dig00_digcod': 'INTEGER',
+        'dig00_digfil': 'INTEGER',
+        'dig00_paccod': 'INTEGER',
+        'dig00_pacstr': 'TEXT',
+        'dig00_sttenv': 'INTEGER',
+        'dig00_datenv': 'TEXT',
       };
       for (final e in ensureCols.entries) {
         try {
@@ -286,17 +292,22 @@ Future<bool> salvarCarrinhoPedido({
       addHeaderIf('ped00_numped', pedidoId);
       addHeaderIf('ped00_pedcod', pedidoId);
       addHeaderIf('ped00_codmov', pedidoId);
+      addHeaderIf('dig00_digcod', pedidoId);
       addHeaderIf('numped', pedidoId);
       addHeaderIf('ped00_codcli', finalClienteCodigo);
       addHeaderIf('ped00_clicod', finalClienteCodigo);
       addHeaderIf('codcli', finalClienteCodigo);
+      addHeaderIf('dig00_clicod', finalClienteCodigo);
       addHeaderIf('ped00_codlin', finalLinVal);
       addHeaderIf('ped00_lincod', finalLinVal);
+      addHeaderIf('dig00_lincod', finalLinVal);
       addHeaderIf('ped00_codpla', finalPlaVal);
       addHeaderIf('ped00_codpag', finalPlaVal);
       addHeaderIf('ped00_placod', finalPlaVal);
+      addHeaderIf('dig00_placod', finalPlaVal);
       addHeaderIf('ped00_codfil', finalCodFil);
       addHeaderIf('ped00_filcod', finalCodFil);
+      addHeaderIf('dig00_digfil', finalCodFil);
       addHeaderIf('ped00_codrep', finalCodRep);
       addHeaderIf('ped00_repcod', finalCodRep);
       addHeaderIf('ped00_vencod', finalCodRep);

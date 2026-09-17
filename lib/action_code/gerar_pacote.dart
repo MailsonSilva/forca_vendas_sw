@@ -6,6 +6,7 @@ import '../data/services/pac_xml_generator_service.dart';
 import '../domain/models/pedido_venda.dart';
 import '../services/carga_registry_service.dart';
 import '../services/ftp_path_builder.dart';
+import '../services/sequence_generator_service.dart';
 
 import '/app_state.dart';
 
@@ -91,12 +92,25 @@ Future<String> gerarPacote({
     id: seq,
   ));
 
-  // 6. Registra o lote na tabela de controle pac00 e atualiza status dos pedidos
+  // 6. Registra o lote na tabela de controle pckvenpac00 e pac00 e atualiza status dos pedidos (SPEC-046)
   try {
     final db = await LocalSalesDatabaseService.getDatabase();
     final todayStr = DateTime.now().toString().split(' ').first;
 
-    // Registra na tabela de controle pac00
+    // Registra via SequenceGeneratorService (SPEC-046)
+    try {
+      final seqService = SequenceGeneratorService(db);
+      await seqService.registrarPacoteEPedidos(
+        codigoVendedor: codRep,
+        ipac: seq,
+        pedidosIds: pedidosIds,
+        totalValorLote: totalValorLote,
+      );
+    } catch (e) {
+      print('Aviso SequenceGeneratorService ao registrar pacote: $e');
+    }
+
+    // Registra na tabela de controle pac00 (fallback compatibilidade)
     try {
       await db.rawInsert('''
         INSERT OR REPLACE INTO pac00 (

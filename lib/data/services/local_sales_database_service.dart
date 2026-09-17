@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 import '/core/services/empresa_logo_service.dart';
+import '../../services/sequence_generator_service.dart';
+import '../../app_state.dart';
 
 /// Responsavel pelo arquivo SQLite local da forca de vendas.
 ///
@@ -142,6 +144,15 @@ class LocalSalesDatabaseService {
       'ped00_fatobs': 'TEXT',
       'ped00_datret': 'TEXT',
       'ped00_ccvtot': 'REAL',
+      // SPEC-046: compatibilidade com colunas legadas dig00_*
+      'dig00_digcod': 'INTEGER',
+      'dig00_digfil': 'INTEGER',
+      'dig00_paccod': 'INTEGER',
+      'dig00_pacstr': 'TEXT',
+      'dig00_sttenv': 'INTEGER',
+      'dig00_datenv': 'TEXT',
+      'ped00_paccod': 'INTEGER',
+      'ped00_datenv': 'TEXT',
     }.entries) {
       try {
         await db.execute('ALTER TABLE pckvendig000 ADD COLUMN ${e.key} ${e.value}');
@@ -386,6 +397,15 @@ class LocalSalesDatabaseService {
     } catch (_) {}
     try { await db.execute('DROP VIEW IF EXISTS cli00'); } catch (_) {}
     try { await db.execute('CREATE VIEW IF NOT EXISTS cli00 AS SELECT * FROM cadcli00'); } catch (_) {}
+
+    // View de compatibilidade SPEC-046: pckvendig00
+    try {
+      final hasPck00 = (await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='pckvendig00'")).isNotEmpty;
+      if (!hasPck00) {
+        await db.execute('DROP VIEW IF EXISTS pckvendig00');
+        await db.execute('CREATE VIEW IF NOT EXISTS pckvendig00 AS SELECT * FROM pckvendig000');
+      }
+    } catch (_) {}
   }
 
 
@@ -406,48 +426,20 @@ class LocalSalesDatabaseService {
   }
 
 
-  /// Obtém o próximo sequencial de pacote incremental (range 1000..9999).
-  /// Conforme especificação Suportware: txtven00_pacseq inicia em 1000 e vai até 9999.
+  /// Obtém o próximo sequencial de pacote incremental (range 1000..9999) conforme SPEC-046.
   static Future<int> obterProximoSequencialPacote(int codRep) async {
     final db = await getDatabase();
-    int currentSeq = 0;
+    final service = SequenceGeneratorService(db);
+    return service.obterProximoCodigoPacote(codRep);
+  }
 
-    // 1. Tenta buscar no cadastro do representante cadrep00
-    try {
-      final rows = await db.rawQuery('SELECT * FROM cadrep00 WHERE ven00_codigo = ? OR rep00_codigo = ? LIMIT 1', [codRep, codRep]);
-      if (rows.isNotEmpty) {
-        final r = rows.first;
-        for (final k in ['txtven00_pacseq', 'ven00_pacseq', 'pacseq', 'rep00_pacseq']) {
-          if (r.containsKey(k) && r[k] != null) {
-            currentSeq = int.tryParse(r[k].toString()) ?? 0;
-            if (currentSeq > 0) break;
-          }
-        }
-      }
-    } catch (_) {}
-
-    // 2. Tenta buscar o maior sequencial gravado na tabela pac00
-    if (currentSeq == 0) {
-      try {
-        final rows = await db.rawQuery('SELECT MAX(pac00_paccod) as max_seq FROM pac00 WHERE pac00_pacrep = ?', [codRep]);
-        if (rows.isNotEmpty && rows.first['max_seq'] != null) {
-          final s = int.tryParse(rows.first['max_seq'].toString()) ?? 0;
-          if (s > currentSeq) currentSeq = s;
-        }
-      } catch (_) {}
-    }
-
-    int nextSeq = (currentSeq >= 1000) ? currentSeq + 1 : 1000;
-    if (nextSeq > 9999) {
-      nextSeq = 1000; // Rollover conforme especificação
-    }
-
-    // Tenta atualizar no cadrep00 se a tabela/coluna existir
-    try {
-      await db.rawUpdate('UPDATE cadrep00 SET txtven00_pacseq = ? WHERE ven00_codigo = ? OR rep00_codigo = ?', [nextSeq, codRep, codRep]);
-    } catch (_) {}
-
-    return nextSeq;
+  /// Obtém o próximo código sequencial do pedido (+1) conforme SPEC-046.
+  static Future<int> obterProximoCodigoPedido({int? codFilial, int? codVendedor}) async {
+    final db = await getDatabase();
+    final service = SequenceGeneratorService(db);
+    final fil = codFilial ?? (AppState().codFilialAtiva != 0 ? AppState().codFilialAtiva : 1);
+    final rep = codVendedor ?? AppState().vendedor_codigo;
+    return service.obterProximoCodigoPedido(fil, rep);
   }
 
 

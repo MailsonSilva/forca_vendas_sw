@@ -1,16 +1,19 @@
 import 'package:sqflite/sqflite.dart';
+import '../app_state.dart';
 import '../data/services/local_sales_database_service.dart';
+import '../services/sequence_generator_service.dart';
 
-/// Retorna o próximo código sequencial para um novo pedido, calculado como
-/// `MAX(ped00_numped) + 1` na tabela `pckvendig000` do banco local.
+/// Retorna o próximo código sequencial para um novo pedido, calculado conforme
+/// SPEC-046 / ffrmdiggerpac00.cpp via [SequenceGeneratorService].
 ///
-/// Esse sequencial é usado como `codMov` do pedido e como segundo componente
-/// do nome do arquivo `.pac` (ex.: `p71-32504.pac`), replicando o legado que
-/// numerava os pedidos pela sequência do banco — não por milissegundos Unix.
+/// Consulta: `SELECT COALESCE(MAX(dig00_digcod), 0) + 1 FROM pckvendig00 WHERE dig00_digfil = :filial`
 ///
-/// Fallback seguro (padrão no-op): se o banco não existir, a tabela não
-/// existir ou ocorrer erro, retorna `1` sem lançar exceção.
-Future<int> obterProximoNumeroPedido({String? dbPath}) async {
+/// Fallback seguro: se o banco não existir ou ocorrer erro, retorna `1` sem lançar exceção.
+Future<int> obterProximoNumeroPedido({
+  String? dbPath,
+  int? codFilial,
+  int? codVendedor,
+}) async {
   try {
     final bool isCustom = dbPath != null;
     final db = isCustom
@@ -18,31 +21,11 @@ Future<int> obterProximoNumeroPedido({String? dbPath}) async {
         : await LocalSalesDatabaseService.getDatabase();
 
     try {
-      final t = await db.rawQuery(
-        "SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='pckvendig000'",
-      );
-      if (t.isEmpty) return 1;
+      final filial = codFilial ?? (AppState().codFilialAtiva != 0 ? AppState().codFilialAtiva : 1);
+      final vendedor = codVendedor ?? AppState().vendedor_codigo;
 
-      final cols = await db.rawQuery('PRAGMA table_info(pckvendig000)');
-      final colNames = cols.map((r) => r['name']?.toString().toLowerCase()).toSet();
-      String colNum = 'ped00_numped';
-      for (final c in ['ped00_numped', 'ped00_pedcod', 'ped00_codmov']) {
-        if (colNames.contains(c.toLowerCase())) {
-          colNum = c;
-          break;
-        }
-      }
-
-      final result = await db.rawQuery(
-        'SELECT IFNULL(MAX($colNum), 0) AS maxval FROM pckvendig000',
-      );
-      if (result.isNotEmpty) {
-        final val = result.first['maxval'];
-        final n = (val is num) ? val.toInt() : (int.tryParse(val?.toString() ?? '') ?? 0);
-        return n + 1;
-      }
-
-      return 1;
+      final service = SequenceGeneratorService(db);
+      return await service.obterProximoCodigoPedido(filial, vendedor);
     } finally {
       if (isCustom) {
         await db.close();

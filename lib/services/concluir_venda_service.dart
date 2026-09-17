@@ -193,6 +193,13 @@ class ConcluirVendaService {
         'dig00_digobs': 'TEXT',
         'ped00_obs': 'TEXT',
         'ped00_observ': 'TEXT',
+        // SPEC-046: compatibilidade com colunas legadas dig00_*
+        'dig00_digcod': 'INTEGER',
+        'dig00_digfil': 'INTEGER',
+        'dig00_paccod': 'INTEGER',
+        'dig00_pacstr': 'TEXT',
+        'dig00_sttenv': 'INTEGER',
+        'dig00_datenv': 'TEXT',
       }.entries) {
         try { await db.execute('ALTER TABLE pckvendig000 ADD COLUMN ${e.key} ${e.value}'); } catch (_) {}
       }
@@ -229,7 +236,11 @@ class ConcluirVendaService {
       addUpdate('ped00_pacstr', '');
       addUpdate('ped00_pacote', '');
       addUpdate('ped00_codfil', pedido.codFil);
+      addUpdate('dig00_digfil', pedido.codFil);
+      addUpdate('ped00_numped', pedido.codMov);
+      addUpdate('dig00_digcod', pedido.codMov);
       addUpdate('ped00_codrep', pedido.codRep);
+      addUpdate('dig00_digrep', pedido.codRep);
       addUpdate('ped00_digcob', pedido.tipoAgente);
       addUpdate('ped00_codagt', pedido.codAgt);
       addUpdate('ped00_agtcod', pedido.codAgt);
@@ -428,6 +439,13 @@ class ConcluirVendaService {
           'ped00_bontot': 'REAL',
           'ped00_destot': 'REAL',
           'ped00_pacstr': 'TEXT',
+          // SPEC-046: compatibilidade com colunas legadas dig00_*
+          'dig00_digcod': 'INTEGER',
+          'dig00_digfil': 'INTEGER',
+          'dig00_paccod': 'INTEGER',
+          'dig00_pacstr': 'TEXT',
+          'dig00_sttenv': 'INTEGER',
+          'dig00_datenv': 'TEXT',
         }.entries) {
           try { await db.execute('ALTER TABLE pckvendig000 ADD COLUMN ${e.key} ${e.value}'); } catch (_) {}
         }
@@ -471,7 +489,11 @@ class ConcluirVendaService {
         addUpdate('ped00_pacstr', fileName);
         addUpdate('ped00_pacote', fileName);
         addUpdate('ped00_codfil', pedido.codFil);
+        addUpdate('dig00_digfil', pedido.codFil);
+        addUpdate('ped00_numped', pedido.codMov);
+        addUpdate('dig00_digcod', pedido.codMov);
         addUpdate('ped00_codrep', pedido.codRep);
+        addUpdate('dig00_digrep', pedido.codRep);
         addUpdate('ped00_digcob', pedido.tipoAgente);
         addUpdate('ped00_codagt', pedido.codAgt);
         addUpdate('ped00_agtcod', pedido.codAgt);
