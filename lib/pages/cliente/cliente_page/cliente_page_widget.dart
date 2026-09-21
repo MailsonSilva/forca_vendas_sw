@@ -24,6 +24,9 @@ class ClientePageWidget extends StatefulWidget {
 
 class _ClientePageWidgetState extends State<ClientePageWidget> {
   late ClientePageModel _model;
+  final ScrollController _scrollController = ScrollController();
+  bool _isLoadingMore = false;
+  bool _hasMoreItems = true;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -33,13 +36,44 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
     safeSetState(() {
       _model.clientesIniciais = res;
       _model.clientesResultPage = res.toList().cast<ClienteResultStruct>();
+      _hasMoreItems = res.length >= 100;
     });
+  }
+
+  Future<void> _carregarProximaPaginaClientes() async {
+    if (_isLoadingMore || !_hasMoreItems) return;
+    _isLoadingMore = true;
+    safeSetState(() {});
+    try {
+      final termo = _model.buscaClienteFieldTextController?.text.trim() ?? '';
+      final offset = _model.clientesResultPage.length;
+      final novos = await actions.pesquisaCliente(termo, offset);
+      if (novos.isEmpty || novos.length < 100) {
+        _hasMoreItems = false;
+      }
+      _model.clientesResultPage.addAll(novos);
+    } catch (_) {
+      _hasMoreItems = false;
+    } finally {
+      _isLoadingMore = false;
+      if (mounted) safeSetState(() {});
+    }
   }
 
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => ClientePageModel());
+
+    _scrollController.addListener(() {
+      if (_scrollController.hasClients &&
+          _scrollController.position.pixels >=
+              _scrollController.position.maxScrollExtent - 300) {
+        if (!_isLoadingMore && _hasMoreItems) {
+          _carregarProximaPaginaClientes();
+        }
+      }
+    });
 
     // On page load action.
     SchedulerBinding.instance.addPostFrameCallback((_) async {
@@ -52,6 +86,7 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _model.dispose();
 
     super.dispose();
@@ -151,7 +186,7 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                       focusNode: _model.buscaClienteFieldFocusNode,
                       onChanged: (_) => EasyDebounce.debounce(
                         '_model.buscaClienteFieldTextController',
-                        const Duration(milliseconds: 2000),
+                        const Duration(milliseconds: 350),
                         () async {
                           _model.buscaCliente =
                               _model.buscaClienteFieldTextController.text;
@@ -163,8 +198,7 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                           _model.clientesResultPage = _model.resultadoBusca!
                               .toList()
                               .cast<ClienteResultStruct>();
-                          safeSetState(() {});
-
+                          _hasMoreItems = _model.clientesResultPage.length >= 100;
                           safeSetState(() {});
                         },
                       ),
@@ -232,9 +266,7 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                                       .resultadoBusca!
                                       .toList()
                                       .cast<ClienteResultStruct>();
-                                  safeSetState(() {});
-
-                                  safeSetState(() {});
+                                  _hasMoreItems = _model.clientesResultPage.length >= 100;
                                   safeSetState(() {});
                                 },
                                 child: Icon(
@@ -264,6 +296,7 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                               _model.clientesResultPage.toList();
 
                           return ListView.separated(
+                            controller: _scrollController,
                             padding: const EdgeInsets.fromLTRB(
                               0,
                               0,
@@ -271,11 +304,23 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                               16.0,
                             ),
                             primary: false,
-                            shrinkWrap: true,
+                            shrinkWrap: false,
                             scrollDirection: Axis.vertical,
-                            itemCount: listaCliente.length,
+                            itemCount: listaCliente.length + (_isLoadingMore ? 1 : 0),
                             separatorBuilder: (_, __) => const SizedBox(height: 16.0),
                             itemBuilder: (context, listaClienteIndex) {
+                              if (listaClienteIndex == listaCliente.length) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 16.0),
+                                  child: Center(
+                                    child: SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(strokeWidth: 2.0),
+                                    ),
+                                  ),
+                                );
+                              }
                               final listaClienteItem =
                                   listaCliente[listaClienteIndex];
                               return Padding(

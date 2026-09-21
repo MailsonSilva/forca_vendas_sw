@@ -16,6 +16,12 @@ class LocalSalesDatabaseService {
   static const aliasDig = 'dbforcadig001.db';
   static const _tempDatabaseName = 'temp_db.db';
 
+  static Database? _dbForTesting;
+
+  static void setDatabaseForTesting(Database? db) {
+    _dbForTesting = db;
+  }
+
   Future<File> get databaseFile async {
     final databasesPath = await getDatabasesPath();
     return File(p.join(databasesPath, databaseName));
@@ -33,11 +39,25 @@ class LocalSalesDatabaseService {
 
   /// Retorna a instância aberta do banco de dados SQLite unificado com migração automática.
   static Future<Database> getDatabase({bool readOnly = false}) async {
+    if (_dbForTesting != null) {
+      return _dbForTesting!;
+    }
     final path = await getDatabasePath();
     final db = await openDatabase(path, readOnly: readOnly);
+
+    // Pragmas de alto desempenho no SQLite nativo
+    try {
+      await db.execute('PRAGMA journal_mode = WAL');
+      await db.execute('PRAGMA synchronous = NORMAL');
+      await db.execute('PRAGMA temp_store = MEMORY');
+      await db.execute('PRAGMA cache_size = -64000'); // ~64MB em RAM
+      await db.execute('PRAGMA optimize');
+    } catch (_) {}
+
     if (!readOnly) {
       try {
         await _ensureSchemaAndMigrate(db);
+        await _criarIndicesPerformance(db);
       } catch (_) {}
     }
     return db;
@@ -408,6 +428,52 @@ class LocalSalesDatabaseService {
     } catch (_) {}
   }
 
+  /// Cria índices de performance nas tabelas de catálogo após importação de carga.
+  ///
+  /// Chamado imediatamente após `_ensureSchemaAndMigrate` em `replaceWithValidatedBytes`
+  /// para garantir que todas as buscas subsequentes usem índices ao invés de full table scan.
+  static Future<void> _criarIndicesPerformance(Database db) async {
+    // Descobre tabelas presentes no banco
+    Set<String> tables = {};
+    try {
+      final t = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'");
+      tables = t.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+    } catch (_) {}
+
+    // Índices para busca de produtos (cadpro00)
+    if (tables.contains('cadpro00')) {
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_busca ON cadpro00(pro00_descri, pro00_codigo, pro00_codbar)'); } catch (_) {}
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_descri ON cadpro00(pro00_descri)'); } catch (_) {}
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_codigo ON cadpro00(pro00_codigo)'); } catch (_) {}
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_codbar ON cadpro00(pro00_codbar)'); } catch (_) {}
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_filtros ON cadpro00(pro00_codlin, pro00_codgrp, pro00_codmar)'); } catch (_) {}
+    }
+
+    // Índices para estoque particionado (estpro00)
+    if (tables.contains('estpro00')) {
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_estpro00_filial_pro ON estpro00(pro00_codpro, pro00_codfil)'); } catch (_) {}
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_estpro00_codpro_codfil ON estpro00(pro00_codpro, pro00_codfil)'); } catch (_) {}
+    }
+
+    // Índices para tabela de preços (estpcopro00)
+    if (tables.contains('estpcopro00')) {
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_estpcopro00_codpro ON estpcopro00(pro00_codpro)'); } catch (_) {}
+    }
+
+    // Índices para clientes (cadcli00)
+    if (tables.contains('cadcli00')) {
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadcli00_busca ON cadcli00(cli00_descri, cli00_fantas, cli00_codigo, cli00_cpfcnp)'); } catch (_) {}
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadcli00_descri ON cadcli00(cli00_descri)'); } catch (_) {}
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadcli00_codigo ON cadcli00(cli00_codigo)'); } catch (_) {}
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadcli00_cpfcnp ON cadcli00(cli00_cpfcnp)'); } catch (_) {}
+    }
+
+    // Otimização do planner SQLite pós-carga
+    try { await db.execute('PRAGMA optimize'); } catch (_) {}
+    try { await db.execute('PRAGMA temp_store = MEMORY'); } catch (_) {}
+    try { await db.execute('PRAGMA cache_size = -64000'); } catch (_) {}
+  }
+
 
   /// Obtém o próximo código sequencial para novo cliente local
   static Future<int> obterProximoCodigoCliente() async {
@@ -533,6 +599,9 @@ class LocalSalesDatabaseService {
       try {
         newDb = await openDatabase(finalFile.path);
         await _ensureSchemaAndMigrate(newDb);
+
+        // 2.1 Cria índices de performance imediatamente após a carga
+        await _criarIndicesPerformance(newDb);
 
         if (backupPckvendig000.isNotEmpty ||
             backupPckvendig010.isNotEmpty ||

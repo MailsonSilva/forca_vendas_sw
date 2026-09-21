@@ -45,6 +45,8 @@ void main() {
     }
 
     final db = await openDatabase(dbPath);
+    await db.execute('DROP VIEW IF EXISTS pckvendig00');
+    await db.execute('DROP TABLE IF EXISTS pckvendig00');
     await db.execute('DROP TABLE IF EXISTS pckvendig000');
     await db.execute('DROP TABLE IF EXISTS pckvendig010');
     await db.execute('DROP TABLE IF EXISTS cadcli00');

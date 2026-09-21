@@ -75,7 +75,7 @@ void main() {
     test('query SQL de buscaProduto carrega pro00_codbar, ref001 e ref002', () async {
       final produtos = await buscaProduto(
         '2001', // busca por código
-        0,
+        null,
         '',
         '',
         '',
@@ -103,7 +103,7 @@ void main() {
     test('busca por código de barras encontra o produto corretamente', () async {
       final produtos = await buscaProduto(
         '7891000241501', // busca pelo código de barras / EAN
-        0,
+        null,
         '',
         '',
         '',
@@ -122,7 +122,7 @@ void main() {
     test('busca por referência de fábrica encontra o produto corretamente', () async {
       final produtos = await buscaProduto(
         'REF-HONDA-100',
-        0,
+        null,
         '',
         '',
         '',
@@ -141,7 +141,7 @@ void main() {
     test('carrega e busca pelo campo pro00_reffor da cadpro00 exibindo como referência', () async {
       final produtos = await buscaProduto(
         'FORN-PAST-77', // busca pelo valor do campo pro00_reffor
-        0,
+        null,
         '',
         '',
         '',

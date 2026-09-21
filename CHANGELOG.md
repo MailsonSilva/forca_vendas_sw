@@ -7,6 +7,21 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [5.4.1] - 2026-09-21
+
+### 🌟 Adicionado & Aprimorado (Novas Funcionalidades e Correções de Negócio)
+
+#### 1. Extrato e Compartilhamento de Pedidos
+- **Remoção de WhatsApp Direto**: O botão de envio direto pelo WhatsApp foi removido do extrato.
+- **Resumo em PDF Consolidado**: Geração e consolidação do resumo de pedidos em PDF para compartilhamento utilizando mecanismos nativos de compartilhamento do dispositivo (`share_plus`).
+
+#### 2. Otimização de Performance (Catálogo)
+- **Keyset Pagination**: Substituição da paginação tradicional baseada em `OFFSET` por cursor (*keyset pagination*), eliminando gargalos de performance e travamentos da interface no scroll infinito.
+- **Índices Cobridores**: Criação de índices no banco local (SQLite) otimizados para junção e ordenação de buscas do catálogo.
+- **PRAGMAs de Tuning**: Aplicação de cache em memória mitigando chamadas de I/O em listagens grandes.
+
+---
+
 ## [5.4.0] - 2026-09-16
 
 ### 🌟 Adicionado & Aprimorado (Novas Funcionalidades e Correções de Negócio)

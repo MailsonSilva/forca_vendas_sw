@@ -4,6 +4,7 @@ import '/core/app_widgets.dart';
 import '/action_code/index.dart' as actions;
 import '/functions/format_quantity.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'quantity_modal_model.dart';
@@ -33,6 +34,7 @@ class QuantityModalWidget extends StatefulWidget {
 
 class _QuantityModalWidgetState extends State<QuantityModalWidget> {
   late QuantityModalModel _model;
+  TextEditingController? _qtdTextController;
 
   @override
   void setState(VoidCallback callback) {
@@ -44,10 +46,14 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
   void initState() {
     super.initState();
     _model = createModel(context, () => QuantityModalModel());
+    _qtdTextController = TextEditingController(
+      text: AppState().quantidade_item.toString(),
+    );
   }
 
   @override
   void dispose() {
+    _qtdTextController?.dispose();
     _model.maybeDispose();
 
     super.dispose();
@@ -245,7 +251,7 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
                               ),
                         ),
                         Text(
-                          widget.precoUnitario!.toString(),
+                          (widget.precoUnitario ?? 0.0).toMoeda(),
                           style:
                               AppTheme.of(context).titleMedium.override(
                                     font: GoogleFonts.plusJakartaSans(
@@ -264,6 +270,51 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
                                     fontStyle: AppTheme.of(context)
                                         .titleMedium
                                         .fontStyle,
+                                  ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.max,
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Subtotal: ',
+                          style: AppTheme.of(context)
+                              .bodyMedium
+                              .override(
+                                font: GoogleFonts.inter(
+                                  fontWeight: AppTheme.of(context)
+                                      .bodyMedium
+                                      .fontWeight,
+                                  fontStyle: AppTheme.of(context)
+                                      .bodyMedium
+                                      .fontStyle,
+                                ),
+                                color:
+                                    AppTheme.of(context).secondaryText,
+                                letterSpacing: 0.0,
+                                fontWeight: AppTheme.of(context)
+                                    .bodyMedium
+                                    .fontWeight,
+                                fontStyle: AppTheme.of(context)
+                                    .bodyMedium
+                                    .fontStyle,
+                              ),
+                        ),
+                        Text(
+                          ((widget.precoUnitario ?? 0.0) * AppState().quantidade_item).toMoeda(),
+                          style:
+                              AppTheme.of(context).titleMedium.override(
+                                    font: GoogleFonts.plusJakartaSans(
+                                      fontWeight: FontWeight.bold,
+                                      fontStyle: AppTheme.of(context)
+                                          .titleMedium
+                                          .fontStyle,
+                                    ),
+                                    color: AppTheme.of(context).primary,
+                                    letterSpacing: 0.0,
                                   ),
                         ),
                       ],
@@ -371,8 +422,7 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
                           -1,
                         );
                         AppState().quantidade_item = _model.novaQtdMinus!;
-                        safeSetState(() {});
-
+                        _qtdTextController?.text = AppState().quantidade_item.toString();
                         safeSetState(() {});
                       },
                       text: '-',
@@ -392,10 +442,15 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
                     ),
                     Expanded(
                       flex: 1,
-                      child: Container(
-                        alignment: const AlignmentDirectional(0.0, 0.0),
-                        child: Text(
-                          AppState().quantidade_item.toString(),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        child: TextFormField(
+                          controller: _qtdTextController,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          textAlign: TextAlign.center,
                           style: AppTheme.of(context)
                               .headlineMedium
                               .override(
@@ -416,6 +471,56 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
                                     .headlineMedium
                                     .fontStyle,
                               ),
+                          decoration: InputDecoration(
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 8.0,
+                              horizontal: 4.0,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                              borderSide: BorderSide(
+                                color: AppTheme.of(context).primary,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                              borderSide: BorderSide(
+                                color: AppTheme.of(context).alternate,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                              borderSide: BorderSide(
+                                color: AppTheme.of(context).primary,
+                                width: 2.0,
+                              ),
+                            ),
+                          ),
+                          onTap: () {
+                            _qtdTextController?.selection = TextSelection(
+                              baseOffset: 0,
+                              extentOffset:
+                                  _qtdTextController?.text.length ?? 0,
+                            );
+                          },
+                          onChanged: (val) {
+                            int parsed = int.tryParse(val) ?? 0;
+                            final bool validaEstoque =
+                                (AppState().ven_chkest == 1);
+                            if (validaEstoque &&
+                                widget.saldoDisponivel != null &&
+                                parsed > widget.saldoDisponivel!) {
+                              parsed = widget.saldoDisponivel!.toInt();
+                              _qtdTextController?.text = parsed.toString();
+                              _qtdTextController?.selection = TextSelection(
+                                baseOffset: 0,
+                                extentOffset:
+                                    _qtdTextController?.text.length ?? 0,
+                              );
+                            }
+                            AppState().quantidade_item = parsed;
+                            safeSetState(() {});
+                          },
                         ),
                       ),
                     ),
@@ -426,8 +531,7 @@ class _QuantityModalWidgetState extends State<QuantityModalWidget> {
                           1,
                         );
                         AppState().quantidade_item = _model.novaQtdPlus!;
-                        safeSetState(() {});
-
+                        _qtdTextController?.text = AppState().quantidade_item.toString();
                         safeSetState(() {});
                       },
                       text: '+',

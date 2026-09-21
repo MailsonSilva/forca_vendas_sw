@@ -321,7 +321,12 @@ class _PedidoResumoWidgetState extends State<PedidoResumoWidget> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: true,
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          context.go('/homePage');
+        }
+      },
       child: GestureDetector(
         onTap: () {
           FocusScope.of(context).unfocus();
@@ -332,7 +337,11 @@ class _PedidoResumoWidgetState extends State<PedidoResumoWidget> {
           backgroundColor: AppTheme.of(context).primaryBackground,
           appBar: AppBar(
             backgroundColor: AppTheme.of(context).primary,
-            automaticallyImplyLeading: true,
+            automaticallyImplyLeading: false,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => context.go('/homePage'),
+            ),
             iconTheme: const IconThemeData(color: Colors.white),
             title: Text(
               'Extrato do Pedido',

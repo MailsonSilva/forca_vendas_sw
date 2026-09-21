@@ -8,6 +8,9 @@ import '/index.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '/services/filial_service.dart';
+import '/components/modal_selecao_filial/modal_selecao_filial_widget.dart';
+import '/data/services/local_sales_database_service.dart';
 import 'home_page_model.dart';
 export 'home_page_model.dart';
 
@@ -58,21 +61,81 @@ class _HomePageWidgetState extends State<HomePageWidget> {
             'SWR - Força de Vendas',
             style: AppTheme.of(context).headlineMedium.override(
                   font: GoogleFonts.plusJakartaSans(
-                    fontWeight:
-                        AppTheme.of(context).headlineMedium.fontWeight,
-                    fontStyle:
-                        AppTheme.of(context).headlineMedium.fontStyle,
+                    fontWeight: AppTheme.of(context).headlineMedium.fontWeight,
+                    fontStyle: AppTheme.of(context).headlineMedium.fontStyle,
                   ),
                   color: Colors.white,
                   fontSize: 22.0,
                   letterSpacing: 0.0,
-                  fontWeight:
-                      AppTheme.of(context).headlineMedium.fontWeight,
-                  fontStyle:
-                      AppTheme.of(context).headlineMedium.fontStyle,
+                  fontWeight: AppTheme.of(context).headlineMedium.fontWeight,
+                  fontStyle: AppTheme.of(context).headlineMedium.fontStyle,
                 ),
           ),
-          actions: const [],
+          actions: [
+            if (AppState().codFilialAtiva > 0)
+              Padding(
+                padding: const EdgeInsets.only(right: 12.0),
+                child: Center(
+                  child: InkWell(
+                    onTap: () async {
+                      if (AppState().ven_selfil == 1) {
+                        final db = await LocalSalesDatabaseService.getDatabase(
+                            readOnly: true);
+                        final filiaisEstoque =
+                            await FilialService.obterFiliaisDistintasEstoque(
+                                db);
+                        if (filiaisEstoque.length > 1) {
+                          final filiais =
+                              await FilialService.obterFiliaisComDescricao(
+                                  db, filiaisEstoque);
+                          if (context.mounted) {
+                            final result = await showModalBottomSheet<String>(
+                              isScrollControlled: true,
+                              useSafeArea: true,
+                              backgroundColor: Colors.transparent,
+                              context: context,
+                              builder: (context) => SafeArea(
+                                bottom: true,
+                                child: ModalSelecaoFilialWidget(
+                                  filiais: filiais,
+                                ),
+                              ),
+                            );
+                            if (result != null) {
+                              final cod = int.tryParse(result);
+                              if (cod != null) {
+                                AppState().codFilialAtiva = cod;
+                                final desc = filiais
+                                    .firstWhere((f) => f.codigo == result)
+                                    .descricao;
+                                AppState().filialAtivaDes = desc;
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(6.0),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8.0, vertical: 4.0),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(6.0),
+                      ),
+                      child: Text(
+                        'Filial: ${AppState().codFilialAtiva.toString().padLeft(2, '0')}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12.0,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
           centerTitle: true,
           elevation: 2.0,
         ),
@@ -97,16 +160,14 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                         style: AppTheme.of(context).bodyMedium.override(
                               font: GoogleFonts.inter(
                                 fontWeight: FontWeight.w600,
-                                fontStyle: AppTheme.of(context)
-                                    .bodyMedium
-                                    .fontStyle,
+                                fontStyle:
+                                    AppTheme.of(context).bodyMedium.fontStyle,
                               ),
                               fontSize: 24.0,
                               letterSpacing: 0.0,
                               fontWeight: FontWeight.w600,
-                              fontStyle: AppTheme.of(context)
-                                  .bodyMedium
-                                  .fontStyle,
+                              fontStyle:
+                                  AppTheme.of(context).bodyMedium.fontStyle,
                             ),
                       ),
                       Text(
@@ -114,17 +175,15 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                         style: AppTheme.of(context).bodyMedium.override(
                               font: GoogleFonts.inter(
                                 fontWeight: FontWeight.w500,
-                                fontStyle: AppTheme.of(context)
-                                    .bodyMedium
-                                    .fontStyle,
+                                fontStyle:
+                                    AppTheme.of(context).bodyMedium.fontStyle,
                               ),
                               color: AppTheme.of(context).secondaryText,
                               fontSize: 16.0,
                               letterSpacing: 0.0,
                               fontWeight: FontWeight.w500,
-                              fontStyle: AppTheme.of(context)
-                                  .bodyMedium
-                                  .fontStyle,
+                              fontStyle:
+                                  AppTheme.of(context).bodyMedium.fontStyle,
                             ),
                       ),
                     ],
@@ -163,14 +222,18 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                                           builder: (context) {
                                             return GestureDetector(
                                               onTap: () {
-                                                FocusScope.of(context).unfocus();
-                                                FocusManager.instance.primaryFocus
+                                                FocusScope.of(context)
+                                                    .unfocus();
+                                                FocusManager
+                                                    .instance.primaryFocus
                                                     ?.unfocus();
                                               },
                                               child: Padding(
                                                 padding:
-                                                    MediaQuery.viewInsetsOf(context),
-                                                child: const ModalPedidosWidget(),
+                                                    MediaQuery.viewInsetsOf(
+                                                        context),
+                                                child:
+                                                    const ModalPedidosWidget(),
                                               ),
                                             );
                                           },
@@ -178,7 +241,8 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                                       },
                                       child: wrapWithModel(
                                         model: _model.botaoMenuHomeModel1,
-                                        updateCallback: () => safeSetState(() {}),
+                                        updateCallback: () =>
+                                            safeSetState(() {}),
                                         child: BotaoMenuHomeWidget(
                                           description: 'Pedidos',
                                           icon: Icon(
@@ -205,14 +269,18 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                                           builder: (context) {
                                             return GestureDetector(
                                               onTap: () {
-                                                FocusScope.of(context).unfocus();
-                                                FocusManager.instance.primaryFocus
+                                                FocusScope.of(context)
+                                                    .unfocus();
+                                                FocusManager
+                                                    .instance.primaryFocus
                                                     ?.unfocus();
                                               },
                                               child: Padding(
                                                 padding:
-                                                    MediaQuery.viewInsetsOf(context),
-                                                child: const ModalClienteWidget(),
+                                                    MediaQuery.viewInsetsOf(
+                                                        context),
+                                                child:
+                                                    const ModalClienteWidget(),
                                               ),
                                             );
                                           },
@@ -220,7 +288,8 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                                       },
                                       child: wrapWithModel(
                                         model: _model.botaoMenuHomeModel2,
-                                        updateCallback: () => safeSetState(() {}),
+                                        updateCallback: () =>
+                                            safeSetState(() {}),
                                         child: BotaoMenuHomeWidget(
                                           description: 'Clientes',
                                           icon: Icon(
@@ -250,9 +319,10 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                                       },
                                       child: wrapWithModel(
                                         model: _model.botaoMenuHomeModel3,
-                                        updateCallback: () => safeSetState(() {}),
+                                        updateCallback: () =>
+                                            safeSetState(() {}),
                                         child: BotaoMenuHomeWidget(
-                                          description: 'Estoque',
+                                          description: 'Produtos',
                                           icon: Icon(
                                             Icons.storage_rounded,
                                             color: AppTheme.of(context).primary,
@@ -269,16 +339,17 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                                       hoverColor: Colors.transparent,
                                       highlightColor: Colors.transparent,
                                       onTap: () async {
-                                        context
-                                            .pushNamed(FerramentasPageWidget.routeName);
+                                        context.pushNamed(
+                                            ReceberPageWidget.routeName);
                                       },
                                       child: wrapWithModel(
-                                        model: _model.botaoMenuHomeModel4,
-                                        updateCallback: () => safeSetState(() {}),
+                                        model: _model.botaoMenuHomeModel6,
+                                        updateCallback: () =>
+                                            safeSetState(() {}),
                                         child: BotaoMenuHomeWidget(
-                                          description: 'Ferramentas',
+                                          description: 'Receber',
                                           icon: Icon(
-                                            Icons.tune_rounded,
+                                            Icons.receipt_long_rounded,
                                             color: AppTheme.of(context).primary,
                                             size: 32.0,
                                           ),
@@ -307,14 +378,18 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                                           builder: (context) {
                                             return GestureDetector(
                                               onTap: () {
-                                                FocusScope.of(context).unfocus();
-                                                FocusManager.instance.primaryFocus
+                                                FocusScope.of(context)
+                                                    .unfocus();
+                                                FocusManager
+                                                    .instance.primaryFocus
                                                     ?.unfocus();
                                               },
                                               child: Padding(
                                                 padding:
-                                                    MediaQuery.viewInsetsOf(context),
-                                                child: const ModalRelatoriosWidget(),
+                                                    MediaQuery.viewInsetsOf(
+                                                        context),
+                                                child:
+                                                    const ModalRelatoriosWidget(),
                                               ),
                                             );
                                           },
@@ -322,7 +397,8 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                                       },
                                       child: wrapWithModel(
                                         model: _model.botaoMenuHomeModel5,
-                                        updateCallback: () => safeSetState(() {}),
+                                        updateCallback: () =>
+                                            safeSetState(() {}),
                                         child: BotaoMenuHomeWidget(
                                           description: 'Relatórios',
                                           icon: Icon(
@@ -341,15 +417,17 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                                       hoverColor: Colors.transparent,
                                       highlightColor: Colors.transparent,
                                       onTap: () async {
-                                        context.pushNamed(ReceberPageWidget.routeName);
+                                        context.pushNamed(
+                                            FerramentasPageWidget.routeName);
                                       },
                                       child: wrapWithModel(
-                                        model: _model.botaoMenuHomeModel6,
-                                        updateCallback: () => safeSetState(() {}),
+                                        model: _model.botaoMenuHomeModel4,
+                                        updateCallback: () =>
+                                            safeSetState(() {}),
                                         child: BotaoMenuHomeWidget(
-                                          description: 'Receber',
+                                          description: 'Ferramentas',
                                           icon: Icon(
-                                            Icons.receipt_long_rounded,
+                                            Icons.tune_rounded,
                                             color: AppTheme.of(context).primary,
                                             size: 32.0,
                                           ),
@@ -367,20 +445,25 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                   ),
                 ),
               ),
-              // Rodapé: Data e Hora da Última Carga (abaixo dos botões do menu e acima da barra de navegação)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16.0),
-                child: Center(
-                  child: Text(
-                    AppState().dataHoraUltimaCargaFormatada,
-                    textAlign: TextAlign.center,
-                    style: AppTheme.of(context).bodySmall.override(
-                          font: GoogleFonts.inter(
-                            fontWeight: FontWeight.w500,
+              // Rodapé: Data e Hora da Última Carga (abaixo dos botões do menu e protegido por SafeArea(bottom: true))
+              SafeArea(
+                bottom: true,
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 10.0, horizontal: 16.0),
+                  child: Center(
+                    child: Text(
+                      AppState().dataHoraUltimaCargaFormatada,
+                      textAlign: TextAlign.center,
+                      style: AppTheme.of(context).bodySmall.override(
+                            font: GoogleFonts.inter(
+                              fontWeight: FontWeight.w500,
+                            ),
+                            color: AppTheme.of(context).secondaryText,
+                            fontSize: 12.0,
                           ),
-                          color: AppTheme.of(context).secondaryText,
-                          fontSize: 12.0,
-                        ),
+                    ),
                   ),
                 ),
               ),

@@ -1,14 +1,18 @@
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
 import '/core/app_widgets.dart';
+import '/components/modal_selecao_filial/modal_selecao_filial_widget.dart';
 import '/action_code/index.dart' as actions;
 import '../../core/services/empresa_logo_service.dart';
 import '/index.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:percent_indicator/percent_indicator.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '/services/filial_service.dart';
+import '/data/services/local_sales_database_service.dart';
 import 'login_page_model.dart';
 export 'login_page_model.dart';
 
@@ -56,6 +60,84 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
     super.dispose();
   }
 
+  Future<void> _processarFilialAposLogin() async {
+    try {
+      final db = await LocalSalesDatabaseService.getDatabase();
+      int venSelfil = 0;
+      int venCodfil = 1;
+
+      try {
+        final cols = await db.rawQuery('PRAGMA table_info(cadrep00)');
+        final colNames = cols.map((r) => r['name']?.toString().toLowerCase()).toSet();
+        final rows = await db.rawQuery(
+          'SELECT * FROM cadrep00 WHERE ven00_codigo = ? LIMIT 1',
+          [AppState().vendedor_codigo],
+        );
+        final row = rows.isNotEmpty
+            ? rows.first
+            : (await db.rawQuery('SELECT * FROM cadrep00 LIMIT 1')).firstOrNull;
+        if (row != null) {
+          if (colNames.contains('ven00_selfil') && row['ven00_selfil'] != null) {
+            venSelfil = (row['ven00_selfil'] as num).toInt();
+          }
+          if (colNames.contains('ven00_codfil') && row['ven00_codfil'] != null) {
+            venCodfil = (row['ven00_codfil'] as num).toInt();
+          }
+        }
+      } catch (_) {}
+
+      final filiaisEstoque = await FilialService.obterFiliaisDistintasEstoque(db);
+      final decisao = avaliarRegraSelecaoFilial(
+        venSelfil: venSelfil,
+        venCodfil: venCodfil,
+        filiaisEstoque: filiaisEstoque,
+      );
+
+      if (!mounted) return;
+
+      if (!decisao.precisaAbrirModal) {
+        final cod = decisao.filialDefinida ?? 1;
+        AppState().codFilialAtiva = cod;
+        AppState().filialAtivaDes = 'Filial $cod';
+        try {
+          final filList = await FilialService.obterFiliaisComDescricao(db, [cod.toString()]);
+          if (filList.isNotEmpty) {
+            AppState().filialAtivaDes = filList.first.descricao;
+          }
+        } catch (_) {}
+        safeSetState(() {});
+      } else {
+        // Cenário 2 (Multi-Empresa): abre compulsoriamente ModalSelecaoFilialWidget
+        final filiaisModal = await FilialService.obterFiliaisComDescricao(
+          db,
+          decisao.filiaisDisponiveis,
+        );
+        if (!mounted) return;
+        final codEscolhido = await showAppModalBottomSheet<String>(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          isDismissible: false,
+          enableDrag: false,
+          builder: (ctx) => SafeArea(
+            bottom: true,
+            child: ModalSelecaoFilialWidget(filiais: filiaisModal),
+          ),
+        );
+        if (codEscolhido != null && codEscolhido.isNotEmpty) {
+          final cod = int.tryParse(codEscolhido) ?? 1;
+          AppState().codFilialAtiva = cod;
+          final f = filiaisModal.firstWhere(
+            (x) => x.codigo == codEscolhido,
+            orElse: () => filiaisModal.first,
+          );
+          AppState().filialAtivaDes = f.descricao;
+          safeSetState(() {});
+        }
+      }
+    } catch (_) {}
+  }
+
   Future<void> _fazerLogin() async {
     AppState().is_loading = true;
     safeSetState(() {});
@@ -84,6 +166,11 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
             AppState().empresa_codigo = empTxt;
             safeSetState(() {});
           }
+
+          // SPEC-047 §1.1: Consulta filiais e processa seleção multi-filial antes de prosseguir
+          await _processarFilialAposLogin();
+          if (!mounted) return;
+
           AppState().is_loading = false;
           safeSetState(() {});
 
@@ -114,8 +201,51 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
           context: context,
           builder: (alertDialogContext) {
             return AlertDialog(
-              title: const Text('Falha na carga inicial'),
-              content: Text(_model.firstAccessResult!.message),
+              title: const Row(
+                children: [
+                  Icon(Icons.cloud_off_rounded, color: Colors.orange, size: 28),
+                  SizedBox(width: 8),
+                  Text('Carga Inicial'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Não foi possível obter a carga inicial de dados. Verifique sua conexão com a internet ou entre em contato com a equipe de suporte técnico.',
+                    style: TextStyle(fontSize: 14.0),
+                  ),
+                  const SizedBox(height: 16.0),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF25D366),
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 44.0),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                    ),
+                    icon: const FaIcon(FontAwesomeIcons.whatsapp, size: 20.0),
+                    label: const Text(
+                      'Falar com o Suporte',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: () async {
+                      final uri = Uri.parse(
+                        'https://wa.me/559881283380?text=Ol%C3%A1%2C%20ocorreu%20uma%20falha%20ao%20baixar%20a%20carga%20inicial%20no%20app',
+                      );
+                      try {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      } catch (_) {
+                        try {
+                          await launchUrl(uri);
+                        } catch (_) {}
+                      }
+                    },
+                  ),
+                ],
+              ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(alertDialogContext),
@@ -126,6 +256,7 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
           },
         );
       }
+
     } else {
       _model.offlineLogin = await actions.offlineLogin(
         _model.vendedorCodigoFieldTextController.text,
@@ -143,6 +274,11 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
           AppState().empresa_codigo = empTxt;
           safeSetState(() {});
         }
+
+        // SPEC-047 §1.1: Consulta filiais e processa seleção multi-filial antes de prosseguir
+        await _processarFilialAposLogin();
+        if (!mounted) return;
+
         AppState().is_loading = false;
         safeSetState(() {});
 
@@ -222,8 +358,8 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                               0.0, 0.0, 0.0, 18.0),
                                       child: EmpresaLogoService.instance
                                           .obterLogoLoginWidget(
-                                        width: 260.0,
-                                        height: 94.6,
+                                        width: 160.0,
+                                        height: 160.0,
                                         fit: BoxFit.contain,
                                         borderRadius:
                                             BorderRadius.circular(8.0),
@@ -271,7 +407,13 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                         focusNode:
                                             _model.empresaCodigoFieldFocusNode,
                                         textInputAction: TextInputAction.next,
-                                        onFieldSubmitted: (_) => _fazerLogin(),
+                                        onFieldSubmitted: (_) =>
+                                            FocusScope.of(context).requestFocus(
+                                                _model
+                                                    .vendedorCodigoFieldFocusNode),
+                                        inputFormatters: [
+                                          UpperCaseTextFormatter(),
+                                        ],
                                         obscureText: false,
                                         decoration: const InputDecoration(
                                           labelText: 'Código da Empresa',
@@ -333,6 +475,9 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                           _model.vendedorCodigoFieldFocusNode,
                                       textInputAction: TextInputAction.go,
                                       onFieldSubmitted: (_) => _fazerLogin(),
+                                      inputFormatters: [
+                                        UpperCaseTextFormatter(),
+                                      ],
                                       obscureText: false,
                                       decoration: const InputDecoration(
                                         labelText: 'Código do Vendedor',
@@ -381,7 +526,6 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                       ),
                                       style: const TextStyle(),
                                       maxLines: null,
-                                      keyboardType: TextInputType.number,
                                       validator: _model
                                           .vendedorCodigoFieldTextControllerValidator
                                           .asValidator(context),
@@ -410,7 +554,7 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                       child: Image.asset(
                                         'assets/images/logo-empresa.png',
                                         width: 200.0,
-                                        height: 50.2,
+                                        height: 100.0,
                                         fit: BoxFit.contain,
                                       ),
                                     ),
@@ -433,12 +577,39 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                     color: Color(0x80000000),
                   ),
                   alignment: const AlignmentDirectional(0.0, 0.0),
-                  child: CircularPercentIndicator(
-                    percent: 0.0,
-                    radius: 25.0,
-                    lineWidth: 5.0,
-                    animation: false,
-                    animateFromLastPercent: true,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24.0, vertical: 20.0),
+                    decoration: BoxDecoration(
+                      color: AppTheme.of(context).secondaryBackground,
+                      borderRadius: BorderRadius.circular(12.0),
+                      boxShadow: const [
+                        BoxShadow(
+                          blurRadius: 10.0,
+                          color: Color(0x33000000),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            AppTheme.of(context).primary,
+                          ),
+                        ),
+                        const SizedBox(height: 16.0),
+                        Text(
+                          'Atualizando Carga Inicial...',
+                          style: AppTheme.of(context).bodyMedium.override(
+                                font: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                fontSize: 15.0,
+                              ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
             ],
@@ -448,3 +619,4 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
     );
   }
 }
+

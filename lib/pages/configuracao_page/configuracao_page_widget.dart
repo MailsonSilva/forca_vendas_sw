@@ -3,6 +3,7 @@ import '/core/app_util.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '/action_code/index.dart';
 import '/index.dart';
@@ -69,18 +70,14 @@ class _ConfiguracaoPageWidgetState extends State<ConfiguracaoPageWidget> {
             'Configurações',
             style: AppTheme.of(context).headlineMedium.override(
                   font: GoogleFonts.plusJakartaSans(
-                    fontWeight:
-                        AppTheme.of(context).headlineMedium.fontWeight,
-                    fontStyle:
-                        AppTheme.of(context).headlineMedium.fontStyle,
+                    fontWeight: AppTheme.of(context).headlineMedium.fontWeight,
+                    fontStyle: AppTheme.of(context).headlineMedium.fontStyle,
                   ),
                   color: Colors.white,
                   fontSize: 22.0,
                   letterSpacing: 0.0,
-                  fontWeight:
-                      AppTheme.of(context).headlineMedium.fontWeight,
-                  fontStyle:
-                      AppTheme.of(context).headlineMedium.fontStyle,
+                  fontWeight: AppTheme.of(context).headlineMedium.fontWeight,
+                  fontStyle: AppTheme.of(context).headlineMedium.fontStyle,
                 ),
           ),
           actions: const [],
@@ -90,7 +87,8 @@ class _ConfiguracaoPageWidgetState extends State<ConfiguracaoPageWidget> {
         body: SafeArea(
           top: true,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -127,7 +125,9 @@ class _ConfiguracaoPageWidgetState extends State<ConfiguracaoPageWidget> {
                       secondary: Container(
                         padding: const EdgeInsets.all(8.0),
                         decoration: BoxDecoration(
-                          color: AppTheme.of(context).primary.withValues(alpha: 0.12),
+                          color: AppTheme.of(context)
+                              .primary
+                              .withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(8.0),
                         ),
                         child: Icon(
@@ -184,13 +184,15 @@ class _ConfiguracaoPageWidgetState extends State<ConfiguracaoPageWidget> {
                     borderRadius: BorderRadius.circular(12.0),
                     onTap: _abrirSuporteWhatsApp,
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0, vertical: 14.0),
                       child: Row(
                         children: [
                           Container(
                             padding: const EdgeInsets.all(10.0),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF25D366).withValues(alpha: 0.15),
+                              color: const Color(0xFF25D366)
+                                  .withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(10.0),
                             ),
                             child: const FaIcon(
@@ -206,19 +208,23 @@ class _ConfiguracaoPageWidgetState extends State<ConfiguracaoPageWidget> {
                               children: [
                                 Text(
                                   'Suporte Técnico',
-                                  style: AppTheme.of(context).bodyLarge.override(
-                                        font: GoogleFonts.inter(
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                        fontSize: 15.0,
-                                      ),
+                                  style:
+                                      AppTheme.of(context).bodyLarge.override(
+                                            font: GoogleFonts.inter(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            fontSize: 15.0,
+                                          ),
                                 ),
                                 const SizedBox(height: 2.0),
                                 Text(
                                   '+55 (98) 8128-3380',
-                                  style: AppTheme.of(context).labelMedium.override(
+                                  style: AppTheme.of(context)
+                                      .labelMedium
+                                      .override(
                                         font: GoogleFonts.inter(),
-                                        color: AppTheme.of(context).secondaryText,
+                                        color:
+                                            AppTheme.of(context).secondaryText,
                                         fontSize: 13.0,
                                       ),
                                 ),
@@ -291,7 +297,8 @@ class _ConfiguracaoPageWidgetState extends State<ConfiguracaoPageWidget> {
                       }
                     },
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0, vertical: 14.0),
                       child: Row(
                         children: [
                           Container(
@@ -313,20 +320,24 @@ class _ConfiguracaoPageWidgetState extends State<ConfiguracaoPageWidget> {
                               children: [
                                 Text(
                                   'Sair do Sistema',
-                                  style: AppTheme.of(context).bodyLarge.override(
-                                        font: GoogleFonts.inter(
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                        color: Colors.red,
-                                        fontSize: 15.0,
-                                      ),
+                                  style:
+                                      AppTheme.of(context).bodyLarge.override(
+                                            font: GoogleFonts.inter(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            color: Colors.red,
+                                            fontSize: 15.0,
+                                          ),
                                 ),
                                 const SizedBox(height: 2.0),
                                 Text(
                                   'Encerrar sessão e voltar à tela de login',
-                                  style: AppTheme.of(context).labelMedium.override(
+                                  style: AppTheme.of(context)
+                                      .labelMedium
+                                      .override(
                                         font: GoogleFonts.inter(),
-                                        color: AppTheme.of(context).secondaryText,
+                                        color:
+                                            AppTheme.of(context).secondaryText,
                                         fontSize: 13.0,
                                       ),
                                 ),
@@ -344,6 +355,27 @@ class _ConfiguracaoPageWidgetState extends State<ConfiguracaoPageWidget> {
                   ),
                 ),
                 const SizedBox(height: 24.0),
+                FutureBuilder<PackageInfo>(
+                  future: PackageInfo.fromPlatform(),
+                  builder: (context, snapshot) {
+                    final versionText = snapshot.hasData
+                        ? 'Versão: ${snapshot.data!.version}'
+                        : 'Versão: Carregando...';
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 8.0, bottom: 16.0),
+                        child: Text(
+                          versionText,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 11.0,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
           ),

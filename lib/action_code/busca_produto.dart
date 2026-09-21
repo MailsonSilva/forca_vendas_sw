@@ -12,7 +12,7 @@ import '../app_state.dart';
 
 Future<List<ProdutoResultStruct>> buscaProduto(
   String? filtro,
-  int? offset,
+  String? ultimoDescri,
   String? filtroLinha,
   String? filtroGrupo,
   String? filtroFabricante,
@@ -34,9 +34,13 @@ Future<List<ProdutoResultStruct>> buscaProduto(
 
     final db = await openDatabase(dbPath, readOnly: true);
 
+    // PRAGMAs de tuning para performance de leitura
+    await db.execute('PRAGMA cache_size = -64000');
+    await db.execute('PRAGMA temp_store = MEMORY');
+
     try {
       final String busca = (filtro ?? '').trim();
-      final int currentOffset = offset ?? 0;
+      final String? cursorDescri = (ultimoDescri != null && ultimoDescri.isNotEmpty) ? ultimoDescri : null;
       final String linha = (filtroLinha ?? '').trim();
       final String grupo = (filtroGrupo ?? '').trim();
       final String fab = (filtroFabricante ?? '').trim();
@@ -123,19 +127,19 @@ Future<List<ProdutoResultStruct>> buscaProduto(
       }
 
       String? estCodCol;
-      for (final c in ['pro00_codpro', 'pro00_codigo', 'est00_codpro', 'codpro']) {
+      for (final c in ['pro00_codpro', 'pro00_codigo', 'est00_codpro', 'codpro', 'estpro00_codpro']) {
         if (estCols.contains(c)) { estCodCol = c; break; }
       }
       String? estFilCol;
-      for (final c in ['pro00_codfil', 'est00_codfil', 'codfil']) {
+      for (final c in ['pro00_codfil', 'est00_codfil', 'codfil', 'estpro00_codfil']) {
         if (estCols.contains(c)) { estFilCol = c; break; }
       }
       String? estQtdCol;
-      for (final c in ['pro00_qtdest', 'est00_qtdest', 'qtdest']) {
+      for (final c in ['pro00_qtdest', 'est00_qtdest', 'qtdest', 'saldo', 'estpro00_qtdest']) {
         if (estCols.contains(c)) { estQtdCol = c; break; }
       }
       String? estPenCol;
-      for (final c in ['pro00_qtdpen', 'est00_qtdpen', 'qtdpen']) {
+      for (final c in ['pro00_qtdpen', 'est00_qtdpen', 'qtdpen', 'estpro00_qtdpen']) {
         if (estCols.contains(c)) { estPenCol = c; break; }
       }
 
@@ -204,9 +208,16 @@ Future<List<ProdutoResultStruct>> buscaProduto(
         List<String> orParts = [];
         List<dynamic> orBinds = [];
 
+        // 1. Prioriza correspondência exata em colunas indexadas
         orParts.add('p.$colProCod = ?');
         orBinds.add(busca);
 
+        if (proCols.contains(colProBar)) {
+          orParts.add('p.$colProBar = ?');
+          orBinds.add(busca);
+        }
+
+        // 2. Busca textual por descrição e termos auxiliares
         orParts.add('UPPER(p.$colProDesc) LIKE ?');
         orBinds.add('%${busca.toUpperCase()}%');
 
@@ -252,9 +263,15 @@ Future<List<ProdutoResultStruct>> buscaProduto(
         if (val != null) { condicoes.add('p.pro00_codmar = ?'); whereBinds.add(val); }
       }
 
-      if (estoqueOpt && hasEst && estQtdCol != null) {
-        final pen = estPenCol != null ? 'COALESCE(e.$estPenCol, 0)' : '0';
-        condicoes.add('(COALESCE(e.$estQtdCol, 0) - $pen - $subqueryRascunho) > 0');
+      final String estDiretoCadpro = proCols.contains('pro00_qtdest') ? 'p.pro00_qtdest' : '0';
+
+      if (estoqueOpt) {
+        if (hasEst && estQtdCol != null) {
+          final pen = estPenCol != null ? 'COALESCE(e.$estPenCol, 0)' : '0';
+          condicoes.add('(COALESCE(e.$estQtdCol, $estDiretoCadpro, 0) - $pen - $subqueryRascunho) > 0');
+        } else if (proCols.contains('pro00_qtdest')) {
+          condicoes.add('(COALESCE(p.pro00_qtdest, 0) - $subqueryRascunho) > 0');
+        }
       }
 
       if (dataEnt != 'Todas' && hasDat) {
@@ -280,6 +297,12 @@ Future<List<ProdutoResultStruct>> buscaProduto(
         whereBinds.add(dateStr);
       }
 
+      // Cursor keyset: seek direto no B-Tree do índice idx_cadpro00_order
+      if (cursorDescri != null) {
+        condicoes.add('p.$colProDesc > ?');
+        whereBinds.add(cursorDescri);
+      }
+
       final String whereClause = condicoes.isNotEmpty ? 'WHERE ${condicoes.join(' AND ')}' : '';
 
       // 8. Construção de JOINs e binds ordenados estritamente
@@ -298,8 +321,13 @@ Future<List<ProdutoResultStruct>> buscaProduto(
       String joinEstoque = '';
       if (hasEst && estCodCol != null) {
         if (estFilCol != null) {
-          joinEstoque = 'LEFT JOIN estpro00 e ON e.$estCodCol = p.$colProCod AND e.$estFilCol = ? ';
+          final filStr = filial.toString();
+          final filPad = filStr.padLeft(2, '0');
+          joinEstoque =
+              'LEFT JOIN estpro00 e ON e.$estCodCol = p.$colProCod AND (e.$estFilCol = ? OR e.$estFilCol = ? OR e.$estFilCol = ?) ';
           finalBinds.add(filial);
+          finalBinds.add(filStr);
+          finalBinds.add(filPad);
         } else {
           joinEstoque = 'LEFT JOIN estpro00 e ON e.$estCodCol = p.$colProCod ';
         }
@@ -323,7 +351,6 @@ Future<List<ProdutoResultStruct>> buscaProduto(
       }
 
       finalBinds.addAll(whereBinds);
-      finalBinds.add(currentOffset);
 
       // 9. Colunas opcionais PRD B4 e atributos comerciais (EAN, Marca, Referências)
       String selMulver = proCols.contains('pro00_mulver') ? 'COALESCE(p.pro00_mulver, 1) AS mulver' : '1 AS mulver';
@@ -366,22 +393,20 @@ Future<List<ProdutoResultStruct>> buscaProduto(
                   ? 'COALESCE(p.pro00_preco, 0) AS preco_venda'
                   : '0 AS preco_venda'));
 
-      final String estDiretoCadpro = proCols.contains('pro00_qtdest') ? 'p.pro00_qtdest' : '0';
-
       String selEstAtual = (hasEst && estQtdCol != null)
-          ? 'COALESCE(e.$estQtdCol, $estDiretoCadpro, 0) AS estoque_atual'
+          ? 'COALESCE(MAX(e.$estQtdCol), MAX($estDiretoCadpro), 0) AS estoque_atual'
           : (proCols.contains('pro00_qtdest')
-              ? 'COALESCE(p.pro00_qtdest, 0) AS estoque_atual'
+              ? 'COALESCE(MAX(p.pro00_qtdest), 0) AS estoque_atual'
               : '0 AS estoque_atual');
 
       String selEstPen = (hasEst && estPenCol != null)
-          ? 'COALESCE(e.$estPenCol, 0) AS estoque_pendente'
+          ? 'COALESCE(MAX(e.$estPenCol), 0) AS estoque_pendente'
           : '0 AS estoque_pendente';
 
       String selSaldo = (hasEst && estQtdCol != null)
-          ? '(COALESCE(e.$estQtdCol, $estDiretoCadpro, 0) - ${estPenCol != null ? 'COALESCE(e.$estPenCol, 0)' : '0'} - $subqueryRascunho) AS saldo'
+          ? '(COALESCE(MAX(e.$estQtdCol), MAX($estDiretoCadpro), 0) - ${estPenCol != null ? 'COALESCE(MAX(e.$estPenCol), 0)' : '0'} - $subqueryRascunho) AS saldo'
           : (proCols.contains('pro00_qtdest')
-              ? '(COALESCE(p.pro00_qtdest, 0) - $subqueryRascunho) AS saldo'
+              ? '(COALESCE(MAX(p.pro00_qtdest), 0) - $subqueryRascunho) AS saldo'
               : '0 AS saldo');
 
       final String query =
@@ -398,8 +423,8 @@ Future<List<ProdutoResultStruct>> buscaProduto(
           "$joinFabricante "
           " $whereClause "
           "GROUP BY p.$colProCod "
-          "ORDER BY p.$colProDesc "
-          "LIMIT 500 OFFSET ?";
+          "ORDER BY p.$colProDesc ASC "
+          "LIMIT 100";
 
       print('DIAGNOSTICO: Executando query com binds: $finalBinds');
 
@@ -408,9 +433,9 @@ Future<List<ProdutoResultStruct>> buscaProduto(
         results = await db.rawQuery(query, finalBinds);
       } catch (queryErr) {
         print('DIAGNOSTICO: Aviso ao executar query complexa: $queryErr. Tentando fallback seguro.');
-        // Fallback resiliente: busca simples diretamente em cadpro00
-        final fallbackQuery = "SELECT p.* FROM $tabelaPro p $whereClause ORDER BY p.$colProDesc LIMIT 500 OFFSET ?";
-        final fallbackBinds = [...whereBinds, currentOffset];
+        // Fallback resiliente: busca simples diretamente em cadpro00 com saldo de estoque
+        final fallbackQuery = "SELECT p.*, COALESCE(p.pro00_qtdest, 0) AS saldo, COALESCE(p.pro00_qtdest, 0) AS estoque_atual, 0 AS estoque_pendente FROM $tabelaPro p $whereClause ORDER BY p.$colProDesc ASC LIMIT 100";
+        final fallbackBinds = [...whereBinds];
         results = await db.rawQuery(fallbackQuery, fallbackBinds);
       }
 

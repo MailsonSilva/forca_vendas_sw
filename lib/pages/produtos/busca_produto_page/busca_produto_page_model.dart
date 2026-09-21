@@ -21,7 +21,6 @@ class BuscaProdutoPageModel extends AppModel<BuscaProdutoPageWidget> {
           int index, Function(ProdutoResultStruct) updateFn) =>
       listaProdutos[index] = updateFn(listaProdutos[index]);
 
-  int? offsetAtual = 0;
 
   String filtroLinha = '';
 

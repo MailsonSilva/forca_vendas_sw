@@ -22,6 +22,7 @@ class ItemPedidoCardWidget extends StatelessWidget {
     required this.onIncrementar,
     required this.onDecrementar,
     required this.onEditarPreco,
+    this.onEditarQuantidade,
     this.pedidoDigitado = false,
   });
 
@@ -30,6 +31,7 @@ class ItemPedidoCardWidget extends StatelessWidget {
   final VoidCallback onIncrementar;
   final VoidCallback onDecrementar;
   final VoidCallback onEditarPreco;
+  final VoidCallback? onEditarQuantidade;
   final bool pedidoDigitado;
 
   String _formatCurrency(double val) {
@@ -207,9 +209,25 @@ class ItemPedidoCardWidget extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 if (item.isBonificacao)
-                  Text(
-                    'Qtd: ${item.quantidadeBonificada.toInt()}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0),
+                  InkWell(
+                    onTap: (pedidoDigitado || onEditarQuantidade == null) ? null : onEditarQuantidade,
+                    borderRadius: BorderRadius.circular(6.0),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Qtd: ${item.quantidadeBonificada.toInt()}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0),
+                          ),
+                          if (!pedidoDigitado && onEditarQuantidade != null) ...[
+                            const SizedBox(width: 4.0),
+                            Icon(Icons.edit_outlined, size: 14.0, color: AppTheme.of(context).primary),
+                          ],
+                        ],
+                      ),
+                    ),
                   )
                 else
                   Row(
@@ -223,10 +241,33 @@ class ItemPedidoCardWidget extends StatelessWidget {
                           constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                         ),
                       ),
-                      Container(
-                        constraints: const BoxConstraints(minWidth: 40.0),
-                        alignment: Alignment.center,
-                        child: Text('${item.quantidade.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0)),
+                      InkWell(
+                        onTap: (pedidoDigitado || onEditarQuantidade == null) ? null : onEditarQuantidade,
+                        borderRadius: BorderRadius.circular(6.0),
+                        child: Container(
+                          constraints: const BoxConstraints(minWidth: 44.0, minHeight: 36.0),
+                          margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                          padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: const Color(0xFFD0D7DE)),
+                            borderRadius: BorderRadius.circular(6.0),
+                            color: const Color(0xFFF6F8FA),
+                          ),
+                          alignment: Alignment.center,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '${item.quantidade.toInt()}',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0),
+                              ),
+                              if (!pedidoDigitado && onEditarQuantidade != null) ...[
+                                const SizedBox(width: 4.0),
+                                Icon(Icons.edit_outlined, size: 13.0, color: AppTheme.of(context).primary),
+                              ],
+                            ],
+                          ),
+                        ),
                       ),
                       Container(
                         decoration: BoxDecoration(color: const Color(0xFF0288D1), borderRadius: BorderRadius.circular(8.0)),

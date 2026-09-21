@@ -12,6 +12,9 @@ class AppState extends ChangeNotifier {
   static const _pastaDownloadKey = 'app_pastaDownload0';
   static const _pastaUploadKey = 'app_pastaUpload0';
   static const _dataHoraUltimaCargaKey = 'app_data_hora_ultima_carga';
+  static const _ultimaAtualizacaoCargaKey = 'ultima_atualizacao_carga';
+  static const _venEstnegKey = 'app_ven_estneg';
+  static const _venSelfilKey = 'app_ven_selfil';
 
   static AppState _instance = AppState._internal();
 
@@ -57,7 +60,7 @@ class AppState extends ChangeNotifier {
       _pastaUpload0 = prefs.getString(_pastaUploadKey) ?? _pastaUpload0;
     });
     _safeInit(() {
-      final str = prefs.getString(_dataHoraUltimaCargaKey);
+      final str = prefs.getString(_ultimaAtualizacaoCargaKey) ?? prefs.getString(_dataHoraUltimaCargaKey);
       if (str != null && str.isNotEmpty) {
         _dataHoraUltimaCarga = DateTime.tryParse(str);
       }
@@ -79,6 +82,12 @@ class AppState extends ChangeNotifier {
     });
     _safeInit(() {
       _ven_passet = prefs.getString(_venPassetKey) ?? _ven_passet;
+    });
+    _safeInit(() {
+      _ven_estneg = prefs.getInt(_venEstnegKey) ?? _ven_estneg;
+    });
+    _safeInit(() {
+      _ven_selfil = prefs.getInt(_venSelfilKey) ?? _ven_selfil;
     });
   }
 
@@ -332,6 +341,24 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// ven00_estneg (permissão para venda de estoque negativo: 1 = permite, 0 = bloqueia)
+  int _ven_estneg = 0;
+  int get ven_estneg => _ven_estneg;
+  set ven_estneg(int value) {
+    _ven_estneg = value;
+    try { prefs.setInt(_venEstnegKey, value); } catch (_) {}
+    notifyListeners();
+  }
+
+  /// ven00_selfil (permissão para selecionar filial: 1 = permite, 0 = bloqueia)
+  int _ven_selfil = 0;
+  int get ven_selfil => _ven_selfil;
+  set ven_selfil(int value) {
+    _ven_selfil = value;
+    try { prefs.setInt(_venSelfilKey, value); } catch (_) {}
+    notifyListeners();
+  }
+
   /// Data e hora da última carga recebida com sucesso (fcfGETCRG = 3)
   DateTime? _dataHoraUltimaCarga;
   DateTime? get dataHoraUltimaCarga => _dataHoraUltimaCarga;
@@ -340,8 +367,10 @@ class AppState extends ChangeNotifier {
     try {
       if (value != null) {
         prefs.setString(_dataHoraUltimaCargaKey, value.toIso8601String());
+        prefs.setString(_ultimaAtualizacaoCargaKey, value.toIso8601String());
       } else {
         prefs.remove(_dataHoraUltimaCargaKey);
+        prefs.remove(_ultimaAtualizacaoCargaKey);
       }
     } catch (_) {}
     notifyListeners();

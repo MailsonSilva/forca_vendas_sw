@@ -5,6 +5,7 @@ import '/core/app_util.dart';
 import '/functions/proximo_numero_pedido.dart';
 import '/index.dart';
 import '/domain/services/bloqueio_financeiro_service.dart';
+import '/services/filial_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'pedido_novo_inicio_model.dart';
@@ -40,6 +41,9 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
       _model.clientes = result.clientes;
       _model.linhas = result.linhas;
       _model.planos = result.planos;
+      if (_model.linhas.length == 1) {
+        _model.selectedLinha = autoSelecionarLinhaSeUnica(_model.linhas);
+      }
       _model.isLoading = false;
     });
   }

@@ -91,6 +91,14 @@ Future<LoginResultStruct> offlineLogin(String vendedorCodigo, {String? dbPath}) 
           final v = row['ven00_chkest'];
           if (v != null) AppState().ven_chkest = (v as num).toInt();
         }
+        if (cn.contains('ven00_selfil')) {
+          final v = row['ven00_selfil'];
+          if (v != null) AppState().ven_selfil = (v as num).toInt();
+        }
+        if (cn.contains('ven00_estneg')) {
+          final v = row['ven00_estneg'];
+          if (v != null) AppState().ven_estneg = (v as num).toInt();
+        }
         if (cn.contains('ven00_gerbonfor')) {
           final v = row['ven00_gerbonfor'];
           if (v != null) AppState().ven_gerbonfor = (v as num).toInt();
@@ -120,6 +128,7 @@ Future<LoginResultStruct> offlineLogin(String vendedorCodigo, {String? dbPath}) 
             if (r2.isNotEmpty) {
               final m = r2.first;
               if (m['ven00_chkest'] != null && AppState().ven_chkest == 1) AppState().ven_chkest = (m['ven00_chkest'] as num).toInt();
+              if (m['ven00_selfil'] != null && AppState().ven_selfil == 0) AppState().ven_selfil = (m['ven00_selfil'] as num).toInt();
               if (m['ven00_gerbonfor'] != null && AppState().ven_gerbonfor == 0) AppState().ven_gerbonfor = (m['ven00_gerbonfor'] as num).toInt();
               if (m['ven00_chkage'] != null && AppState().ven_chkage == 0) AppState().ven_chkage = (m['ven00_chkage'] as num).toInt();
               if (m['ven00_ignlimfis'] != null && AppState().ven_ignlimfis == 0) AppState().ven_ignlimfis = (m['ven00_ignlimfis'] as num).toInt();

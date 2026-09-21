@@ -64,32 +64,39 @@ class SequenceGeneratorService {
         final cols = await dbDig.rawQuery('PRAGMA table_info($tbl)');
         final colNames = cols.map((r) => r['name']?.toString().toLowerCase()).toSet();
 
-        String? colCod;
-        for (final c in ['dig00_digcod', 'ped00_numped', 'ped00_pedcod', 'ped00_codmov', 'numped']) {
-          if (colNames.contains(c.toLowerCase())) {
-            colCod = c;
-            break;
-          }
-        }
-        if (colCod == null) continue;
+        final codeCols = ['dig00_digcod', 'ped00_numped', 'ped00_pedcod', 'ped00_codmov', 'numped']
+            .where((c) => colNames.contains(c.toLowerCase()))
+            .toList();
+        if (codeCols.isEmpty) continue;
+        final exprCod = codeCols.length == 1 ? codeCols.first : 'COALESCE(${codeCols.join(", ")}, 0)';
 
-        String? colFil;
-        for (final c in ['dig00_digfil', 'ped00_codfil', 'codfil']) {
-          if (colNames.contains(c.toLowerCase())) {
-            colFil = c;
-            break;
-          }
-        }
+        final filCols = ['dig00_digfil', 'ped00_codfil', 'codfil']
+            .where((c) => colNames.contains(c.toLowerCase()))
+            .toList();
+        final exprFil = filCols.isEmpty ? null : (filCols.length == 1 ? filCols.first : 'COALESCE(${filCols.join(", ")}, 0)');
 
         List<Map<String, dynamic>> result;
-        if (colFil != null && filial > 0) {
+        if (exprFil != null && filial > 0) {
           result = await dbDig.rawQuery(
-            'SELECT COALESCE(MAX($colCod), 0) AS max_cod FROM $tbl WHERE $colFil = ?',
+            'SELECT COALESCE(MAX($exprCod), 0) AS max_cod FROM $tbl WHERE $exprFil = ?',
             [filial],
           );
+          var n = 0;
+          if (result.isNotEmpty) {
+            final val = result.first['max_cod'];
+            n = (val is num) ? val.toInt() : (int.tryParse(val?.toString() ?? '') ?? 0);
+          }
+          if (n == 0) {
+            final fallbackResult = await dbDig.rawQuery(
+              'SELECT COALESCE(MAX($exprCod), 0) AS max_cod FROM $tbl WHERE $exprFil IS NULL OR $exprFil = 0',
+            );
+            if (fallbackResult.isNotEmpty) {
+              result = fallbackResult;
+            }
+          }
         } else {
           result = await dbDig.rawQuery(
-            'SELECT COALESCE(MAX($colCod), 0) AS max_cod FROM $tbl',
+            'SELECT COALESCE(MAX($exprCod), 0) AS max_cod FROM $tbl',
           );
         }
 
@@ -100,7 +107,9 @@ class SequenceGeneratorService {
             maxCod = n;
           }
         }
-        break;
+        if (maxCod > 0) {
+          break;
+        }
       } catch (_) {}
     }
 

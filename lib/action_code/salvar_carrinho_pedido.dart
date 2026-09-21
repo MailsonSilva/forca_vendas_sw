@@ -130,6 +130,10 @@ Future<bool> salvarCarrinhoPedido({
         'dig01_subtot': 'REAL',
         'ped10_destot': 'REAL',
         'dig01_destot': 'REAL',
+        'dig01_digfil': 'INTEGER',
+        'ped10_digfil': 'INTEGER',
+        'ped10_codfil': 'INTEGER',
+        'ped10_filcod': 'INTEGER',
       };
       for (final e in ensureItemCols.entries) {
         try {
@@ -442,6 +446,11 @@ Future<bool> salvarCarrinhoPedido({
             addItemIf('ped10_codcmb', item.codigoCombo);
             addItemIf('ped10_combo', item.codigoCombo);
           }
+
+          addItemIf('dig01_digfil', finalCodFil);
+          addItemIf('ped10_digfil', finalCodFil);
+          addItemIf('ped10_codfil', finalCodFil);
+          addItemIf('ped10_filcod', finalCodFil);
 
           if (insertItemCols.isNotEmpty) {
             final queryItem =

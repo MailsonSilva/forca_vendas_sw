@@ -23,6 +23,7 @@ export '../app_constants.dart';
 export 'app_model.dart';
 export 'app_bottom_sheet.dart';
 export 'formatters/currency_formatter.dart';
+export 'formatters/upper_case_text_formatter.dart';
 export 'dart:math' show min, max;
 export 'dart:typed_data' show Uint8List;
 export 'dart:convert' show jsonEncode, jsonDecode;
@@ -451,3 +452,4 @@ String getCurrentRoute(BuildContext context) =>
     context.mounted ? MyApp.of(context).getRoute() : '';
 List<String> getCurrentRouteStack(BuildContext context) =>
     context.mounted ? MyApp.of(context).getRouteStack() : [];
+

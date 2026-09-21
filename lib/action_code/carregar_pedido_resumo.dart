@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:sqflite/sqflite.dart';
 import '../data/services/local_sales_database_service.dart';
 
@@ -40,59 +39,60 @@ class PedidoResumoData {
   final String observacao;
 }
 
-Future<PedidoResumoData?> carregarPedidoResumo(int pedidoId) async {
+/// Carrega os 12 indicadores canônicos do resumo do pedido conforme SPEC-047 (item 2.2).
+/// Utiliza a conexão singleton ativa sem fechamento indevido (INVARIANT 1).
+Future<PedidoResumoData?> carregarPedidoResumo(int pedidoId, {Database? customDb}) async {
   try {
-    final pathsToCheck = await LocalSalesDatabaseService.getTargetDatabasePaths();
+    final db = customDb ?? await LocalSalesDatabaseService.getDatabase();
 
+    // 1. Localiza registro do pedido em pckvendig000
     Map<String, dynamic>? foundRow;
-    Database? activeDb;
 
-    for (final path in pathsToCheck) {
-      Database? d;
+    final t = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='pckvendig000'");
+    if (t.isNotEmpty) {
       try {
-        d = await openDatabase(path);
-        final t = await d.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='pckvendig000'");
-        if (t.isNotEmpty) {
-          final rows = await d.rawQuery('SELECT * FROM pckvendig000');
-          for (final r in rows) {
-            final id = _getInt(r, ['ped00_numped', 'ped00_pedcod', 'ped00_codmov', 'numped', 'pedcod', 'codmov']);
-            if (id == pedidoId) {
-              foundRow = r;
-              activeDb = d;
-              d = null; // transfere responsabilidade do close para activeDb
-              break;
-            }
+        final rows = await db.rawQuery(
+          'SELECT * FROM pckvendig000 WHERE ped00_numped = ? OR dig00_digcod = ? LIMIT 1',
+          [pedidoId, pedidoId],
+        );
+        if (rows.isNotEmpty) {
+          foundRow = rows.first;
+        }
+      } catch (_) {}
+
+      if (foundRow == null) {
+        final allRows = await db.rawQuery('SELECT * FROM pckvendig000');
+        for (final r in allRows) {
+          final id = _getInt(r, ['dig00_digcod', 'ped00_numped', 'ped00_pedcod', 'ped00_codmov', 'numped', 'pedcod', 'codmov']);
+          if (id == pedidoId) {
+            foundRow = r;
+            break;
           }
         }
-        if (foundRow != null) break;
-      } catch (e) {
-        print('[carregarPedidoResumo] Erro buscando pedido $pedidoId em $path: $e');
-      } finally {
-        // Fecha 'd' somente se não foi transferido para activeDb
-        if (d != null && d.isOpen) await d.close();
       }
     }
 
-    if (foundRow == null || activeDb == null) {
+    if (foundRow == null) {
       return null;
     }
 
     final m = foundRow;
-    final db = activeDb;
 
-    final cliCod = _getInt(m, ['ped00_codcli', 'ped00_clicod', 'codcli', 'clicod']);
-    final plaCod = _getString(m, ['ped00_codpla', 'ped00_codpag', 'ped00_placod', 'ped00_digtab', 'codpla', 'codpag']);
-    final linCod = _getString(m, ['ped00_codlin', 'ped00_lincod', 'codlin']);
-    final agtCod = _getString(m, ['ped00_codagt', 'ped00_agtcod', 'ped00_codage', 'ped00_digagt', 'codagt', 'agtcod']);
-    final datSys = _getString(m, ['ped00_datsys', 'ped00_datemi', 'ped00_datcad', 'datsys', 'datemi']);
-    final bontot = _getDouble(m, ['ped00_bontot', 'ped00_bonval', 'bontot']);
-    final digtot = _getDouble(m, ['ped00_digtot', 'ped00_subtot', 'ped00_totprd', 'ped00_valtot', 'ped00_totger', 'digtot']);
-    final subtot = _getDouble(m, ['ped00_subtot', 'ped00_subval', 'subtot']);
-    final fattot = _getDouble(m, ['ped00_fattot', 'ped00_totfat', 'fattot'], digtot - subtot);
-    final qtdItm = _getInt(m, ['ped00_qtditm', 'ped00_qtdite']);
-    final obs = _getString(m, ['ped00_digobs', 'dig00_digobs', 'digobs', 'ped00_observ', 'ped00_obs', 'ped00_observacao', 'observ', 'obs']);
+    // 2. Extração dos 12 campos canônicos conforme SPEC-047 item 2.2
+    final int numPedido = _getInt(m, ['dig00_digcod', 'ped00_numped', 'ped00_pedcod', 'ped00_codmov'], pedidoId);
+    final String datSys = _getString(m, ['dig00_datsys', 'ped00_datsys', 'ped00_datemi', 'ped00_datcad', 'datsys', 'datemi']);
+    final int cliCod = _getInt(m, ['dig00_clicod', 'ped00_codcli', 'ped00_clicod', 'codcli', 'clicod']);
+    final String plaCod = _getString(m, ['dig00_placod', 'ped00_codpla', 'ped00_codpag', 'ped00_placod', 'ped00_digtab', 'codpla', 'codpag']);
+    final String linCod = _getString(m, ['dig00_lincod', 'ped00_codlin', 'ped00_lincod', 'codlin']);
+    final String agtCod = _getString(m, ['dig00_digagt', 'ped00_digagt', 'ped00_codagt', 'ped00_agtcod', 'ped00_codage', 'codagt', 'agtcod']);
+    final double bontot = _getDouble(m, ['dig00_bontot', 'ped00_bontot', 'ped00_bonval', 'bontot']);
+    final double digtot = _getDouble(m, ['dig00_digtot', 'ped00_digtot', 'ped00_totprd', 'ped00_valtot', 'ped00_totger', 'digtot']);
+    final double subtot = _getDouble(m, ['dig00_subtot', 'ped00_subtot', 'ped00_subval', 'subtot']);
+    final double fattotRaw = _getDouble(m, ['dig00_fattot', 'ped00_fattot', 'ped00_totfat', 'fattot'], digtot - subtot);
+    final int qtdItm = _getInt(m, ['dig00_qtditm', 'ped00_qtditm', 'ped00_qtdite']);
+    final String obs = _getString(m, ['dig00_digobs', 'ped00_digobs', 'digobs', 'ped00_observ', 'ped00_obs', 'ped00_observacao', 'observ', 'obs']);
 
-    // tentar buscar quantidade real de itens e totais se colunas estiverem zeradas
+    // Validação complementar de itens e totais via pckvendig010 se necessário
     int qtdItensFinal = qtdItm;
     double digtotFinal = digtot;
     double bontotFinal = bontot;
@@ -100,104 +100,88 @@ Future<PedidoResumoData?> carregarPedidoResumo(int pedidoId) async {
       final t10 = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='pckvendig010'");
       if (t10.isNotEmpty) {
         final cnt = await db.rawQuery(
-          'SELECT COUNT(*) as c, SUM(ped10_qtdped) as q, SUM(ped10_qtdbon) as qb, SUM(ped10_totprd) as tot FROM pckvendig010 WHERE ped10_numped = ?',
+          'SELECT COUNT(*) as c, SUM(ped10_totprd) as tot, SUM(ped10_qtdbon) as qb FROM pckvendig010 WHERE ped10_numped = ?',
           [pedidoId],
         );
         if (cnt.isNotEmpty) {
           final rowC = cnt.first;
           final cVal = _getInt(rowC, ['c']);
-          if (qtdItensFinal == 0) qtdItensFinal = cVal;
-          if (digtotFinal == 0.0) {
+          if (qtdItensFinal == 0 && cVal > 0) qtdItensFinal = cVal;
+          if (digtotFinal == 0.0 && rowC['tot'] != null) {
             digtotFinal = _getDouble(rowC, ['tot']);
           }
         }
       }
     } catch (_) {}
 
+    // Resolução de nomes descritivos
     String clienteNome = _getString(m, ['ped00_clides', 'clides']);
     String planoDesc = _getString(m, ['ped00_plades', 'plades']);
     String linhaDesc = _getString(m, ['ped00_lindes', 'lindes']);
     String agenteDesc = '';
 
-    // Busca cadastros no banco principal se necessário
-    Database? catDb = db;
-    bool openedCatDb = false;
-    try {
-      final mainPath = await LocalSalesDatabaseService.getDatabasePath();
-      if (db.path != mainPath && await File(mainPath).exists()) {
-        catDb = await openDatabase(mainPath, readOnly: true);
-        openedCatDb = true;
-      }
+    if (clienteNome.isEmpty && cliCod != 0) {
+      try {
+        final cliRows = await db.rawQuery('SELECT * FROM cadcli00 WHERE cli00_codigo = ? LIMIT 1', [cliCod]);
+        if (cliRows.isNotEmpty) {
+          clienteNome = _getString(cliRows.first, ['cli00_descri', 'cli00_fantasi', 'cli00_fantas', 'descri', 'nome']);
+        }
+      } catch (_) {}
+    }
 
-      if (clienteNome.isEmpty && cliCod != 0) {
+    if (planoDesc.isEmpty && plaCod.isNotEmpty) {
+      try {
+        final plaRows = await db.rawQuery("SELECT * FROM cadpla00 WHERE pla00_codigo = ? LIMIT 1", [plaCod]);
+        if (plaRows.isNotEmpty) planoDesc = _getString(plaRows.first, ['pla00_descri', 'descri', 'descricao']);
+      } catch (_) {}
+    }
+
+    if (linhaDesc.isEmpty && linCod.isNotEmpty) {
+      try {
+        final linRows = await db.rawQuery("SELECT * FROM cadlin00 WHERE lin00_codigo = ? LIMIT 1", [linCod]);
+        if (linRows.isNotEmpty) linhaDesc = _getString(linRows.first, ['lin00_descri', 'descri', 'descricao']);
+      } catch (_) {}
+    }
+
+    if (agtCod.isNotEmpty) {
+      for (final tbl in ['cadagt00', 'codage00', 'cadage00', 'cadcob00', 'codcob00']) {
         try {
-          final cliRows = await catDb.rawQuery('SELECT * FROM cadcli00 WHERE cli00_codigo = ? LIMIT 1', [cliCod]);
-          if (cliRows.isNotEmpty) {
-            clienteNome = _getString(cliRows.first, ['cli00_descri', 'cli00_fantasi', 'cli00_fantas', 'descri', 'nome']);
+          final exists = await db.rawQuery(
+              "SELECT name FROM sqlite_master WHERE type='table' AND lower(name)=?", [tbl]);
+          if (exists.isEmpty) continue;
+          final colsA = await db.rawQuery('PRAGMA table_info($tbl)');
+          final cnA = colsA.map((r) => r['name'].toString().toLowerCase()).toSet();
+          String? codColA;
+          String? descColA;
+          for (final c in ['agt00_codigo', 'age00_codigo', 'agt00_codage', 'agt00_codagt', 'cob00_codigo', 'cob00_codcob', 'codigo']) {
+            if (cnA.contains(c)) { codColA = c; break; }
+          }
+          for (final c in ['agt00_descri', 'agt00_descricao', 'agt00_nome', 'age00_descri', 'cob00_descri', 'descricao', 'descri', 'nome']) {
+            if (cnA.contains(c)) { descColA = c; break; }
+          }
+          if (codColA == null || descColA == null) continue;
+          final agtRows = await db.rawQuery('SELECT $descColA as d FROM $tbl WHERE $codColA = ? LIMIT 1', [agtCod]);
+          if (agtRows.isNotEmpty && agtRows.first['d'] != null) {
+            agenteDesc = agtRows.first['d'].toString();
+            break;
           }
         } catch (_) {}
       }
-
-      if (planoDesc.isEmpty && plaCod.isNotEmpty) {
-        try {
-          final plaRows = await catDb.rawQuery("SELECT * FROM cadpla00 WHERE pla00_codigo = ? LIMIT 1", [plaCod]);
-          if (plaRows.isNotEmpty) planoDesc = _getString(plaRows.first, ['pla00_descri', 'descri', 'descricao']);
-        } catch (_) {}
-      }
-
-      if (linhaDesc.isEmpty && linCod.isNotEmpty) {
-        try {
-          final linRows = await catDb.rawQuery("SELECT * FROM cadlin00 WHERE lin00_codigo = ? LIMIT 1", [linCod]);
-          if (linRows.isNotEmpty) linhaDesc = _getString(linRows.first, ['lin00_descri', 'descri', 'descricao']);
-        } catch (_) {}
-      }
-
-      if (agtCod.isNotEmpty) {
-        for (final tbl in ['codage00', 'cadagt00', 'cadage00', 'cadcob00', 'codcob00']) {
-          try {
-            final exists = await catDb.rawQuery(
-                "SELECT name FROM sqlite_master WHERE type='table' AND lower(name)=?", [tbl]);
-            if (exists.isEmpty) continue;
-            final colsA = await catDb.rawQuery('PRAGMA table_info($tbl)');
-            final cnA = colsA.map((r) => r['name'].toString().toLowerCase()).toSet();
-            String? codColA;
-            String? descColA;
-            for (final c in ['age00_codigo', 'agt00_codigo', 'agt00_codage', 'agt00_codagt', 'cob00_codigo', 'cob00_codcob', 'cad00_codigo', 'codigo']) {
-              if (cnA.contains(c)) { codColA = c; break; }
-            }
-            for (final c in ['age00_descri', 'agt00_descri', 'agt00_descricao', 'agt00_nome', 'age00_descricao', 'age00_nome', 'cob00_descri', 'cob00_descricao', 'cob00_nome', 'descricao', 'descri', 'nome']) {
-              if (cnA.contains(c)) { descColA = c; break; }
-            }
-            if (codColA == null || descColA == null) continue;
-            final agtRows = await catDb.rawQuery('SELECT $descColA as d FROM $tbl WHERE $codColA = ? LIMIT 1', [agtCod]);
-            if (agtRows.isNotEmpty && agtRows.first['d'] != null) {
-              agenteDesc = agtRows.first['d'].toString();
-              break;
-            }
-          } catch (_) {}
-        }
-      }
-    } finally {
-      if (openedCatDb && catDb != null && catDb.isOpen) {
-        await catDb.close();
-      }
     }
 
-    await db.close();
-
-    final finalFatTot = fattot != 0 ? fattot : (digtotFinal - subtot);
+    final double finalFatTot = fattotRaw != 0 ? fattotRaw : (digtotFinal - subtot);
 
     return PedidoResumoData(
-      numeroPedido: pedidoId,
+      numeroPedido: numPedido,
       dataEmissao: datSys.isNotEmpty ? datSys : DateTime.now().toString().split(' ').first,
       clienteCodigo: cliCod,
       clienteNome: clienteNome.isNotEmpty ? clienteNome : 'Cliente $cliCod',
       planoCodigo: plaCod,
-      planoDescricao: planoDesc.isNotEmpty ? planoDesc : plaCod,
+      planoDescricao: planoDesc.isNotEmpty ? planoDesc : (plaCod.isNotEmpty ? 'Plano $plaCod' : 'À Vista'),
       linhaCodigo: linCod,
-      linhaDescricao: linhaDesc.isNotEmpty ? linhaDesc : linCod,
+      linhaDescricao: linhaDesc.isNotEmpty ? linhaDesc : (linCod.isNotEmpty ? 'Linha $linCod' : 'Padrão'),
       agenteCodigo: agtCod,
-      agenteDescricao: agenteDesc.isNotEmpty ? agenteDesc : agtCod,
+      agenteDescricao: agenteDesc.isNotEmpty ? agenteDesc : (agtCod.isNotEmpty ? 'Agente $agtCod' : 'Carteira'),
       quantidadeItens: qtdItensFinal,
       valorBonus: bontotFinal,
       valorProdutos: digtotFinal,
@@ -213,12 +197,20 @@ Future<PedidoResumoData?> carregarPedidoResumo(int pedidoId) async {
 
 dynamic _getVal(Map<String, dynamic> map, List<String> candidateKeys) {
   for (final k in candidateKeys) {
-    if (map.containsKey(k)) return map[k];
-    final lowerK = k.toLowerCase();
-    for (final entry in map.entries) {
-      if (entry.key.toLowerCase() == lowerK) {
-        return entry.value;
+    dynamic val;
+    if (map.containsKey(k)) {
+      val = map[k];
+    } else {
+      final lowerK = k.toLowerCase();
+      for (final entry in map.entries) {
+        if (entry.key.toLowerCase() == lowerK) {
+          val = entry.value;
+          break;
+        }
       }
+    }
+    if (val != null && val.toString().trim().isNotEmpty) {
+      return val;
     }
   }
   return null;

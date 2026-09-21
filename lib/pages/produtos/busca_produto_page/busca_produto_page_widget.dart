@@ -13,6 +13,7 @@ import '/index.dart';
 import 'package:easy_debounce/easy_debounce.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'busca_produto_page_model.dart';
@@ -35,6 +36,9 @@ class BuscaProdutoPageWidget extends StatefulWidget {
 
 class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
   late BuscaProdutoPageModel _model;
+  final ScrollController _scrollController = ScrollController();
+  bool _isLoadingMore = false;
+  bool _hasMoreItems = true;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -42,6 +46,16 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
   void initState() {
     super.initState();
     _model = createModel(context, () => BuscaProdutoPageModel());
+
+    _scrollController.addListener(() {
+      if (_scrollController.hasClients &&
+          _scrollController.position.pixels >=
+              _scrollController.position.maxScrollExtent - 300) {
+        if (!_isLoadingMore && _hasMoreItems) {
+          _carregarProximaPaginaProdutos();
+        }
+      }
+    });
 
     // On page load action.
     SchedulerBinding.instance.addPostFrameCallback((_) async {
@@ -60,7 +74,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
       final String filtroInicial = widget.filtroInicial?.trim() ?? '';
       _model.resultadoOnLoad = await actions.buscaProduto(
         filtroInicial,
-        0,
+        null,
         _model.filtroLinha,
         _model.filtroGrupo,
         _model.filtroFabricante,
@@ -72,6 +86,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
       );
       _model.listaProdutos =
           _model.resultadoOnLoad!.toList().cast<ProdutoResultStruct>();
+      _hasMoreItems = _model.listaProdutos.length >= 100;
       safeSetState(() {});
       _model.dadosCarregados = true;
       safeSetState(() {});
@@ -84,14 +99,49 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _model.dispose();
     super.dispose();
   }
+
+  Future<void> _carregarProximaPaginaProdutos() async {
+    if (_isLoadingMore || !_hasMoreItems) return;
+    _isLoadingMore = true;
+    safeSetState(() {});
+    try {
+      final ultimoDescri = _model.listaProdutos.isNotEmpty
+          ? _model.listaProdutos.last.descricao
+          : null;
+      final novos = await actions.buscaProduto(
+        _model.buscaProdutoFieldTextController.text.trim(),
+        ultimoDescri,
+        _model.filtroLinha,
+        _model.filtroGrupo,
+        _model.filtroFabricante,
+        _model.filtroMarca,
+        _model.filtroEstoque,
+        _model.filtroPromocao,
+        functions.resolverCodFilial(AppState().empresa_codigo),
+        _model.filtroDataEntrada,
+      );
+      if (novos.isEmpty || novos.length < 100) {
+        _hasMoreItems = false;
+      }
+      _model.listaProdutos.addAll(novos);
+    } catch (_) {
+      _hasMoreItems = false;
+    } finally {
+      _isLoadingMore = false;
+      if (mounted) safeSetState(() {});
+    }
+  }
+
 
   void _abrirModalAdicionarCarrinho(ProdutoResultStruct produto) async {
     final bool validaEstoque = (AppState().ven_chkest == 1);
     final bool temEstoque = !validaEstoque || (produto.saldoEstoque > 0);
     int quantidade = temEstoque ? 1 : 0;
+    final qtdController = TextEditingController(text: '$quantidade');
 
     final itemSelecionado = await showModalBottomSheet<ItemPedidoStruct?>(
       context: context,
@@ -290,30 +340,71 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                   icon: const Icon(Icons.remove,
                                       color: Colors.white),
                                   onPressed: quantidade > 1
-                                      ? () => setModalState(() => quantidade--)
+                                      ? () => setModalState(() {
+                                            quantidade--;
+                                            qtdController.text = '$quantidade';
+                                          })
                                       : null,
                                   constraints: const BoxConstraints(
                                       minWidth: 48, minHeight: 48),
                                 ),
                               ),
-                              Container(
-                                constraints:
-                                    const BoxConstraints(minWidth: 64.0),
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                      color: AppTheme.of(builderCtx).primary),
-                                  borderRadius: BorderRadius.circular(8.0),
-                                ),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12.0),
-                                margin:
-                                    const EdgeInsets.symmetric(horizontal: 8.0),
-                                child: Text(
-                                  '$quantidade',
-                                  style: const TextStyle(
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                child: SizedBox(
+                                  width: 80.0,
+                                  child: TextFormField(
+                                    controller: qtdController,
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                    ],
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 18.0),
+                                      fontSize: 18.0,
+                                    ),
+                                    decoration: InputDecoration(
+                                      contentPadding: const EdgeInsets.symmetric(
+                                          vertical: 12.0, horizontal: 4.0),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8.0),
+                                        borderSide: BorderSide(
+                                            color: AppTheme.of(builderCtx).primary),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8.0),
+                                        borderSide: BorderSide(
+                                            color: AppTheme.of(builderCtx).primary),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8.0),
+                                        borderSide: BorderSide(
+                                            color: AppTheme.of(builderCtx).primary,
+                                            width: 2.0),
+                                      ),
+                                    ),
+                                    onTap: () {
+                                      qtdController.selection = TextSelection(
+                                        baseOffset: 0,
+                                        extentOffset: qtdController.text.length,
+                                      );
+                                    },
+                                    onChanged: (val) {
+                                      int parsed = int.tryParse(val) ?? 0;
+                                      if (validaEstoque &&
+                                          parsed > produto.saldoEstoque) {
+                                        parsed = produto.saldoEstoque.toInt();
+                                        qtdController.text = parsed.toString();
+                                        qtdController.selection =
+                                            TextSelection.collapsed(
+                                                offset: qtdController.text.length);
+                                      }
+                                      setModalState(() {
+                                        quantidade = parsed;
+                                      });
+                                    },
+                                  ),
                                 ),
                               ),
                               Container(
@@ -326,7 +417,10 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                       color: Colors.white),
                                   onPressed: (!validaEstoque ||
                                           quantidade < produto.saldoEstoque)
-                                      ? () => setModalState(() => quantidade++)
+                                      ? () => setModalState(() {
+                                            quantidade++;
+                                            qtdController.text = '$quantidade';
+                                          })
                                       : null,
                                   constraints: const BoxConstraints(
                                       minWidth: 48, minHeight: 48),
@@ -334,6 +428,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                               ),
                             ],
                           ),
+
                           const SizedBox(height: 20.0),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -435,6 +530,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
         );
       },
     );
+    qtdController.dispose();
 
     if (itemSelecionado != null && mounted) {
       Navigator.of(context).pop(itemSelecionado);
@@ -515,12 +611,12 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                             focusNode: _model.buscaProdutoFieldFocusNode,
                             onChanged: (_) => EasyDebounce.debounce(
                               '_model.buscaProdutoFieldTextController',
-                              const Duration(milliseconds: 2000),
+                              const Duration(milliseconds: 350),
                               () async {
                                 _model.resultadoBusca =
                                     await actions.buscaProduto(
                                   _model.buscaProdutoFieldTextController.text,
-                                  0,
+                                  null,
                                   _model.filtroLinha,
                                   _model.filtroGrupo,
                                   _model.filtroFabricante,
@@ -534,8 +630,8 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                 _model.listaProdutos = _model.resultadoBusca!
                                     .toList()
                                     .cast<ProdutoResultStruct>();
-                                safeSetState(() {});
-
+                                _hasMoreItems =
+                                    _model.listaProdutos.length >= 100;
                                 safeSetState(() {});
                               },
                             ),
@@ -545,6 +641,10 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                               labelText: 'Produto',
                               hintText:
                                   'Pesquise por descrição, EAN, marca ou referência...',
+                              hintStyle: TextStyle(
+                                fontSize: 12.0,
+                                color: Colors.grey.shade500,
+                              ),
                               enabledBorder: OutlineInputBorder(
                                 borderSide: BorderSide(
                                   color: AppTheme.of(context).alternate,
@@ -580,6 +680,44 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                 Icons.search,
                                 color: AppTheme.of(context).secondaryText,
                               ),
+                              suffixIcon: _model
+                                      .buscaProdutoFieldTextController!
+                                      .text
+                                      .isNotEmpty
+                                  ? InkWell(
+                                      onTap: () async {
+                                        _model.buscaProdutoFieldTextController
+                                            ?.clear();
+                                        _model.resultadoBusca =
+                                            await actions.buscaProduto(
+                                          '',
+                                          null,
+                                          _model.filtroLinha,
+                                          _model.filtroGrupo,
+                                          _model.filtroFabricante,
+                                          _model.filtroMarca,
+                                          _model.filtroEstoque,
+                                          _model.filtroPromocao,
+                                          functions.resolverCodFilial(
+                                              AppState().empresa_codigo),
+                                          _model.filtroDataEntrada,
+                                        );
+                                        _model.listaProdutos = _model
+                                            .resultadoBusca!
+                                            .toList()
+                                            .cast<ProdutoResultStruct>();
+                                        _hasMoreItems =
+                                            _model.listaProdutos.length >= 100;
+                                        safeSetState(() {});
+                                      },
+                                      child: Icon(
+                                        Icons.clear_rounded,
+                                        color:
+                                            AppTheme.of(context).secondaryText,
+                                        size: 20.0,
+                                      ),
+                                    )
+                                  : null,
                             ),
                             style: const TextStyle(),
                             maxLines: null,
@@ -1408,7 +1546,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                   _model
                                                       .buscaProdutoFieldTextController
                                                       .text,
-                                                  0,
+                                                  null,
                                                   _model.filtroLinha,
                                                   _model.filtroGrupo,
                                                   _model.filtroFabricante,
@@ -1483,13 +1621,25 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                     _model.listaProdutos.toList();
 
                                 return ListView.separated(
+                                  controller: _scrollController,
                                   padding: EdgeInsets.zero,
-                                  primary: false,
                                   scrollDirection: Axis.vertical,
-                                  itemCount: listaProduto.length,
+                                  itemCount: listaProduto.length + (_isLoadingMore ? 1 : 0),
                                   separatorBuilder: (_, __) =>
                                       const SizedBox(height: 12.0),
                                   itemBuilder: (context, listaProdutoIndex) {
+                                    if (listaProdutoIndex >= listaProduto.length) {
+                                      return const Padding(
+                                        padding: EdgeInsets.symmetric(vertical: 16.0),
+                                        child: Center(
+                                          child: SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(strokeWidth: 2.0),
+                                          ),
+                                        ),
+                                      );
+                                    }
                                     final listaProdutoItem =
                                         listaProduto[listaProdutoIndex];
                                     return Padding(

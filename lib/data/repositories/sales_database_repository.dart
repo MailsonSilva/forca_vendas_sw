@@ -45,9 +45,9 @@ class SalesDatabaseRepository {
         await EmpresaLogoService.instance.sincronizarLogoDoBanco();
       } catch (_) {}
 
-      // Renomeia o arquivo original no FTP (removendo extensão e sufixando data/hora)
+      // Renomeia o arquivo original no FTP (removendo extensão e sufixando data/hora conforme SPEC-047)
       try {
-        final novoNomeCrg = gerarNomeArquivoRenomeado(crgName, DateTime.now());
+        final novoNomeCrg = gerarNomeArquivoRenomeadoIso(crgName, DateTime.now());
         await ftp.rename(crgName, novoNomeCrg);
       } catch (_) {}
 
@@ -75,6 +75,21 @@ class SalesDatabaseRepository {
     final min = dataHora.minute.toString().padLeft(2, '0');
     final s = dataHora.second.toString().padLeft(2, '0');
     return '$base.$y-$m-$d $h-$min-$s';
+  }
+
+  /// Gera o nome do arquivo remoto renomeado no FTP conforme SPEC-047 (ISO compacto sem extensão):
+  /// <nomeOriginalSemExtensao>_<YYYYMMDD_HHmmss>
+  /// Exemplo: carga_105.db -> carga_105_20260917_092247
+  static String gerarNomeArquivoRenomeadoIso(String nomeArquivoOriginal, DateTime dataHora) {
+    final dotIndex = nomeArquivoOriginal.lastIndexOf('.');
+    final base = dotIndex != -1 ? nomeArquivoOriginal.substring(0, dotIndex) : nomeArquivoOriginal;
+    final y = dataHora.year.toString().padLeft(4, '0');
+    final m = dataHora.month.toString().padLeft(2, '0');
+    final d = dataHora.day.toString().padLeft(2, '0');
+    final h = dataHora.hour.toString().padLeft(2, '0');
+    final min = dataHora.minute.toString().padLeft(2, '0');
+    final s = dataHora.second.toString().padLeft(2, '0');
+    return '${base}_$y$m${d}_$h$min$s';
   }
 
   Future<void> uploadLocalDatabase({

@@ -8,9 +8,11 @@ import '/core/app_util.dart';
 import '/index.dart';
 import '/domain/services/valide_pco_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'pedido_itens_lista_model.dart';
 import '/functions/resolver_cod_filial.dart';
+import '/functions/format_quantity.dart';
 import '/data/services/local_sales_database_service.dart';
 import '/components/bottom_sheet_selecao_bonificacao/bottom_sheet_selecao_bonificacao_widget.dart';
 import '/components/bottom_sheet_combos/bottom_sheet_combos_widget.dart';
@@ -414,7 +416,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
       final int filial = AppState().codFilialAtiva != 0 ? AppState().codFilialAtiva : 1;
       final results = await buscaProduto(
         query,
-        0,
+        null,
         null,
         null,
         null,
@@ -452,10 +454,14 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
     try {
       // Usa o singleton ativo — sem abrir conexão descartável
       final db = await LocalSalesDatabaseService.getDatabase();
+      final fil = AppState().codFilialAtiva != 0
+          ? AppState().codFilialAtiva
+          : (resolverCodFilial(AppState().empresa_codigo) ?? 1);
       final results = await db.rawQuery(
         "SELECT (COALESCE(pro00_qtdest, 0) - COALESCE(pro00_qtdpen, 0)) AS saldo "
-        "FROM estpro00 WHERE pro00_codpro = ? AND pro00_codfil = ?",
-        [codigoProduto, resolverCodFilial(AppState().empresa_codigo) ?? 1]
+        "FROM estpro00 WHERE (pro00_codpro = ? OR pro00_codpro = CAST(? AS TEXT)) "
+        "AND (pro00_codfil = ? OR pro00_codfil = ? OR CAST(pro00_codfil AS INTEGER) = ?)",
+        [codigoProduto, codigoProduto, fil, fil.toString().padLeft(2, '0'), fil]
       );
       if (results.isNotEmpty) {
         final val = results.first['saldo'];
@@ -569,6 +575,345 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
 
   String _formatCurrency(double val) {
     return val.toMoeda();
+  }
+
+  /// Permite editar a quantidade clicando no número de itens, com stepper e teclado numérico,
+  /// idêntico ao modal de adicionar produto ao carrinho.
+  Future<void> _abrirModalEditarQuantidade(ItemPedidoStruct item) async {
+    if (_isEdicaoBloqueada()) return;
+
+    final double saldo = await _getSaldoEstoque(item.codigoProduto);
+    final bool validaEstoque = (AppState().ven_chkest == 1);
+    final bool isBoni = item.isBonificacao;
+    int quantidade = (isBoni ? item.quantidadeBonificada : item.quantidade).toInt();
+    if (quantidade <= 0) quantidade = 1;
+    final qtdController = TextEditingController(text: '$quantidade');
+
+    if (!mounted) return;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalContext) {
+        return StatefulBuilder(
+          builder: (builderCtx, setModalState) {
+            return Align(
+              alignment: Alignment.bottomCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600.0),
+                child: Container(
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    bottom: true,
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        bottom: MediaQuery.of(builderCtx).viewInsets.bottom + 16.0,
+                        left: 16.0,
+                        right: 16.0,
+                        top: 12.0,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Center(
+                            child: Container(
+                              width: 48.0,
+                              height: 5.0,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE0E3E7),
+                                borderRadius: BorderRadius.circular(2.5),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12.0),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.edit_note_rounded,
+                                    color: AppTheme.of(builderCtx).primary,
+                                    size: 24.0,
+                                  ),
+                                  const SizedBox(width: 8.0),
+                                  Text(
+                                    isBoni ? 'Editar Qtd. Bonificada' : 'Editar Quantidade',
+                                    style: const TextStyle(
+                                      fontSize: 18.0,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF14181B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              AppIconButton(
+                                borderColor: Colors.transparent,
+                                borderRadius: 20.0,
+                                borderWidth: 1.0,
+                                buttonSize: 38.0,
+                                fillColor: const Color(0xFFF1F4F8),
+                                icon: const Icon(
+                                  Icons.close_rounded,
+                                  color: Color(0xFF57636C),
+                                  size: 20.0,
+                                ),
+                                onPressed: () => Navigator.of(modalContext).pop(),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8.0),
+                          const Divider(height: 1.0, thickness: 1.0, color: Color(0xFFE0E3E7)),
+                          const SizedBox(height: 14.0),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16.0),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12.0),
+                              border: Border.all(color: const Color(0xFFE0E3E7)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Cód. ${item.codigoProduto}',
+                                  style: TextStyle(
+                                    color: AppTheme.of(builderCtx).primary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12.0,
+                                  ),
+                                ),
+                                const SizedBox(height: 4.0),
+                                Text(
+                                  item.descricao,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16.0,
+                                  ),
+                                ),
+                                const SizedBox(height: 8.0),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Preço: ${item.precoUnitario.toMoeda()}',
+                                      style: const TextStyle(color: Colors.grey, fontSize: 13.0),
+                                    ),
+                                    if (item.unidade.isNotEmpty)
+                                      Text(
+                                        'Un: ${item.unidade}',
+                                        style: const TextStyle(color: Colors.grey, fontSize: 13.0),
+                                      ),
+                                  ],
+                                ),
+                                if (!isBoni) ...[
+                                  const SizedBox(height: 8.0),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.inventory_2_outlined, color: Colors.grey, size: 16.0),
+                                      const SizedBox(width: 4.0),
+                                      const Text('Estoque disponível: ', style: TextStyle(color: Colors.grey, fontSize: 12.0)),
+                                      Text(
+                                        validaEstoque
+                                            ? formatQuantity(saldo, unidade: item.unidade)
+                                            : 'Ilimitado',
+                                        style: TextStyle(
+                                          color: (!validaEstoque || saldo > 0)
+                                              ? AppTheme.of(builderCtx).primary
+                                              : Colors.red,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12.0,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20.0),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFAED5E6),
+                                  borderRadius: BorderRadius.circular(8.0),
+                                ),
+                                child: IconButton(
+                                  icon: const Icon(Icons.remove, color: Colors.white),
+                                  onPressed: quantidade > 1
+                                      ? () => setModalState(() {
+                                            quantidade--;
+                                            qtdController.text = '$quantidade';
+                                          })
+                                      : null,
+                                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                child: SizedBox(
+                                  width: 80.0,
+                                  child: TextFormField(
+                                    controller: qtdController,
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                    ],
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18.0,
+                                    ),
+                                    decoration: InputDecoration(
+                                      contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 4.0),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8.0),
+                                        borderSide: BorderSide(color: AppTheme.of(builderCtx).primary),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8.0),
+                                        borderSide: BorderSide(color: AppTheme.of(builderCtx).primary),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8.0),
+                                        borderSide: BorderSide(color: AppTheme.of(builderCtx).primary, width: 2.0),
+                                      ),
+                                    ),
+                                    onTap: () {
+                                      qtdController.selection = TextSelection(
+                                        baseOffset: 0,
+                                        extentOffset: qtdController.text.length,
+                                      );
+                                    },
+                                    onChanged: (val) {
+                                      int parsed = int.tryParse(val) ?? 0;
+                                      if (validaEstoque && !isBoni && parsed > saldo) {
+                                        parsed = saldo.toInt();
+                                        qtdController.text = parsed.toString();
+                                        qtdController.selection = TextSelection.collapsed(offset: qtdController.text.length);
+                                      }
+                                      setModalState(() {
+                                        quantidade = parsed;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0288D1),
+                                  borderRadius: BorderRadius.circular(8.0),
+                                ),
+                                child: IconButton(
+                                  icon: const Icon(Icons.add, color: Colors.white),
+                                  onPressed: (!validaEstoque || isBoni || quantidade < saldo)
+                                      ? () => setModalState(() {
+                                            quantidade++;
+                                            qtdController.text = '$quantidade';
+                                          })
+                                      : null,
+                                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20.0),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Total do Item', style: TextStyle(color: Colors.grey, fontSize: 16.0)),
+                              Text(
+                                isBoni ? 'R\$ 0,00' : (item.precoUnitario * quantidade).toMoeda(),
+                                style: TextStyle(
+                                  color: AppTheme.of(builderCtx).primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20.0,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20.0),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () => Navigator.of(modalContext).pop(),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 14.0),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                                    side: const BorderSide(color: Color(0xFFE0E3E7)),
+                                  ),
+                                  child: const Text('Cancelar', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+                                ),
+                              ),
+                              const SizedBox(width: 12.0),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    if (quantidade <= 0) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('A quantidade deve ser maior que zero.'),
+                                          backgroundColor: Colors.orangeAccent,
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    if (validaEstoque && !isBoni && quantidade > saldo) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Quantidade solicitada ($quantidade) excede o estoque disponível (${saldo.toInt()}).'),
+                                          backgroundColor: Colors.redAccent,
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    safeSetState(() {
+                                      if (isBoni) {
+                                        item.quantidadeBonificada = quantidade.toDouble();
+                                      } else {
+                                        item.quantidade = quantidade.toDouble();
+                                        item.totalItem = item.quantidade * item.precoUnitario;
+                                        item.unidadeComercial = item.quantidade * (item.mulver != 0 ? item.mulver : 1.0);
+                                      }
+                                      _model.recalcularTotais();
+                                    });
+                                    unawaited(_autoSalvarCarrinho());
+                                    Navigator.of(modalContext).pop();
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.of(builderCtx).primary,
+                                    padding: const EdgeInsets.symmetric(vertical: 14.0),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                                  ),
+                                  child: const Text('Confirmar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+    qtdController.dispose();
   }
 
   /// PRD Seção 1 — Edição interativa do preço unitário com validação de faixas (pcomin/pcomax)
@@ -1247,6 +1592,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                             onIncrementar: () => _incrementarQuantidade(p),
                             onDecrementar: () => _decrementarQuantidade(p),
                             onEditarPreco: () => _exibirDialogEdicaoPreco(item),
+                            onEditarQuantidade: () => _abrirModalEditarQuantidade(item),
                           );
                         },
                       ),

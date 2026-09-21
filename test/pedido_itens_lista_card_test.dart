@@ -81,5 +81,43 @@ void main() {
       expect(find.textContaining('Ref: N/A'), findsOneWidget);
       expect(find.textContaining('Emb: UN'), findsOneWidget);
     });
+
+    testWidgets('chama onEditarQuantidade ao clicar no número da quantidade', (tester) async {
+      bool editouQtd = false;
+      final item = ItemPedidoStruct(
+        codigoProduto: '9903',
+        descricao: 'PRODUTO TESTE CLIQUE QTD',
+        unidade: 'UN',
+        embalagem: 'UN',
+        precoUnitario: 25.0,
+        quantidade: 5.0,
+        totalItem: 125.0,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ItemPedidoCardWidget(
+              item: item,
+              onRemover: () {},
+              onIncrementar: () {},
+              onDecrementar: () {},
+              onEditarPreco: () {},
+              onEditarQuantidade: () {
+                editouQtd = true;
+              },
+            ),
+          ),
+        ),
+      );
+
+      final qtdFinder = find.text('5');
+      expect(qtdFinder, findsOneWidget);
+
+      await tester.tap(qtdFinder);
+      await tester.pump();
+
+      expect(editouQtd, isTrue);
+    });
   });
 }

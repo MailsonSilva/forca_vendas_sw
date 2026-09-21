@@ -15,23 +15,31 @@ Future<List<ClienteResultStruct>> pesquisaCliente(
     final db = await LocalSalesDatabaseService.getDatabase();
     final String busca = filtro?.trim() ?? '';
     final int currentOffset = offset ?? 0;
+    final String buscaLimpa = busca.replaceAll(RegExp(r'\D'), '');
+    final int? termoNum = int.tryParse(buscaLimpa.isNotEmpty ? buscaLimpa : busca);
 
     // 2. Busca clientes ativos ou recém-cadastrados locais
     String whereClause = 'WHERE (cli00_active in (0,1) OR cli00_active IS NULL)';
     List<dynamic> binds = [];
 
-    // 3. Aplica o filtro de texto ou numérico conforme a busca do usuário
+    // 3. Aplica o filtro priorizando código e documento indexado (sem máscara)
     if (busca.isNotEmpty) {
-      final isNumeric = RegExp(r'^\d+$').hasMatch(busca);
-      if (isNumeric) {
-        whereClause += ' AND (cli00_codigo = ? OR cli00_cpfcnp LIKE ?)';
-        binds.addAll([int.tryParse(busca) ?? 0, '%$busca%']);
-      } else {
-        final termo = '%${busca.toUpperCase()}%';
-        whereClause +=
-            ' AND (UPPER(cli00_descri) LIKE ? OR UPPER(cli00_fantas) LIKE ?)';
-        binds.addAll([termo, termo]);
+      final List<String> orClauses = [];
+      if (termoNum != null && termoNum > 0) {
+        orClauses.add('cli00_codigo = ?');
+        binds.add(termoNum);
       }
+      if (buscaLimpa.isNotEmpty) {
+        orClauses.add('cli00_cpfcnp LIKE ?');
+        binds.add('$buscaLimpa%');
+      }
+      final termo = '%${busca.toUpperCase()}%';
+      orClauses.add('UPPER(cli00_descri) LIKE ?');
+      binds.add(termo);
+      orClauses.add('UPPER(cli00_fantas) LIKE ?');
+      binds.add(termo);
+
+      whereClause += ' AND (${orClauses.join(' OR ')})';
     }
 
     // 4. Inspeciona colunas existentes em cadcli00 para retrocompatibilidade
@@ -44,7 +52,7 @@ Future<List<ClienteResultStruct>> pesquisaCliente(
     final crelimCol = colNames.contains('cli00_crelim') ? 'COALESCE(cli00_crelim, 0)' : '0';
     final codageCol = colNames.contains('cli00_codage') ? 'COALESCE(cli00_codage, 0)' : '0';
 
-    // 5. Query com aliases padronizados
+    // 5. Query com aliases padronizados e paginação otimizada de 100 registros
     final String query = '''
       SELECT 
         cli00_codigo AS codigo,
@@ -68,8 +76,8 @@ Future<List<ClienteResultStruct>> pesquisaCliente(
         $codageCol AS cli00Codage
       FROM cadcli00 
       $whereClause
-      ORDER BY cli00_descri 
-      LIMIT 500 OFFSET ?
+      ORDER BY cli00_descri ASC
+      LIMIT 100 OFFSET ?
     ''';
 
     binds.add(currentOffset);

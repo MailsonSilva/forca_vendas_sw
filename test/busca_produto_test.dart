@@ -141,7 +141,7 @@ void main() {
       // Busca com tabela 1
       final resTab1 = await buscaProduto(
         '101',
-        0,
+        null,
         null,
         null,
         null,
@@ -158,7 +158,7 @@ void main() {
       // Busca com tabela 2
       final resTab2 = await buscaProduto(
         '101',
-        0,
+        null,
         null,
         null,
         null,
@@ -177,7 +177,7 @@ void main() {
       // Antes de rascunho: saldo = 50 - 5 = 45
       final resSemRascunho = await buscaProduto(
         '101',
-        0,
+        null,
         null,
         null,
         null,
@@ -204,7 +204,7 @@ void main() {
       // Após rascunho: saldo = 50 - 5 - 12 = 33
       final resComRascunho = await buscaProduto(
         '101',
-        0,
+        null,
         null,
         null,
         null,
@@ -220,7 +220,7 @@ void main() {
 
     test('buscaProduto localiza por EAN, Marca, Referencia e preenche novos campos no ProdutoResultStruct', () async {
       // 1. Busca por Código EAN
-      final resEan = await buscaProduto('7890002999', 0, null, null, null, null, false, false, 1, 'Todas');
+      final resEan = await buscaProduto('7890002999', null, null, null, null, null, false, false, 1, 'Todas');
       expect(resEan.length, equals(1));
       expect(resEan.first.codigo, equals('102'));
       expect(resEan.first.descricao, equals('BISCOITO CRACKER'));
@@ -232,17 +232,17 @@ void main() {
       expect(resEan.first.embalagem, equals('FD 30 UN'));
 
       // 2. Busca por Marca
-      final resMarca = await buscaProduto('NESTLÉ', 0, null, null, null, null, false, false, 1, 'Todas');
+      final resMarca = await buscaProduto('NESTLÉ', null, null, null, null, null, false, false, 1, 'Todas');
       expect(resMarca.length, equals(2));
 
       // 3. Busca por Referência 1
-      final resRef1 = await buscaProduto('REF-A1', 0, null, null, null, null, false, false, 1, 'Todas');
+      final resRef1 = await buscaProduto('REF-A1', null, null, null, null, null, false, false, 1, 'Todas');
       expect(resRef1.length, equals(1));
       expect(resRef1.first.codigo, equals('101'));
       expect(resRef1.first.referenciaFormatada, equals('REF-A1 / REF-B2'));
 
       // 4. Busca por Referência 2
-      final resRef2 = await buscaProduto('REF-B2', 0, null, null, null, null, false, false, 1, 'Todas');
+      final resRef2 = await buscaProduto('REF-B2', null, null, null, null, null, false, false, 1, 'Todas');
       expect(resRef2.length, equals(1));
       expect(resRef2.first.codigo, equals('101'));
     });

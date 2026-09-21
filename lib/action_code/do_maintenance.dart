@@ -26,6 +26,18 @@ Future<void> doMaintenance({String? dbPathOverride}) async {
         final tables = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'");
         final tableNames = tables.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
 
+        // Índices cobridores para keyset pagination e JOINs de catálogo
+        if (tableNames.contains('cadpro00')) {
+          await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_order ON cadpro00(pro00_descri ASC, pro00_codigo)');
+        }
+        if (tableNames.contains('estpro00')) {
+          await db.execute('CREATE INDEX IF NOT EXISTS idx_estpro00_filial_cod ON estpro00(pro00_codfil, pro00_codpro, pro00_qtdest)');
+        }
+
+        // PRAGMAs de tuning SQLite
+        await db.execute('PRAGMA cache_size = -64000');
+        await db.execute('PRAGMA temp_store = MEMORY');
+
         if (tableNames.contains('pckvendig000') && tableNames.contains('pckvendig010')) {
           // 1. Expurga rascunhos em pckvendig000 (ped00_sttdig = 0) que não possuem itens em pckvendig010
           await db.rawDelete('''

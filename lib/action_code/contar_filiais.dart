@@ -1,7 +1,7 @@
 // DO NOT REMOVE OR MODIFY THE CODE ABOVE!
-import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 import '/backend/schema/structs/lista_padrao_struct.dart';
+import '/data/services/local_sales_database_service.dart';
 
 class FilialInfo {
   FilialInfo({required this.codigo, required this.descricao});
@@ -15,18 +15,26 @@ class FiliaisResult {
   final List<FilialInfo> filiais;
 }
 
-/// PRD 1 §1.5 — conta cadfil00 e lista filiais disponíveis.
+/// SPEC-047 §1.1 — conta cadfil00 (WHERE fil00_active = 1) e lista filiais ativas disponíveis.
 /// Tolerante a variações de nome de coluna/tabela (PRAGMA).
-Future<FiliaisResult> contarFiliais({String? dbPathOverride}) async {
+/// Utiliza a conexão singleton ativa sem fechamento prematuro (INVARIANT 1).
+Future<FiliaisResult> contarFiliais({String? dbPathOverride, Database? customDb}) async {
+  Database? db;
+  bool shouldClose = false;
   try {
-    final dbPath = dbPathOverride ?? p.join(await getDatabasesPath(), 'dbforcacad001.db');
-    final db = await openDatabase(dbPath, readOnly: true);
+    if (customDb != null) {
+      db = customDb;
+    } else if (dbPathOverride != null) {
+      db = await openDatabase(dbPathOverride);
+      shouldClose = true;
+    } else {
+      db = await LocalSalesDatabaseService.getDatabase();
+    }
 
     // Verifica se tabela existe (case-insensitive)
     final tables = await db.rawQuery(
         "SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='cadfil00'");
     if (tables.isEmpty) {
-      await db.close();
       return FiliaisResult(count: 0, filiais: []);
     }
 
@@ -52,13 +60,21 @@ Future<FiliaisResult> contarFiliais({String? dbPathOverride}) async {
         codCol ??= cols[0]['name'].toString();
         descCol = cols[0]['name'].toString();
       } else {
-        await db.close();
         return FiliaisResult(count: 0, filiais: []);
       }
     }
 
-    final rows = await db.rawQuery('SELECT $codCol as codigo, $descCol as descricao FROM cadfil00 ORDER BY $descCol');
-    await db.close();
+    // Identifica coluna de filial ativa (SPEC-047: WHERE fil00_active = 1)
+    String? activeCol;
+    for (final c in ['fil00_active', 'fil00_ativo', 'fil00_sttfil', 'fil00_status', 'active', 'ativo']) {
+      if (colNames.contains(c)) {
+        activeCol = c;
+        break;
+      }
+    }
+
+    final String whereClause = activeCol != null ? 'WHERE ($activeCol = 1 OR $activeCol = "1")' : '';
+    final rows = await db.rawQuery('SELECT $codCol as codigo, $descCol as descricao FROM cadfil00 $whereClause ORDER BY $descCol');
 
     final filiais = rows.map((r) {
       return FilialInfo(
@@ -71,6 +87,10 @@ Future<FiliaisResult> contarFiliais({String? dbPathOverride}) async {
   } catch (e) {
     // Em caso de erro (DB ausente), retorna 0 para não bloquear login
     return FiliaisResult(count: 0, filiais: []);
+  } finally {
+    if (shouldClose && db != null && db.isOpen) {
+      await db.close();
+    }
   }
 }
 
