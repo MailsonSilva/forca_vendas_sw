@@ -8,10 +8,13 @@ import 'package:forca_de_vendas/pages/home_page/home_page_widget.dart';
 import 'package:forca_de_vendas/components/modal_selecao_filial/modal_selecao_filial_widget.dart';
 import 'package:forca_de_vendas/data/services/local_sales_database_service.dart';
 
+import 'package:google_fonts/google_fonts.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() {
+    GoogleFonts.config.allowRuntimeFetching = false;
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   });
@@ -38,15 +41,10 @@ void main() {
     });
 
     Widget createWidgetUnderTest() {
-      return MultiProvider(
-        providers: [
-          ChangeNotifierProvider(create: (_) => AppState()),
-        ],
-        child: MaterialApp(
-          home: const HomePageWidget(),
-          theme: ThemeData(
-            useMaterial3: false,
-          ),
+      return ChangeNotifierProvider.value(
+        value: AppState(),
+        child: const MaterialApp(
+          home: HomePageWidget(),
         ),
       );
     }
@@ -56,8 +54,10 @@ void main() {
       AppState().ven_selfil = 0;
       AppState().codFilialAtiva = 1;
       
-      await db.insert('estpro00', {'pro00_codfil': '1'});
-      await db.insert('estpro00', {'pro00_codfil': '2'});
+      await tester.runAsync(() async {
+        await db.insert('estpro00', {'pro00_codfil': '1'});
+        await db.insert('estpro00', {'pro00_codfil': '2'});
+      });
       
       print('Test 1 pumpWidget');
       await tester.pumpWidget(createWidgetUnderTest());
@@ -81,11 +81,12 @@ void main() {
       print('Test 2 start');
       AppState().ven_selfil = 1;
       AppState().codFilialAtiva = 1;
-      
-      await db.insert('estpro00', {'pro00_codfil': '1'});
-      await db.insert('estpro00', {'pro00_codfil': '2'});
-      await db.insert('cadfil00', {'fil00_codigo': '1', 'fil00_descri': 'Filial 1'});
-      await db.insert('cadfil00', {'fil00_codigo': '2', 'fil00_descri': 'Filial 2'});
+      await tester.runAsync(() async {
+        await db.insert('estpro00', {'pro00_codfil': '1'});
+        await db.insert('estpro00', {'pro00_codfil': '2'});
+        await db.insert('cadfil00', {'fil00_codigo': '1', 'fil00_descri': 'Filial 1'});
+        await db.insert('cadfil00', {'fil00_codigo': '2', 'fil00_descri': 'Filial 2'});
+      });
 
       print('Test 2 pumpWidget');
       await tester.pumpWidget(createWidgetUnderTest());
@@ -97,11 +98,21 @@ void main() {
       expect(filialText, findsOneWidget);
 
       print('Test 2 tap');
-      await tester.tap(filialText);
+      await tester.runAsync(() async {
+        await tester.tap(filialText);
+        await Future.delayed(const Duration(milliseconds: 500));
+      });
       print('Test 2 pump 2');
-      await tester.pump(const Duration(seconds: 1)); // Aguarda a consulta ao BD e a abertura do modal
+      await tester.pumpAndSettle();
 
       expect(find.byType(ModalSelecaoFilialWidget), findsOneWidget);
+
+      // Fechar o modal para evitar futures soltas e falha no tearDown
+      await tester.tap(find.text('Filial 1'));
+      await tester.pump();
+      await tester.tap(find.text('Confirmar Filial'));
+      await tester.pumpAndSettle();
+
       print('Test 2 end');
     });
   });
