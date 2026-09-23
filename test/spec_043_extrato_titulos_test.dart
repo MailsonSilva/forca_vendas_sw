@@ -408,6 +408,13 @@ void main() {
         titulos: titulos,
       );
 
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
       bool? resultadoRetorno;
       await tester.pumpWidget(MaterialApp(
         home: Builder(
@@ -446,6 +453,10 @@ void main() {
       expect(find.text('Total Juros'), findsOneWidget);
       expect(find.text('Dias/Atraso'), findsOneWidget);
       expect(find.text('Valor Devedor'), findsOneWidget);
+
+      // Botão WhatsApp removido e botão Copiar Texto presente
+      expect(find.text('Enviar via WhatsApp'), findsNothing);
+      expect(find.text('Copiar Texto'), findsOneWidget);
 
       // Tocar em "Liberar Pedido"
       await tester.tap(find.text('Liberar Pedido'));

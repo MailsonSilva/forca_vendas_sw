@@ -440,19 +440,48 @@ class LocalSalesDatabaseService {
       tables = t.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
     } catch (_) {}
 
-    // Índices para busca de produtos (cadpro00)
+    // Índices essenciais para busca rápida de produtos (cadpro00) e estoque (estpro00)
     if (tables.contains('cadpro00')) {
-      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_busca ON cadpro00(pro00_descri, pro00_codigo, pro00_codbar)'); } catch (_) {}
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_descri_cod ON cadpro00(pro00_descri ASC, pro00_codigo);'); } catch (_) {}
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_busca ON cadpro00(pro00_descri ASC, pro00_codigo);'); } catch (_) {}
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_order ON cadpro00(pro00_descri ASC, pro00_codigo);'); } catch (_) {}
       try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_descri ON cadpro00(pro00_descri)'); } catch (_) {}
       try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_codigo ON cadpro00(pro00_codigo)'); } catch (_) {}
       try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_codbar ON cadpro00(pro00_codbar)'); } catch (_) {}
       try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_filtros ON cadpro00(pro00_codlin, pro00_codgrp, pro00_codmar)'); } catch (_) {}
     }
 
+    // Índices para marcas (cadmar00)
+    if (tables.contains('cadmar00')) {
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadmar00_cod ON cadmar00(mar00_codigo);'); } catch (_) {}
+    }
+
     // Índices para estoque particionado (estpro00)
     if (tables.contains('estpro00')) {
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_estpro00_filial_prod ON estpro00(pro00_codfil, pro00_codpro, pro00_qtdest);'); } catch (_) {}
       try { await db.execute('CREATE INDEX IF NOT EXISTS idx_estpro00_filial_pro ON estpro00(pro00_codpro, pro00_codfil)'); } catch (_) {}
       try { await db.execute('CREATE INDEX IF NOT EXISTS idx_estpro00_codpro_codfil ON estpro00(pro00_codpro, pro00_codfil)'); } catch (_) {}
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_estpro00_filial_prod_cov ON estpro00(pro00_codfil, pro00_codpro, pro00_qtdest, pro00_qtdpen);'); } catch (_) {}
+    }
+
+    // Índices para multiplicadores de embalagem (cadpro02) - SPEC-052
+    if (tables.contains('cadpro02')) {
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro02_prod ON cadpro02(pro02_codpro);'); } catch (_) {}
+    }
+
+    // Índices para fracionamento de produtos (cadprofra00) - SPEC-052
+    if (tables.contains('cadprofra00')) {
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadprofra00_prod ON cadprofra00(fra00_codpro);'); } catch (_) {}
+    }
+
+    // Índices para bonificação de produtos (cadprobon00) - SPEC-052
+    if (tables.contains('cadprobon00')) {
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadprobon00_prod ON cadprobon00(bon00_codpro);'); } catch (_) {}
+    }
+
+    // Índices para histórico de datas por filial e produto (estprodat00) - SPEC-052
+    if (tables.contains('estprodat00')) {
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_estprodat00_fil_prod ON estprodat00(pro00_codfil, pro00_codpro);'); } catch (_) {}
     }
 
     // Índices para tabela de preços (estpcopro00)
@@ -472,6 +501,11 @@ class LocalSalesDatabaseService {
     try { await db.execute('PRAGMA optimize'); } catch (_) {}
     try { await db.execute('PRAGMA temp_store = MEMORY'); } catch (_) {}
     try { await db.execute('PRAGMA cache_size = -64000'); } catch (_) {}
+  }
+
+  /// Cria índices oficiais de busca e estoque multi-filial pós-carga (SPEC-050)
+  static Future<void> criarIndicesBuscaEEstoque(Database db) async {
+    await _criarIndicesPerformance(db);
   }
 
 

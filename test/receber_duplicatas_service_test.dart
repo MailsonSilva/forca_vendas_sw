@@ -124,6 +124,8 @@ void main() {
       expect(texto, contains('DUP-1001'));
       expect(texto, contains('18 dias em atraso'));
       expect(texto, contains('Total Vencido:'));
+      expect(texto, contains('Valor do Juros:'));
+      expect(texto, contains('15,00'));
       expect(texto, contains('Total A Vencer:'));
     });
   });

@@ -109,9 +109,13 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
     _isLoadingMore = true;
     safeSetState(() {});
     try {
+      final offset = _model.listaProdutos.length;
       final ultimoDescri = _model.listaProdutos.isNotEmpty
           ? _model.listaProdutos.last.descricao
           : null;
+      final int filialAtiva = AppState().codFilialAtiva != 0
+          ? AppState().codFilialAtiva
+          : (functions.resolverCodFilial(AppState().empresa_codigo) ?? 1);
       final novos = await actions.buscaProduto(
         _model.buscaProdutoFieldTextController.text.trim(),
         ultimoDescri,
@@ -121,8 +125,10 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
         _model.filtroMarca,
         _model.filtroEstoque,
         _model.filtroPromocao,
-        functions.resolverCodFilial(AppState().empresa_codigo),
+        filialAtiva,
         _model.filtroDataEntrada,
+        null,
+        offset,
       );
       if (novos.isEmpty || novos.length < 100) {
         _hasMoreItems = false;
@@ -1653,8 +1659,13 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                         highlightColor: Colors.transparent,
                                         onTap: () async {
                                           if (widget.isSelectionMode) {
+                                            // SPEC-052: Dispara a Query 2 sob demanda para obter todas as amarrações do legado antes de abrir o modal
+                                            final detalhe = await actions.carregarProdutoDetalhe(
+                                              listaProdutoItem.codigo,
+                                            );
                                             _abrirModalAdicionarCarrinho(
-                                                listaProdutoItem);
+                                              detalhe ?? listaProdutoItem,
+                                            );
                                           } else {
                                             context.pushNamed(
                                               DetalheProdutoPageWidget
@@ -1695,8 +1706,9 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                         listaProdutoItem.codigo,
                                                     titulo: listaProdutoItem
                                                         .descricao,
-                                                    subtitulo:
-                                                        'Cód: ${listaProdutoItem.codigo} • ${listaProdutoItem.preco.toMoeda()}',
+                                                    subtitulo: listaProdutoItem.preco > 0
+                                                        ? 'Cód: ${listaProdutoItem.codigo} • ${listaProdutoItem.preco.toMoeda()}'
+                                                        : 'Cód: ${listaProdutoItem.codigo}',
                                                   ),
                                                 ),
                                                 Expanded(
@@ -2011,12 +2023,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                                           .isNotEmpty
                                                                       ? listaProdutoItem
                                                                           .unidade
-                                                                      : (listaProdutoItem
-                                                                              .embalagem
-                                                                              .isNotEmpty
-                                                                          ? listaProdutoItem
-                                                                              .embalagem
-                                                                          : 'UN'),
+                                                                      : 'UN',
                                                                   'UN',
                                                                 ),
                                                                 style: AppTheme.of(

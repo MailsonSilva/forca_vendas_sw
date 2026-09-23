@@ -12,20 +12,29 @@ void main() {
 
   group('Otimização e Performance SQLite (Produtos e Clientes)', () {
     late String dbPath;
+    late String dbCadPath;
     late Database db;
+    late Database dbCad;
 
     setUp(() async {
       dbPath = p.join(await getDatabasesPath(), LocalSalesDatabaseService.databaseName);
+      dbCadPath = p.join(await getDatabasesPath(), 'dbforcacad001.db');
       db = await openDatabase(dbPath);
+      dbCad = await openDatabase(dbCadPath);
 
       // Limpa tabelas
       await db.execute('DROP TABLE IF EXISTS cadpro00');
       await db.execute('DROP TABLE IF EXISTS estpro00');
       await db.execute('DROP TABLE IF EXISTS cadcli00');
 
+      await dbCad.execute('CREATE TABLE IF NOT EXISTS cadpro00 (pro00_codigo TEXT PRIMARY KEY, pro00_descri TEXT, pro00_unidad TEXT, pro00_pcomax REAL, pro00_codbar TEXT, pro00_qtdest REAL DEFAULT 0)');
+      await dbCad.execute('CREATE TABLE IF NOT EXISTS estpro00 (pro00_codpro TEXT, pro00_codfil INTEGER, pro00_qtdest REAL DEFAULT 0, pro00_qtdpen REAL DEFAULT 0)');
+      await dbCad.execute('DELETE FROM cadpro00');
+      await dbCad.execute('DELETE FROM estpro00');
+
       // Cria cadpro00
-      await db.execute('''
-        CREATE TABLE cadpro00 (
+      const createCadpro = '''
+        CREATE TABLE IF NOT EXISTS cadpro00 (
           pro00_codigo TEXT PRIMARY KEY,
           pro00_descri TEXT,
           pro00_unidad TEXT,
@@ -33,17 +42,21 @@ void main() {
           pro00_codbar TEXT,
           pro00_qtdest REAL DEFAULT 0
         )
-      ''');
+      ''';
+      await db.execute(createCadpro);
+      await dbCad.execute(createCadpro);
 
       // Cria estpro00
-      await db.execute('''
-        CREATE TABLE estpro00 (
+      const createEstpro = '''
+        CREATE TABLE IF NOT EXISTS estpro00 (
           pro00_codpro TEXT,
           pro00_codfil INTEGER,
           pro00_qtdest REAL DEFAULT 0,
           pro00_qtdpen REAL DEFAULT 0
         )
-      ''');
+      ''';
+      await db.execute(createEstpro);
+      await dbCad.execute(createEstpro);
 
       // Cria cadcli00
       await db.execute('''
@@ -65,24 +78,33 @@ void main() {
       await db.execute('CREATE INDEX IF NOT EXISTS idx_estpro00_filial_pro ON estpro00(pro00_codpro, pro00_codfil)');
       await db.execute('CREATE INDEX IF NOT EXISTS idx_cadcli00_busca ON cadcli00(cli00_descri, cli00_fantas, cli00_codigo, cli00_cpfcnp)');
 
+      await dbCad.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_busca ON cadpro00(pro00_descri, pro00_codigo, pro00_codbar)');
+      await dbCad.execute('CREATE INDEX IF NOT EXISTS idx_estpro00_filial_pro ON estpro00(pro00_codpro, pro00_codfil)');
+
       // Popula dados para teste de busca e paginação
       final batch = db.batch();
+      final batchCad = dbCad.batch();
       for (int i = 1; i <= 150; i++) {
         final codPro = i.toString().padLeft(4, '0');
-        batch.insert('cadpro00', {
+        final proMap = {
           'pro00_codigo': codPro,
           'pro00_descri': 'PRODUTO REGISTRO $codPro',
           'pro00_unidad': 'UN',
           'pro00_pcomax': 100.0 + i,
           'pro00_codbar': '789000000$codPro',
           'pro00_qtdest': 50.0,
-        });
-        batch.insert('estpro00', {
+        };
+        batch.insert('cadpro00', proMap, conflictAlgorithm: ConflictAlgorithm.replace);
+        batchCad.insert('cadpro00', proMap, conflictAlgorithm: ConflictAlgorithm.replace);
+
+        final estMap = {
           'pro00_codpro': codPro,
           'pro00_codfil': 1,
           'pro00_qtdest': 80.0,
           'pro00_qtdpen': 0.0,
-        });
+        };
+        batch.insert('estpro00', estMap, conflictAlgorithm: ConflictAlgorithm.replace);
+        batchCad.insert('estpro00', estMap, conflictAlgorithm: ConflictAlgorithm.replace);
 
         final codCli = i;
         final doc = (10000000000 + i).toString(); // CPF sintético
@@ -96,14 +118,17 @@ void main() {
           'cli00_creatu': 5000.0,
           'cli00_titven': 0.0,
           'cli00_active': 1,
-        });
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
       await batch.commit(noResult: true);
+      await batchCad.commit(noResult: true);
 
       // Cria índice cobridor para keyset pagination
       await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_order ON cadpro00(pro00_descri ASC, pro00_codigo)');
+      await dbCad.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_order ON cadpro00(pro00_descri ASC, pro00_codigo)');
 
       await db.close();
+      await dbCad.close();
     });
 
     test('EXPLAIN QUERY PLAN comprova uso de índices nas consultas', () async {

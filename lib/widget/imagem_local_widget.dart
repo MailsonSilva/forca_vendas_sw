@@ -150,6 +150,7 @@ class _ImagemLocalWidgetState extends State<ImagemLocalWidget> {
             width: widget.width,
             height: widget.height,
             fit: BoxFit.contain,
+            cacheWidth: 150,
             errorBuilder: (context, error, stackTrace) {
               return _buildPlaceholder();
             },

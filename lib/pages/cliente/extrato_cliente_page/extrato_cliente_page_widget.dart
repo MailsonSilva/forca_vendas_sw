@@ -1094,63 +1094,33 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
               if (index < titulos.length) {
                 return _buildItemFaturamentoLegado(titulos[index], index, theme);
               }
-              // Item final: Ações de Cobrança e Compartilhamento
+              // Item final: Ação de Copiar Texto
               return Padding(
                 padding: const EdgeInsets.only(top: 4.0, bottom: 8.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 18),
-                        label: Text(
-                          'Enviar via WhatsApp',
-                          style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF25D366),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          elevation: 1,
-                        ),
-                        onPressed: () {
-                          final cli = _obterClienteReceberCompleto();
-                          if (cli != null) {
-                            ReceberDuplicatasService.compartilharWhatsApp(
-                              context,
-                              cli,
-                              nomeVendedor: AppState().vendedor_nome,
-                            );
-                          }
-                        },
-                      ),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.copy_rounded, color: Colors.black87, size: 18),
+                    label: Text(
+                      'Copiar Texto',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.black87),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.copy_rounded, color: Colors.black87, size: 18),
-                        label: Text(
-                          'Copiar Texto',
-                          style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.black87),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          side: BorderSide(color: Colors.grey.shade400),
-                        ),
-                        onPressed: () {
-                          final cli = _obterClienteReceberCompleto();
-                          if (cli != null) {
-                            ReceberDuplicatasService.copiarClipboard(
-                              context,
-                              cli,
-                              nomeVendedor: AppState().vendedor_nome,
-                            );
-                          }
-                        },
-                      ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      side: BorderSide(color: Colors.grey.shade400),
                     ),
-                  ],
+                    onPressed: () {
+                      final cli = _obterClienteReceberCompleto();
+                      if (cli != null) {
+                        ReceberDuplicatasService.copiarClipboard(
+                          context,
+                          cli,
+                          nomeVendedor: AppState().vendedor_nome,
+                        );
+                      }
+                    },
+                  ),
                 ),
               );
             },
@@ -1523,9 +1493,40 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
   }
 
   ClienteReceberItem? _obterClienteReceberCompleto() {
-    if (_clienteReceber != null) return _clienteReceber;
+    double jurosCalculados = 0.0;
+    for (final t in _titulosDetalhados) {
+      jurosCalculados += t.valorJuros;
+    }
+
+    if (_clienteReceber != null) {
+      final jurosFinal = _clienteReceber!.totalJuros > 0
+          ? _clienteReceber!.totalJuros
+          : jurosCalculados;
+      if (jurosFinal != _clienteReceber!.totalJuros) {
+        return ClienteReceberItem(
+          codCli: _clienteReceber!.codCli,
+          razaoSocial: _clienteReceber!.razaoSocial,
+          fantasia: _clienteReceber!.fantasia,
+          cidadeUf: _clienteReceber!.cidadeUf,
+          limiteCredito: _clienteReceber!.limiteCredito,
+          limiteAtual: _clienteReceber!.limiteAtual,
+          totalVencido: _clienteReceber!.totalVencido,
+          totalAVencer: _clienteReceber!.totalAVencer,
+          totalDevedor: _clienteReceber!.totalDevedor,
+          totalJuros: jurosFinal,
+          maiorDiasAtraso: _clienteReceber!.maiorDiasAtraso,
+          qtdTitulosVencidos: _clienteReceber!.qtdTitulosVencidos,
+          qtdTitulosTotal: _clienteReceber!.qtdTitulosTotal,
+          titulos: _clienteReceber!.titulos.isNotEmpty
+              ? _clienteReceber!.titulos
+              : _titulosDetalhados,
+        );
+      }
+      return _clienteReceber;
+    }
     final info = _clienteInfo;
     if (info == null) return null;
+    final jurosFinal = info.totalJuros > 0 ? info.totalJuros : jurosCalculados;
     return ClienteReceberItem(
       codCli: info.codigo,
       razaoSocial: info.razaoSocial,
@@ -1536,7 +1537,7 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
       totalVencido: info.totalVencido,
       totalAVencer: info.totalAVencer,
       totalDevedor: info.totalDevedor,
-      totalJuros: info.totalJuros,
+      totalJuros: jurosFinal,
       maiorDiasAtraso: info.maiorDiasAtraso,
       qtdTitulosVencidos: info.qtdTitulosVencidos,
       qtdTitulosTotal: _titulosDetalhados.length,

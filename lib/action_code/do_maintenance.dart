@@ -28,9 +28,11 @@ Future<void> doMaintenance({String? dbPathOverride}) async {
 
         // Índices cobridores para keyset pagination e JOINs de catálogo
         if (tableNames.contains('cadpro00')) {
+          await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_busca ON cadpro00(pro00_descri, pro00_codigo)');
           await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_order ON cadpro00(pro00_descri ASC, pro00_codigo)');
         }
         if (tableNames.contains('estpro00')) {
+          await db.execute('CREATE INDEX IF NOT EXISTS idx_estpro00_filial_prod ON estpro00(pro00_codfil, pro00_codpro)');
           await db.execute('CREATE INDEX IF NOT EXISTS idx_estpro00_filial_cod ON estpro00(pro00_codfil, pro00_codpro, pro00_qtdest)');
         }
 

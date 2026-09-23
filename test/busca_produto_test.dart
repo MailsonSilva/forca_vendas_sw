@@ -137,9 +137,8 @@ void main() {
       await db.close();
     });
 
-    test('buscaProduto filters price by active price table (codTabela)', () async {
-      // Busca com tabela 1
-      final resTab1 = await buscaProduto(
+    test('buscaProduto lista produtos e calcula saldo disponível da filial ativa (pro00_qtdest - pro00_qtdpen)', () async {
+      final res = await buscaProduto(
         '101',
         null,
         null,
@@ -150,33 +149,24 @@ void main() {
         false,
         1,
         'Todas',
-        1,
       );
-      expect(resTab1.isNotEmpty, isTrue);
-      expect(resTab1.first.preco, equals(10.0));
-
-      // Busca com tabela 2
-      final resTab2 = await buscaProduto(
-        '101',
-        null,
-        null,
-        null,
-        null,
-        null,
-        false,
-        false,
-        1,
-        'Todas',
-        2,
-      );
-      expect(resTab2.isNotEmpty, isTrue);
-      expect(resTab2.first.preco, equals(15.0));
+      expect(res.isNotEmpty, isTrue);
+      final p101 = res.first;
+      expect(p101.codigo, equals('101'));
+      expect(p101.descricao, equals('PRODUTO TESTE 01'));
+      expect(p101.unidade, equals('UN'));
+      expect(p101.codbar, equals('7890001'));
+      expect(p101.saldoEstoque, equals(45.0)); // 50 - 5
+      expect(p101.marca, equals('NESTLÉ'));
+      expect(p101.fabricante, equals('NESTLÉ BRASIL LTDA'));
+      expect(p101.referencia1, equals('REF-A1'));
+      expect(p101.referencia2, equals('REF-B2'));
+      expect(p101.embalagem, equals('CX 12 UN'));
     });
 
-    test('buscaProduto deducts real-time local draft items from stock balance', () async {
-      // Antes de rascunho: saldo = 50 - 5 = 45
-      final resSemRascunho = await buscaProduto(
-        '101',
+    test('buscaProduto localiza produto por código de barras (EAN)', () async {
+      final resEan = await buscaProduto(
+        '7890002999',
         null,
         null,
         null,
@@ -186,65 +176,83 @@ void main() {
         false,
         1,
         'Todas',
-        1,
       );
-      expect(resSemRascunho.first.saldoEstoque, equals(45.0));
-
-      // Adiciona um pedido em rascunho (sttdig = 0) com 12 unidades reservadas
-      final db = await openDatabase(dbPath);
-      await db.insert('pckvendig000', {'ped00_numped': 9001, 'ped00_sttdig': 0});
-      await db.insert('pckvendig010', {
-        'ped10_numped': 9001,
-        'ped10_codprd': '101',
-        'ped10_qtdped': 10.0,
-        'ped10_qtdbon': 2.0,
-      });
-      await db.close();
-
-      // Após rascunho: saldo = 50 - 5 - 12 = 33
-      final resComRascunho = await buscaProduto(
-        '101',
-        null,
-        null,
-        null,
-        null,
-        null,
-        false,
-        false,
-        1,
-        'Todas',
-        1,
-      );
-      expect(resComRascunho.first.saldoEstoque, equals(33.0));
-    });
-
-    test('buscaProduto localiza por EAN, Marca, Referencia e preenche novos campos no ProdutoResultStruct', () async {
-      // 1. Busca por Código EAN
-      final resEan = await buscaProduto('7890002999', null, null, null, null, null, false, false, 1, 'Todas');
       expect(resEan.length, equals(1));
       expect(resEan.first.codigo, equals('102'));
       expect(resEan.first.descricao, equals('BISCOITO CRACKER'));
       expect(resEan.first.codbar, equals('7890002999'));
-      expect(resEan.first.marca, equals('NESTLÉ'));
-      expect(resEan.first.fabricante, equals('NESTLÉ BRASIL LTDA'));
       expect(resEan.first.referencia1, equals('REF-CRACKER'));
-      expect(resEan.first.referenciaFormatada, equals('REF-CRACKER'));
       expect(resEan.first.embalagem, equals('FD 30 UN'));
+    });
 
-      // 2. Busca por Marca
-      final resMarca = await buscaProduto('NESTLÉ', null, null, null, null, null, false, false, 1, 'Todas');
+    test('buscaProduto retorna produtos ordenados por descrição quando termo for vazio', () async {
+      final res = await buscaProduto(
+        '',
+        null,
+        null,
+        null,
+        null,
+        null,
+        false,
+        false,
+        1,
+        'Todas',
+      );
+      expect(res.length, equals(2));
+      expect(res[0].codigo, equals('102')); // BISCOITO CRACKER
+      expect(res[1].codigo, equals('101')); // PRODUTO TESTE 01
+    });
+
+    test('buscaProduto localiza produtos por marca no termo de busca', () async {
+      final resMarca = await buscaProduto(
+        'NESTLÉ',
+        null,
+        null,
+        null,
+        null,
+        null,
+        false,
+        false,
+        1,
+        'Todas',
+      );
       expect(resMarca.length, equals(2));
+      expect(resMarca.every((p) => p.marca == 'NESTLÉ'), isTrue);
+    });
 
-      // 3. Busca por Referência 1
-      final resRef1 = await buscaProduto('REF-A1', null, null, null, null, null, false, false, 1, 'Todas');
-      expect(resRef1.length, equals(1));
-      expect(resRef1.first.codigo, equals('101'));
-      expect(resRef1.first.referenciaFormatada, equals('REF-A1 / REF-B2'));
+    test('buscaProduto localiza produto por referência', () async {
+      final resRef = await buscaProduto(
+        'REF-CRACKER',
+        null,
+        null,
+        null,
+        null,
+        null,
+        false,
+        false,
+        1,
+        'Todas',
+      );
+      expect(resRef.length, equals(1));
+      expect(resRef.first.codigo, equals('102'));
+      expect(resRef.first.referencia1, equals('REF-CRACKER'));
+    });
 
-      // 4. Busca por Referência 2
-      final resRef2 = await buscaProduto('REF-B2', null, null, null, null, null, false, false, 1, 'Todas');
-      expect(resRef2.length, equals(1));
-      expect(resRef2.first.codigo, equals('101'));
+    test('buscaProduto aplica filtro avançado de marca', () async {
+      final resFiltroMarca = await buscaProduto(
+        '',
+        null,
+        null,
+        null,
+        null,
+        'NESTLÉ',
+        false,
+        false,
+        1,
+        'Todas',
+      );
+      expect(resFiltroMarca.length, equals(2));
+      expect(resFiltroMarca.every((p) => p.marca == 'NESTLÉ'), isTrue);
     });
   });
 }

@@ -743,6 +743,7 @@ class ReceberDuplicatasService {
     }
 
     buffer.writeln('💰 *Total Vencido:* ${formatarMoeda(cliente.totalVencido)}');
+    buffer.writeln('📈 *Valor do Juros:* ${formatarMoeda(cliente.totalJuros)}');
     buffer.writeln('⏳ *Total A Vencer:* ${formatarMoeda(cliente.totalAVencer)}');
     buffer.writeln('📌 *Total Geral Devedor:* ${formatarMoeda(cliente.totalDevedor)}');
 

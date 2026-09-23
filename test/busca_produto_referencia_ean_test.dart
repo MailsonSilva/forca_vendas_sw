@@ -72,7 +72,7 @@ void main() {
       await db.close();
     });
 
-    test('query SQL de buscaProduto carrega pro00_codbar, ref001 e ref002', () async {
+    test('query SQL de buscaProduto carrega dados básicos do card e código de barras', () async {
       final produtos = await buscaProduto(
         '2001', // busca por código
         null,
@@ -91,11 +91,7 @@ void main() {
 
       expect(pItem.codigo, '2001');
       expect(pItem.codbar, '7891000241501');
-      expect(pItem.referencia1, 'REF-HONDA-100');
-      expect(pItem.referencia2, 'FAB-200');
-      expect(pItem.reffor, 'REF-FORNECEDOR-999');
-      expect(pItem.referenciaFormatada, 'REF-FORNECEDOR-999');
-      expect(pItem.marca, 'HONDA');
+      expect(pItem.descricao, 'CABO DE EMBREAGEM');
       expect(pItem.unidade, 'PC');
       expect(pItem.saldoEstoque, 50.0);
     });
@@ -119,28 +115,9 @@ void main() {
       expect(produtos.first.codbar, '7891000241501');
     });
 
-    test('busca por referência de fábrica encontra o produto corretamente', () async {
+    test('busca por descrição encontra o produto corretamente', () async {
       final produtos = await buscaProduto(
-        'REF-HONDA-100',
-        null,
-        '',
-        '',
-        '',
-        '',
-        false,
-        false,
-        1,
-        'Todas',
-      );
-
-      expect(produtos.length, 1);
-      expect(produtos.first.codigo, '2001');
-      expect(produtos.first.referencia1, 'REF-HONDA-100');
-    });
-
-    test('carrega e busca pelo campo pro00_reffor da cadpro00 exibindo como referência', () async {
-      final produtos = await buscaProduto(
-        'FORN-PAST-77', // busca pelo valor do campo pro00_reffor
+        'PASTILHA',
         null,
         '',
         '',
@@ -155,7 +132,8 @@ void main() {
       expect(produtos.length, 1);
       final p = produtos.first;
       expect(p.codigo, '2002');
-      expect(p.referenciaFormatada, 'FORN-PAST-77');
+      expect(p.descricao, 'PASTILHA DE FREIO');
+      expect(p.codbar, '7891000241502');
     });
   });
 }

@@ -101,7 +101,7 @@ void main() {
           reason: 'Estoque de produto com filial "01" deve ser 75.0 e não 0.0');
     });
 
-    test('deve trazer estoque quando produto só tiver estoque em cadpro00', () async {
+    test('deve trazer estoque 0.0 quando produto não tiver estpro00 na filial ativa', () async {
       final produtos = await buscaProduto(
         '202',
         null,
@@ -117,8 +117,8 @@ void main() {
 
       expect(produtos, isNotEmpty);
       final p202 = produtos.firstWhere((p) => p.codigo == '202');
-      expect(p202.saldoEstoque, equals(40.0),
-          reason: 'Estoque de produto direto de cadpro00 deve ser 40.0');
+      expect(p202.saldoEstoque, equals(0.0),
+          reason: 'Estoque de produto sem estpro00 na filial ativa deve ser 0.0 conforme SPEC-052');
     });
 
     test('deve trazer estoque quando estpro00 tiver código do produto com zeros à esquerda "00303"', () async {
