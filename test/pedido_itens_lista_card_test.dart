@@ -82,8 +82,8 @@ void main() {
       expect(find.textContaining('Emb: UN'), findsOneWidget);
     });
 
-    testWidgets('chama onEditarQuantidade ao clicar no número da quantidade', (tester) async {
-      bool editouQtd = false;
+    testWidgets('exibe campo de texto com teclado numérico e chama onAlterarQuantidade ao editar quantidade', (tester) async {
+      double? novaQtdInformada;
       final item = ItemPedidoStruct(
         codigoProduto: '9903',
         descricao: 'PRODUTO TESTE CLIQUE QTD',
@@ -103,21 +103,28 @@ void main() {
               onIncrementar: () {},
               onDecrementar: () {},
               onEditarPreco: () {},
-              onEditarQuantidade: () {
-                editouQtd = true;
+              onAlterarQuantidade: (qtd) {
+                novaQtdInformada = qtd;
               },
             ),
           ),
         ),
       );
 
-      final qtdFinder = find.text('5');
-      expect(qtdFinder, findsOneWidget);
+      // Encontra o TextField com a quantidade inicial
+      final textFieldFinder = find.byType(TextField);
+      expect(textFieldFinder, findsOneWidget);
 
-      await tester.tap(qtdFinder);
+      final textFieldWidget = tester.widget<TextField>(textFieldFinder);
+      expect(textFieldWidget.keyboardType, TextInputType.number);
+      expect(textFieldWidget.controller?.text, '5');
+
+      // Simula alteração do texto e submissão
+      await tester.enterText(textFieldFinder, '12');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pump();
 
-      expect(editouQtd, isTrue);
+      expect(novaQtdInformada, 12.0);
     });
   });
 }

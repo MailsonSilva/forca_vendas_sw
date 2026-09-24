@@ -62,6 +62,12 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
   - Atualização dos status: `ped00_sttdig = 1` (Fechado/Digitado) e `ped00_sttenv = 1` (Empacotado).
   - Atualização de estatísticas locais (`ESTFATCVD00`, `FINCAICVD00`, `ESTPRO00`) sem bloquear a venda.
   - Redirecionamento seguro para a tela de **Extrato do Pedido** (`PedidoResumoWidget`).
+- **Edição Direta de Quantidade no Card (`ItemPedidoCardWidget`):**
+  - O campo de quantidade no card de pedidos opera diretamente como um `TextField` numérico (`TextInputType.number`), abrindo unicamente o teclado numérico do dispositivo ao clicar, sem modais intermediários.
+  - Implementa controle de idempotência (`_ultimoValorSubmetido`) e limpeza prévia da fila de alertas (`clearSnackBars`), eliminando mensagens de validação duplicadas no `ScaffoldMessenger`.
+- **Navegação Resiliente do Histórico de Pedidos (`PedidosRascunhosPageWidget`):**
+  - `AppBar` com `leading` explícito com fallback para `/homePage` quando a tela for rota raiz pós-conclusão de venda.
+  - Envoltório global com `PopScope(canPop: false)` interceptando o botão voltar nativo do Android para garantir retorno seguro ao menu principal sem fechamento indevido do aplicativo.
 
 ### 2.5 Sincronização & Upload FTP
 - **Geração de Pacotes `.pac` Comprimidos:** Geração do XML do pedido pelo `PacXmlGeneratorService` e compressão em formato ZIP `.pac` em memória.

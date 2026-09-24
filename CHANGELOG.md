@@ -7,12 +7,22 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
-## [Estável] - Otimização de Alta Performance das Pesquisas Locais (Produtos e Clientes)
-- Correção definitiva do spinner infinito causado pelo fechamento prematuro de conexões SQLite.
-- Resolução da lentidão eliminando PRAGMAs dinâmicos repetitivos e JOINs pesados com operadores OR.
-- Restauração do preço unitário de venda via tabela 'estpcopro00'.
-- Correção do carregamento de produtos com introspecção segura de colunas existentes.
-- Pesquisa de clientes ('cadcli00') normalizada com tempo de resposta inferior a 50ms.
+## [5.4.2] - 2026-09-24
+
+### 🌟 Adicionado & Aprimorado (Novas Funcionalidades e Usabilidade)
+
+#### 1. Digitação de Pedidos e Edição Direta de Quantidade
+- **Campo de Quantidade Inline no Card (`ItemPedidoCardWidget`)**: O clique na quantidade do produto no card da digitação de pedidos agora foca diretamente em um campo de texto numérico, abrindo exclusivamente o teclado numérico nativo do dispositivo sem modais intermediários.
+- **Prevenção de Alertas Duplicados**: Implementação de controle de idempotência (`_ultimoValorSubmetido`) e expurgo de mensagens pendentes (`clearSnackBars`), eliminando a exibição duplicada de alertas de estoque insuficiente ao submeter valores.
+
+#### 2. Navegação Resiliente no Histórico de Pedidos (`PedidosRascunhosPageWidget`)
+- **Botão Voltar no AppBar**: Adicionado botão de retorno explícito que detecta a profundidade da pilha (`Navigator.canPop`) e, caso a tela tenha sido aberta como rota raiz pós-conclusão de venda, redireciona para o Menu Principal (`/homePage`).
+- **Interceptação do Botão Voltar Nativo (`PopScope`)**: Proteção contra encerramento acidental do aplicativo ao pressionar o botão voltar físico/gestual do dispositivo móvel.
+
+#### 3. Otimização de Alta Performance das Pesquisas Locais (Produtos e Clientes)
+- **Eliminação de Travamentos e Spinner Infinito**: Correção do fechamento prematuro de conexões do banco de dados local SQLite.
+- **Restauração de Preços e Consultas Robustas**: Junção precisa com a tabela de preços `estpcopro00` e introspecção resiliente de schema de colunas legadas.
+- **Performance Sub-50ms**: Consultas de clientes (`cadcli00`) e catálogo de produtos otimizadas eliminando PRAGMAs dinâmicos repetitivos e operadores OR pesados.
 
 ---
 

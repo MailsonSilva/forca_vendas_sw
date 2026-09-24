@@ -339,45 +339,66 @@ class _PedidosRascunhosPageWidgetState
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        _fecharSpeedDial();
-        FocusScope.of(context).unfocus();
-        FocusManager.instance.primaryFocus?.unfocus();
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (Navigator.canPop(context)) {
+          context.pop();
+        } else {
+          context.go('/homePage');
+        }
       },
-      child: Scaffold(
-        key: scaffoldKey,
-        backgroundColor: AppTheme.of(context).primaryBackground,
-        appBar: AppBar(
-          backgroundColor: AppTheme.of(context).primary,
-          automaticallyImplyLeading: true,
-          iconTheme: const IconThemeData(color: Colors.white),
-          title: Text(
-            'Extrato e Histórico de Pedidos',
-            style: AppTheme.of(context).titleLarge.override(
-                  font: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w600,
+      child: GestureDetector(
+        onTap: () {
+          _fecharSpeedDial();
+          FocusScope.of(context).unfocus();
+          FocusManager.instance.primaryFocus?.unfocus();
+        },
+        child: Scaffold(
+          key: scaffoldKey,
+          backgroundColor: AppTheme.of(context).primaryBackground,
+          appBar: AppBar(
+            backgroundColor: AppTheme.of(context).primary,
+            automaticallyImplyLeading: false,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () {
+                if (Navigator.canPop(context)) {
+                  context.pop();
+                } else {
+                  context.go('/homePage');
+                }
+              },
+              tooltip: 'Voltar',
+            ),
+            iconTheme: const IconThemeData(color: Colors.white),
+            title: Text(
+              'Extrato e Histórico de Pedidos',
+              style: AppTheme.of(context).titleLarge.override(
+                    font: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    color: Colors.white,
+                    fontSize: 20.0,
+                    letterSpacing: 0.0,
                   ),
-                  color: Colors.white,
-                  fontSize: 20.0,
-                  letterSpacing: 0.0,
-                ),
+            ),
+            centerTitle: false,
+            elevation: 2.0,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                onPressed: _carregar,
+                tooltip: 'Atualizar',
+              ),
+              IconButton(
+                icon: const Icon(Icons.inventory_2_outlined, color: Colors.white),
+                onPressed: () => context.pushNamed(GerarPacotePageWidget.routeName),
+                tooltip: 'Tela de Pacotes (.pac)',
+              ),
+            ],
           ),
-          centerTitle: false,
-          elevation: 2.0,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-              onPressed: _carregar,
-              tooltip: 'Atualizar',
-            ),
-            IconButton(
-              icon: const Icon(Icons.inventory_2_outlined, color: Colors.white),
-              onPressed: () => context.pushNamed(GerarPacotePageWidget.routeName),
-              tooltip: 'Tela de Pacotes (.pac)',
-            ),
-          ],
-        ),
         floatingActionButton: _buildSpeedDialFab(),
         body: SafeArea(
           child: Column(
@@ -583,8 +604,9 @@ class _PedidosRascunhosPageWidgetState
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSpeedDialFab() {
     return Column(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/app_theme.dart';
 import '/backend/schema/structs/item_pedido_struct.dart';
@@ -12,9 +13,9 @@ import '/widget/imagem_local_widget.dart';
 /// │            Marca: HONDA  |  Ref: 17500-KRE-B00                         │
 /// │            Emb: PC              |  EAN: 7891000241501                      │
 /// │                                                                                R$ 51,03 ✏│
-/// │ [-] 1 [+]                                                               Total R$ 51,03│
+/// │ [-] [ 1 ] [+]                                                           Total R$ 51,03│
 /// └──────────────────────────────────────┘
-class ItemPedidoCardWidget extends StatelessWidget {
+class ItemPedidoCardWidget extends StatefulWidget {
   const ItemPedidoCardWidget({
     super.key,
     required this.item,
@@ -23,6 +24,7 @@ class ItemPedidoCardWidget extends StatelessWidget {
     required this.onDecrementar,
     required this.onEditarPreco,
     this.onEditarQuantidade,
+    this.onAlterarQuantidade,
     this.pedidoDigitado = false,
   });
 
@@ -32,7 +34,71 @@ class ItemPedidoCardWidget extends StatelessWidget {
   final VoidCallback onDecrementar;
   final VoidCallback onEditarPreco;
   final VoidCallback? onEditarQuantidade;
+  final ValueChanged<double>? onAlterarQuantidade;
   final bool pedidoDigitado;
+
+  @override
+  State<ItemPedidoCardWidget> createState() => _ItemPedidoCardWidgetState();
+}
+
+class _ItemPedidoCardWidgetState extends State<ItemPedidoCardWidget> {
+  late TextEditingController _qtdController;
+  late FocusNode _focusNode;
+  String? _ultimoValorSubmetido;
+
+  @override
+  void initState() {
+    super.initState();
+    final qtdAtual = (widget.item.isBonificacao ? widget.item.quantidadeBonificada : widget.item.quantidade).toInt();
+    _qtdController = TextEditingController(text: '$qtdAtual');
+    _ultimoValorSubmetido = '$qtdAtual';
+    _focusNode = FocusNode();
+    _focusNode.addListener(() {
+      if (!_focusNode.hasFocus) {
+        _submeterQuantidade();
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(ItemPedidoCardWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final qtdAtual = (widget.item.isBonificacao ? widget.item.quantidadeBonificada : widget.item.quantidade).toInt();
+    if (!_focusNode.hasFocus && _qtdController.text != '$qtdAtual') {
+      _qtdController.text = '$qtdAtual';
+      _ultimoValorSubmetido = '$qtdAtual';
+    }
+  }
+
+  @override
+  void dispose() {
+    _qtdController.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _submeterQuantidade() {
+    final text = _qtdController.text.trim();
+    if (text == _ultimoValorSubmetido) return;
+    _ultimoValorSubmetido = text;
+
+    final parsed = int.tryParse(text);
+    final atual = (widget.item.isBonificacao ? widget.item.quantidadeBonificada : widget.item.quantidade).toInt();
+
+    if (parsed == null || parsed <= 0) {
+      _qtdController.text = '$atual';
+      _ultimoValorSubmetido = '$atual';
+      return;
+    }
+
+    if (parsed != atual) {
+      if (widget.onAlterarQuantidade != null) {
+        widget.onAlterarQuantidade!(parsed.toDouble());
+      } else if (widget.onEditarQuantidade != null) {
+        widget.onEditarQuantidade!();
+      }
+    }
+  }
 
   String _formatCurrency(double val) {
     return 'R\$ ${val.toStringAsFixed(2).replaceAll('.', ',')}';
@@ -40,6 +106,7 @@ class ItemPedidoCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final item = widget.item;
     final marcaTexto = item.marca.trim().isNotEmpty ? item.marca.trim() : 'SEM MARCA';
     final refTexto = item.referencia.trim().isNotEmpty ? item.referencia.trim() : 'N/A';
     final embTexto = item.embalagem.trim().isNotEmpty ? item.embalagem.trim() : (item.unidade.trim().isNotEmpty ? item.unidade.trim() : 'UN');
@@ -170,7 +237,7 @@ class ItemPedidoCardWidget extends StatelessWidget {
                   icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
-                  onPressed: onRemover,
+                  onPressed: widget.onRemover,
                 ),
               ],
             ),
@@ -179,7 +246,7 @@ class ItemPedidoCardWidget extends StatelessWidget {
             Align(
               alignment: Alignment.centerRight,
               child: InkWell(
-                onTap: onEditarPreco,
+                onTap: widget.onEditarPreco,
                 borderRadius: BorderRadius.circular(6.0),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
@@ -194,7 +261,7 @@ class ItemPedidoCardWidget extends StatelessWidget {
                           color: item.isBonificacao ? Colors.black87 : AppTheme.of(context).primary,
                         ),
                       ),
-                      if (!item.isBonificacao && !pedidoDigitado) ...[
+                      if (!item.isBonificacao && !widget.pedidoDigitado) ...[
                         const SizedBox(width: 4),
                         Icon(Icons.edit_outlined, size: 14, color: AppTheme.of(context).primary),
                       ],
@@ -204,30 +271,59 @@ class ItemPedidoCardWidget extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6.0),
-            // Linha 5: [-] 1 [+] no lado esquerdo, Total R$ 51,03 no lado direito
+            // Linha 5: [-] [ 1 ] [+] no lado esquerdo, Total R$ 51,03 no lado direito
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 if (item.isBonificacao)
-                  InkWell(
-                    onTap: (pedidoDigitado || onEditarQuantidade == null) ? null : onEditarQuantidade,
-                    borderRadius: BorderRadius.circular(6.0),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Qtd: ${item.quantidadeBonificada.toInt()}',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0),
-                          ),
-                          if (!pedidoDigitado && onEditarQuantidade != null) ...[
-                            const SizedBox(width: 4.0),
-                            Icon(Icons.edit_outlined, size: 14.0, color: AppTheme.of(context).primary),
-                          ],
-                        ],
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Qtd: ',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0),
                       ),
-                    ),
+                      Container(
+                        width: 52.0,
+                        height: 36.0,
+                        margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                        child: TextField(
+                          controller: _qtdController,
+                          focusNode: _focusNode,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          textAlign: TextAlign.center,
+                          readOnly: widget.pedidoDigitado || (widget.onAlterarQuantidade == null && widget.onEditarQuantidade == null),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 2.0, vertical: 8.0),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(6.0),
+                              borderSide: const BorderSide(color: Color(0xFFD0D7DE)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(6.0),
+                              borderSide: const BorderSide(color: Color(0xFFD0D7DE)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(6.0),
+                              borderSide: BorderSide(color: AppTheme.of(context).primary, width: 1.5),
+                            ),
+                            filled: true,
+                            fillColor: const Color(0xFFF6F8FA),
+                          ),
+                          onTap: () {
+                            _ultimoValorSubmetido = null;
+                            _qtdController.selection = TextSelection(
+                              baseOffset: 0,
+                              extentOffset: _qtdController.text.length,
+                            );
+                          },
+                          onSubmitted: (_) => _submeterQuantidade(),
+                        ),
+                      ),
+                    ],
                   )
                 else
                   Row(
@@ -236,44 +332,56 @@ class ItemPedidoCardWidget extends StatelessWidget {
                         decoration: BoxDecoration(color: const Color(0xFFAED5E6), borderRadius: BorderRadius.circular(8.0)),
                         child: IconButton(
                           icon: const Icon(Icons.remove, color: Colors.white),
-                          onPressed: onDecrementar,
+                          onPressed: widget.pedidoDigitado ? null : widget.onDecrementar,
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                         ),
                       ),
-                      InkWell(
-                        onTap: (pedidoDigitado || onEditarQuantidade == null) ? null : onEditarQuantidade,
-                        borderRadius: BorderRadius.circular(6.0),
-                        child: Container(
-                          constraints: const BoxConstraints(minWidth: 44.0, minHeight: 36.0),
-                          margin: const EdgeInsets.symmetric(horizontal: 4.0),
-                          padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: const Color(0xFFD0D7DE)),
-                            borderRadius: BorderRadius.circular(6.0),
-                            color: const Color(0xFFF6F8FA),
+                      Container(
+                        width: 52.0,
+                        height: 36.0,
+                        margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                        child: TextField(
+                          controller: _qtdController,
+                          focusNode: _focusNode,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          textAlign: TextAlign.center,
+                          readOnly: widget.pedidoDigitado || (widget.onAlterarQuantidade == null && widget.onEditarQuantidade == null),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 2.0, vertical: 8.0),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(6.0),
+                              borderSide: const BorderSide(color: Color(0xFFD0D7DE)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(6.0),
+                              borderSide: const BorderSide(color: Color(0xFFD0D7DE)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(6.0),
+                              borderSide: BorderSide(color: AppTheme.of(context).primary, width: 1.5),
+                            ),
+                            filled: true,
+                            fillColor: const Color(0xFFF6F8FA),
                           ),
-                          alignment: Alignment.center,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '${item.quantidade.toInt()}',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0),
-                              ),
-                              if (!pedidoDigitado && onEditarQuantidade != null) ...[
-                                const SizedBox(width: 4.0),
-                                Icon(Icons.edit_outlined, size: 13.0, color: AppTheme.of(context).primary),
-                              ],
-                            ],
-                          ),
+                          onTap: () {
+                            _ultimoValorSubmetido = null;
+                            _qtdController.selection = TextSelection(
+                              baseOffset: 0,
+                              extentOffset: _qtdController.text.length,
+                            );
+                          },
+                          onSubmitted: (_) => _submeterQuantidade(),
                         ),
                       ),
                       Container(
                         decoration: BoxDecoration(color: const Color(0xFF0288D1), borderRadius: BorderRadius.circular(8.0)),
                         child: IconButton(
                           icon: const Icon(Icons.add, color: Colors.white),
-                          onPressed: onIncrementar,
+                          onPressed: widget.pedidoDigitado ? null : widget.onIncrementar,
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                         ),
