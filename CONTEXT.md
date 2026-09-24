@@ -120,5 +120,22 @@
 - **Referências de Fabricante (`pro00_ref001`, `pro00_ref002`)**: Códigos de fábrica do fabricante/fornecedor (`cadfor00`), essenciais para vendas de peças, insumos e produtos com códigos industriais.
 - **Exibição Padronizada (`ItemPedidoCardWidget`)**: Apresentação ostensiva em badges e tipografia secundária na lista de produtos (`BuscaProdutoPageWidget`) e na grade de itens do carrinho (`PedidoItensListaWidget`).
 
+## Módulo: Otimização de Alta Performance das Pesquisas Locais (SPEC-053 & SPEC-054)
+
+### 1. Diretrizes de Ciclo de Vida da Conexão SQLite
+- **Proibição Estrita de `db.close()`**: É terminantemente proibido invocar `db.close()` em custom actions, repositórios, DAOs ou blocos `finally` de consultas locais (`dbforcacad001.db` ou `dbforcadig001.db`).
+- **Pool de Conexão Singleton / Instância Ativa**: O SQLite em ambiente Flutter móvel compartilha descritores de arquivo. Fechar a conexão em rotinas intermediárias quebra o pool de conexões, invalidando acessos paralelos e causando o bloqueio perpétuo do aplicativo (spinner infinito).
+
+### 2. Mapeamento de Esquema em Cache em Memória (`ProductDbMetadata`)
+- **Descoberta Única de Esquema**: O mapeamento da existência de tabelas (`cadpro00`/`pro00`, `estpro00`, `estpcopro00`/`pcopro00`, `cadmar00`, `cadfor00`) e de suas respectivas colunas deve ser executado uma única vez por sessão e mantido em memória estática.
+- **Eliminação de Overhead de I/O**: Fica vedada a execução de consultas a `sqlite_master` ou `PRAGMA table_info` a cada caractere digitado pelo usuário na caixa de pesquisa.
+- **Introspecção Resiliente de Colunas**: Seleciona colunas existentes (`pro00_ref001`, `pro00_ref002`, `pro00_reffor`, `pro00_codimg`) e projeta literais padrão (`''` ou `0`) caso a coluna não exista no banco legado ativo, prevenindo exceções de SQL.
+
+### 3. Extração Canônica de Preço, Marca e Estoque
+- **Preço de Venda**: Extraído preferencialmente da tabela de preços `estpcopro00` (ou `pcopro00`) através das colunas `pro00_preco` ou `pro00_pcosub`, respeitando o código da tabela do cliente/pedido (`pro00_codtab`). Fallback para `pro00_preco`/`pro00_pcomax` de `cadpro00` quando ausente na tabela.
+- **Marca**: Extraída via `LEFT JOIN` indexado na tabela `cadmar00` (ou `mar00`) através do campo `pro00_codmar`, retornando `mar00_descri` com fallback para `'SEM MARCA'`.
+- **Estoque Particionado**: Extraído via `LEFT JOIN` indexado na tabela `estpro00` filtrando pela filial ativa (`pro00_codfil`), com fallback para `cadpro00.pro00_qtdest`.
+
+
 
 

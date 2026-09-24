@@ -37,8 +37,6 @@ class BuscaProdutoPageWidget extends StatefulWidget {
 class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
   late BuscaProdutoPageModel _model;
   final ScrollController _scrollController = ScrollController();
-  bool _isLoadingMore = false;
-  bool _hasMoreItems = true;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -47,49 +45,50 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
     super.initState();
     _model = createModel(context, () => BuscaProdutoPageModel());
 
-    _scrollController.addListener(() {
-      if (_scrollController.hasClients &&
-          _scrollController.position.pixels >=
-              _scrollController.position.maxScrollExtent - 300) {
-        if (!_isLoadingMore && _hasMoreItems) {
-          _carregarProximaPaginaProdutos();
-        }
-      }
-    });
-
     // On page load action.
     SchedulerBinding.instance.addPostFrameCallback((_) async {
-      _model.listaLinha = await actions.carregarFiltros(
-        'linhas',
-      );
-      _model.listaGrupo = await actions.carregarFiltros(
-        'grupos',
-      );
-      _model.listaFab = await actions.carregarFiltros(
-        'fabricantes',
-      );
-      _model.listaMarca = await actions.carregarFiltros(
-        'marcas',
-      );
       final String filtroInicial = widget.filtroInicial?.trim() ?? '';
-      _model.resultadoOnLoad = await actions.buscaProduto(
-        filtroInicial,
-        null,
-        _model.filtroLinha,
-        _model.filtroGrupo,
-        _model.filtroFabricante,
-        _model.filtroMarca,
-        _model.filtroEstoque,
-        _model.filtroPromocao,
-        functions.resolverCodFilial(AppState().empresa_codigo),
-        _model.filtroDataEntrada,
-      );
-      _model.listaProdutos =
-          _model.resultadoOnLoad!.toList().cast<ProdutoResultStruct>();
-      _hasMoreItems = _model.listaProdutos.length >= 100;
-      safeSetState(() {});
-      _model.dadosCarregados = true;
-      safeSetState(() {});
+
+      // 1. Carrega produtos imediatamente
+      try {
+        _model.resultadoOnLoad = await actions.buscaProduto(
+          filtroInicial,
+          null,
+          _model.filtroLinha,
+          _model.filtroGrupo,
+          _model.filtroFabricante,
+          _model.filtroMarca,
+          _model.filtroEstoque,
+          _model.filtroPromocao,
+          functions.resolverCodFilial(AppState().empresa_codigo),
+          _model.filtroDataEntrada,
+        );
+        _model.listaProdutos =
+            _model.resultadoOnLoad?.toList().cast<ProdutoResultStruct>() ?? [];
+      } catch (e) {
+        debugPrint('Erro busca produtos inicial: $e');
+        _model.listaProdutos = [];
+      } finally {
+        _model.dadosCarregados = true;
+        if (mounted) safeSetState(() {});
+      }
+
+      // 2. Carrega opções de filtros em segundo plano (não bloqueia produtos)
+      try {
+        final filtros = await Future.wait([
+          actions.carregarFiltros('linhas'),
+          actions.carregarFiltros('grupos'),
+          actions.carregarFiltros('fabricantes'),
+          actions.carregarFiltros('marcas'),
+        ]);
+        _model.listaLinha = filtros[0];
+        _model.listaGrupo = filtros[1];
+        _model.listaFab = filtros[2];
+        _model.listaMarca = filtros[3];
+        if (mounted) safeSetState(() {});
+      } catch (e) {
+        debugPrint('Erro carregar filtros em background: $e');
+      }
     });
 
     _model.buscaProdutoFieldTextController ??=
@@ -102,44 +101,6 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
     _scrollController.dispose();
     _model.dispose();
     super.dispose();
-  }
-
-  Future<void> _carregarProximaPaginaProdutos() async {
-    if (_isLoadingMore || !_hasMoreItems) return;
-    _isLoadingMore = true;
-    safeSetState(() {});
-    try {
-      final offset = _model.listaProdutos.length;
-      final ultimoDescri = _model.listaProdutos.isNotEmpty
-          ? _model.listaProdutos.last.descricao
-          : null;
-      final int filialAtiva = AppState().codFilialAtiva != 0
-          ? AppState().codFilialAtiva
-          : (functions.resolverCodFilial(AppState().empresa_codigo) ?? 1);
-      final novos = await actions.buscaProduto(
-        _model.buscaProdutoFieldTextController.text.trim(),
-        ultimoDescri,
-        _model.filtroLinha,
-        _model.filtroGrupo,
-        _model.filtroFabricante,
-        _model.filtroMarca,
-        _model.filtroEstoque,
-        _model.filtroPromocao,
-        filialAtiva,
-        _model.filtroDataEntrada,
-        null,
-        offset,
-      );
-      if (novos.isEmpty || novos.length < 100) {
-        _hasMoreItems = false;
-      }
-      _model.listaProdutos.addAll(novos);
-    } catch (_) {
-      _hasMoreItems = false;
-    } finally {
-      _isLoadingMore = false;
-      if (mounted) safeSetState(() {});
-    }
   }
 
 
@@ -636,8 +597,6 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                 _model.listaProdutos = _model.resultadoBusca!
                                     .toList()
                                     .cast<ProdutoResultStruct>();
-                                _hasMoreItems =
-                                    _model.listaProdutos.length >= 100;
                                 safeSetState(() {});
                               },
                             ),
@@ -712,8 +671,6 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                             .resultadoBusca!
                                             .toList()
                                             .cast<ProdutoResultStruct>();
-                                        _hasMoreItems =
-                                            _model.listaProdutos.length >= 100;
                                         safeSetState(() {});
                                       },
                                       child: Icon(
@@ -1630,22 +1587,10 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                   controller: _scrollController,
                                   padding: EdgeInsets.zero,
                                   scrollDirection: Axis.vertical,
-                                  itemCount: listaProduto.length + (_isLoadingMore ? 1 : 0),
+                                  itemCount: listaProduto.length,
                                   separatorBuilder: (_, __) =>
                                       const SizedBox(height: 12.0),
                                   itemBuilder: (context, listaProdutoIndex) {
-                                    if (listaProdutoIndex >= listaProduto.length) {
-                                      return const Padding(
-                                        padding: EdgeInsets.symmetric(vertical: 16.0),
-                                        child: Center(
-                                          child: SizedBox(
-                                            width: 24,
-                                            height: 24,
-                                            child: CircularProgressIndicator(strokeWidth: 2.0),
-                                          ),
-                                        ),
-                                      );
-                                    }
                                     final listaProdutoItem =
                                         listaProduto[listaProdutoIndex];
                                     return Padding(
@@ -2147,11 +2092,45 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                 );
                               },
                             );
-                          } else {
+                          } else if (!_model.dadosCarregados) {
                             return wrapWithModel(
                               model: _model.loadingModel,
                               updateCallback: () => safeSetState(() {}),
                               child: const LoadingWidget(),
+                            );
+                          } else {
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(32.0),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.search_off_rounded,
+                                      size: 64.0,
+                                      color: AppTheme.of(context).secondaryText,
+                                    ),
+                                    const SizedBox(height: 16.0),
+                                    Text(
+                                      'Nenhum produto encontrado',
+                                      style: AppTheme.of(context).titleMedium.override(
+                                        font: GoogleFonts.inter(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8.0),
+                                    Text(
+                                      'Verifique os filtros selecionados ou digite outro termo de busca.',
+                                      textAlign: TextAlign.center,
+                                      style: AppTheme.of(context).bodySmall.override(
+                                        font: GoogleFonts.inter(),
+                                        color: AppTheme.of(context).secondaryText,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             );
                           }
                         },

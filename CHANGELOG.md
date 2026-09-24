@@ -7,6 +7,15 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [Estável] - Otimização de Alta Performance das Pesquisas Locais (Produtos e Clientes)
+- Correção definitiva do spinner infinito causado pelo fechamento prematuro de conexões SQLite.
+- Resolução da lentidão eliminando PRAGMAs dinâmicos repetitivos e JOINs pesados com operadores OR.
+- Restauração do preço unitário de venda via tabela 'estpcopro00'.
+- Correção do carregamento de produtos com introspecção segura de colunas existentes.
+- Pesquisa de clientes ('cadcli00') normalizada com tempo de resposta inferior a 50ms.
+
+---
+
 ## [5.4.1] - 2026-09-21
 
 ### 🌟 Adicionado & Aprimorado (Novas Funcionalidades e Correções de Negócio)

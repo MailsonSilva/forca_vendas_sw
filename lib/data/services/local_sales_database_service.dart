@@ -458,8 +458,8 @@ class LocalSalesDatabaseService {
 
     // Índices para estoque particionado (estpro00)
     if (tables.contains('estpro00')) {
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_estpro00_fil_pro ON estpro00(pro00_codfil, pro00_codpro);'); } catch (_) {}
       try { await db.execute('CREATE INDEX IF NOT EXISTS idx_estpro00_filial_prod ON estpro00(pro00_codfil, pro00_codpro, pro00_qtdest);'); } catch (_) {}
-      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_estpro00_filial_pro ON estpro00(pro00_codpro, pro00_codfil)'); } catch (_) {}
       try { await db.execute('CREATE INDEX IF NOT EXISTS idx_estpro00_codpro_codfil ON estpro00(pro00_codpro, pro00_codfil)'); } catch (_) {}
       try { await db.execute('CREATE INDEX IF NOT EXISTS idx_estpro00_filial_prod_cov ON estpro00(pro00_codfil, pro00_codpro, pro00_qtdest, pro00_qtdpen);'); } catch (_) {}
     }
@@ -486,6 +486,7 @@ class LocalSalesDatabaseService {
 
     // Índices para tabela de preços (estpcopro00)
     if (tables.contains('estpcopro00')) {
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_estpcopro00_tab_pro ON estpcopro00(pro00_codtab, pro00_codpro);'); } catch (_) {}
       try { await db.execute('CREATE INDEX IF NOT EXISTS idx_estpcopro00_codpro ON estpcopro00(pro00_codpro)'); } catch (_) {}
     }
 

@@ -36,7 +36,7 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
     safeSetState(() {
       _model.clientesIniciais = res;
       _model.clientesResultPage = res.toList().cast<ClienteResultStruct>();
-      _hasMoreItems = res.length >= 100;
+      _hasMoreItems = false;
     });
   }
 
@@ -198,7 +198,7 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                           _model.clientesResultPage = _model.resultadoBusca!
                               .toList()
                               .cast<ClienteResultStruct>();
-                          _hasMoreItems = _model.clientesResultPage.length >= 100;
+                          _hasMoreItems = false;
                           safeSetState(() {});
                         },
                       ),
@@ -266,7 +266,7 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                                       .resultadoBusca!
                                       .toList()
                                       .cast<ClienteResultStruct>();
-                                  _hasMoreItems = _model.clientesResultPage.length >= 100;
+                                  _hasMoreItems = false;
                                   safeSetState(() {});
                                 },
                                 child: Icon(

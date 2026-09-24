@@ -1,139 +1,144 @@
-// Imports do app
+import 'package:flutter/foundation.dart';
+import 'package:path/path.dart';
+import 'package:sqflite/sqflite.dart';
 import '/backend/schema/structs/index.dart';
-// Imports other custom actions
-// Imports custom functions
-// Begin custom action code
-// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
 
-import '../data/services/local_sales_database_service.dart';
+Database? _dbClienteInstancia;
+
+Future<Database> _getDbCliente() async {
+  if (_dbClienteInstancia != null && _dbClienteInstancia!.isOpen) {
+    return _dbClienteInstancia!;
+  }
+  final dbPath = join(await getDatabasesPath(), 'dbforcacad001.db');
+  _dbClienteInstancia = await openDatabase(dbPath);
+  return _dbClienteInstancia!;
+}
 
 Future<List<ClienteResultStruct>> pesquisaCliente(
-  String? filtro,
+  String? termo, [
   int? offset,
-) async {
+]) async {
   try {
-    final db = await LocalSalesDatabaseService.getDatabase();
-    final String busca = filtro?.trim() ?? '';
-    final int currentOffset = offset ?? 0;
+    final db = await _getDbCliente();
+    final String busca = (termo ?? '').trim();
     final String buscaLimpa = busca.replaceAll(RegExp(r'\D'), '');
-    final int? termoNum = int.tryParse(buscaLimpa.isNotEmpty ? buscaLimpa : busca);
 
-    // 2. Busca clientes ativos ou recém-cadastrados locais
-    String whereClause = 'WHERE (cli00_active in (0,1) OR cli00_active IS NULL)';
-    List<dynamic> binds = [];
+    // Verificação de colunas em cadcli00 para retrocompatibilidade
+    final pragma = await db.rawQuery('PRAGMA table_info(cadcli00)');
+    final cols = pragma.map((e) => e['name']?.toString().toLowerCase() ?? '').toSet();
 
-    // 3. Aplica o filtro priorizando código e documento indexado (sem máscara)
+    final String selFantas = cols.contains('cli00_fantas')
+        ? "COALESCE(c.cli00_fantas, c.cli00_descri) AS cli00_fantas"
+        : "c.cli00_descri AS cli00_fantas";
+    final String selCpf = cols.contains('cli00_cpfcnp')
+        ? "COALESCE(c.cli00_cpfcnp, '') AS cli00_cpfcnp"
+        : "'' AS cli00_cpfcnp";
+    final String selEndere = cols.contains('cli00_endere')
+        ? "COALESCE(c.cli00_endere, '') AS cli00_endere"
+        : "'' AS cli00_endere";
+    final String selCiddes = cols.contains('cli00_ciddes')
+        ? "COALESCE(c.cli00_ciddes, '') AS cli00_ciddes"
+        : "'' AS cli00_ciddes";
+    final String selEstsgl = cols.contains('cli00_estsgl')
+        ? "COALESCE(c.cli00_estsgl, '') AS cli00_estsgl"
+        : "'' AS cli00_estsgl";
+    final String selFonddd = cols.contains('cli00_fonddd')
+        ? "COALESCE(c.cli00_fonddd, '') AS cli00_fonddd"
+        : "'' AS cli00_fonddd";
+    final String selFonnum = cols.contains('cli00_fonnum')
+        ? "COALESCE(c.cli00_fonnum, '') AS cli00_fonnum"
+        : "'' AS cli00_fonnum";
+    final String selCrelim = cols.contains('cli00_crelim')
+        ? "COALESCE(c.cli00_crelim, 0.0) AS cli00_crelim"
+        : "0.0 AS cli00_crelim";
+    final String selCreatu = cols.contains('cli00_creatu')
+        ? "COALESCE(c.cli00_creatu, 0.0) AS cli00_creatu"
+        : "0.0 AS cli00_creatu";
+    final String selTitven = cols.contains('cli00_titven')
+        ? "COALESCE(c.cli00_titven, 0.0) AS cli00_titven"
+        : "0.0 AS cli00_titven";
+    final String selActive = cols.contains('cli00_active')
+        ? "COALESCE(c.cli00_active, 1) AS cli00_active"
+        : "1 AS cli00_active";
+
+    String whereSql = '';
+    final List<dynamic> binds = [];
+
     if (busca.isNotEmpty) {
-      final List<String> orClauses = [];
-      if (termoNum != null && termoNum > 0) {
-        orClauses.add('cli00_codigo = ?');
-        binds.add(termoNum);
-      }
-      if (buscaLimpa.isNotEmpty) {
-        orClauses.add('cli00_cpfcnp LIKE ?');
-        binds.add('$buscaLimpa%');
-      }
-      final termo = '%${busca.toUpperCase()}%';
-      orClauses.add('UPPER(cli00_descri) LIKE ?');
-      binds.add(termo);
-      orClauses.add('UPPER(cli00_fantas) LIKE ?');
-      binds.add(termo);
+      final List<String> orClauses = [
+        'c.cli00_descri LIKE ?',
+        'CAST(c.cli00_codigo AS TEXT) = ?',
+      ];
+      binds.add('%$busca%');
+      binds.add(busca);
 
-      whereClause += ' AND (${orClauses.join(' OR ')})';
+      if (cols.contains('cli00_fantas')) {
+        orClauses.add('c.cli00_fantas LIKE ?');
+        binds.add('%$busca%');
+      }
+
+      if (cols.contains('cli00_cpfcnp')) {
+        if (buscaLimpa.isNotEmpty) {
+          orClauses.add('c.cli00_cpfcnp LIKE ?');
+          binds.add('$buscaLimpa%');
+        } else {
+          orClauses.add('c.cli00_cpfcnp LIKE ?');
+          binds.add('$busca%');
+        }
+      }
+
+      whereSql = 'WHERE (${orClauses.join(' OR ')})';
     }
 
-    // 4. Inspeciona colunas existentes em cadcli00 para retrocompatibilidade
-    final tableInfo = await db.rawQuery('PRAGMA table_info(cadcli00)');
-    final colNames = tableInfo.map((c) => c['name'].toString().toLowerCase()).toSet();
-
-    final titvenCol = colNames.contains('cli00_titven') ? 'COALESCE(cli00_titven, 0)' : '0';
-    final titaveCol = colNames.contains('cli00_titave') ? 'COALESCE(cli00_titave, 0)' : '0';
-    final creatuCol = colNames.contains('cli00_creatu') ? 'COALESCE(cli00_creatu, 0)' : '0';
-    final crelimCol = colNames.contains('cli00_crelim') ? 'COALESCE(cli00_crelim, 0)' : '0';
-    final codageCol = colNames.contains('cli00_codage') ? 'COALESCE(cli00_codage, 0)' : '0';
-
-    // 5. Query com aliases padronizados e paginação otimizada de 100 registros
-    final String query = '''
+    final sql = '''
       SELECT 
-        cli00_codigo AS codigo,
-        cli00_descri AS nome,
-        cli00_fantas AS fantasia,
-        cli00_cpfcnp AS cpfCnpj,
-        cli00_insest AS ie,
-        cli00_endere AS endereco,
-        cli00_endnum AS numero,
-        cli00_bairro AS bairro,
-        cli00_ciddes AS cidade,
-        cli00_estsgl AS uf,
-        cli00_endcep AS cep,
-        cli00_fonnum AS telefone,
-        cli00_observ AS email,
-        cli00_active AS ativo,
-        $titvenCol AS cli00Titven,
-        $titaveCol AS cli00Titave,
-        $creatuCol AS cli00Creatu,
-        $crelimCol AS cli00Crelim,
-        $codageCol AS cli00Codage
-      FROM cadcli00 
-      $whereClause
-      ORDER BY cli00_descri ASC
-      LIMIT 100 OFFSET ?
+        c.cli00_codigo,
+        c.cli00_descri,
+        $selFantas,
+        $selCpf,
+        $selEndere,
+        $selCiddes,
+        $selEstsgl,
+        $selFonddd,
+        $selFonnum,
+        $selCrelim,
+        $selCreatu,
+        $selTitven,
+        $selActive
+      FROM cadcli00 c
+      $whereSql
+      ORDER BY c.cli00_descri ASC;
     ''';
 
-    binds.add(currentOffset);
-    final results = await db.rawQuery(query, binds);
+    final rows = await db.rawQuery(sql, binds);
 
-    // 5. Retorna a lista mapeada usando os apelidos da query
-    return results.map((m) {
-      int cli00Active = int.tryParse(m['ativo']?.toString() ?? '1') ?? 1;
-      double cli00Titven =
-          double.tryParse(m['cli00Titven']?.toString() ?? '0') ?? 0.0;
-      double cli00Titave =
-          double.tryParse(m['cli00Titave']?.toString() ?? '0') ?? 0.0;
-      double cli00Creatu =
-          double.tryParse(m['cli00Creatu']?.toString() ?? '0') ?? 0.0;
-      double cli00Crelim =
-          double.tryParse(m['cli00Crelim']?.toString() ?? '0') ?? 0.0;
-      int cli00Codage =
-          int.tryParse(m['cli00Codage']?.toString() ?? '0') ?? 0;
+    return rows.map((m) {
+      final int active = (m['cli00_active'] == 1 || m['cli00_active'] == true || m['cli00_active'] == null) ? 1 : 0;
+      final double titven = (m['cli00_titven'] as num?)?.toDouble() ?? 0.0;
+      final Color corBorda = active == 0
+          ? const Color(0xFFD32F2F)
+          : (titven > 0 ? const Color(0xFFFFD700) : const Color(0xFF10B981));
 
-      // Mantém a sua lógica dinâmica de atribuição de cor
-      Color corDefinida;
-      if (cli00Active == 0) {
-        corDefinida = const Color(0xFFD32F2F); // Inativo
-      } else if (cli00Titven > 0 || cli00Titave > 0) {
-        corDefinida = const Color(0xFFFFD700); // Pendências
-      } else {
-        corDefinida = const Color(0xFF10B981); // Limpo
-      }
-
-      // Correção: Instanciação direta por propriedades nomeadas para evitar que venha em branco no Flutter
       return ClienteResultStruct(
-        cli00Codigo: int.tryParse(m['codigo']?.toString() ?? '0'),
-        cli00Descri: m['nome']?.toString() ?? '',
-        cli00Fantas: m['fantasia']?.toString() ?? '',
-        cli00Cpfcnp: m['cpfCnpj']?.toString() ?? '',
-        cli00Insest: m['ie']?.toString() ?? '',
-        cli00Endere: m['endereco']?.toString() ?? '',
-        cli00Endnum: m['numero']?.toString() ?? '',
-        cli00Bairro: m['bairro']?.toString() ?? '',
-        cli00Ciddes: m['cidade']?.toString() ?? '',
-        cli00Estsgl: m['uf']?.toString() ?? '',
-        cli00Endcep: m['cep']?.toString() ?? '',
-        cli00Fonnum: m['telefone']?.toString() ?? '',
-        cli00Observ: m['email']?.toString() ?? '',
-        cli00Active: cli00Active,
-        cli00Titven: cli00Titven,
-        cli00Titave: cli00Titave,
-        cli00Creatu: cli00Creatu,
-        cli00Crelim: cli00Crelim,
-        cli00Codage: cli00Codage,
+        cli00Codigo: (m['cli00_codigo'] as num?)?.toInt() ?? int.tryParse(m['cli00_codigo']?.toString() ?? '0') ?? 0,
+        cli00Descri: (m['cli00_descri'] ?? '').toString(),
+        cli00Fantas: (m['cli00_fantas'] ?? '').toString(),
+        cli00Cpfcnp: (m['cli00_cpfcnp'] ?? '').toString(),
+        cli00Endere: (m['cli00_endere'] ?? '').toString(),
+        cli00Ciddes: (m['cli00_ciddes'] ?? '').toString(),
+        cli00Estsgl: (m['cli00_estsgl'] ?? '').toString(),
+        cli00Fonddd: (m['cli00_fonddd'] ?? '').toString(),
+        cli00Fonnum: '${m['cli00_fonddd'] ?? ''}${m['cli00_fonnum'] ?? ''}',
+        cli00Crelim: (m['cli00_crelim'] as num?)?.toDouble() ?? 0.0,
+        cli00Creatu: (m['cli00_creatu'] as num?)?.toDouble() ?? 0.0,
+        cli00Titven: titven,
+        cli00Active: active,
+        corBorda: corBorda,
         success: true,
-        corBorda: corDefinida,
       );
     }).toList();
   } catch (e) {
-    print('Erro fatal na busca do SQLite: $e');
+    debugPrint('ERRO PESQUISA CLIENTE: $e');
     return [];
   }
 }

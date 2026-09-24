@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import '/domain/models/produto_lookup_dto.dart';
@@ -26,92 +25,74 @@ class ProdutoRepository {
     String? termo,
     String? cursorDescri,
     required int filialAtiva,
+    int codTabela = 1,
     int limit = 100,
     int offset = 0,
   }) async {
     final db = await _getDb();
 
-    Set<String> proCols = {};
-    Set<String> estCols = {};
-    try {
-      final cp = await db.rawQuery('PRAGMA table_info(cadpro00)');
-      proCols = cp.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
-      final ep = await db.rawQuery('PRAGMA table_info(estpro00)');
-      estCols = ep.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
-    } catch (_) {}
-
-    final selCodimg = proCols.contains('pro00_codimg') ? 'p.pro00_codimg' : 'NULL AS pro00_codimg';
-    final selPreco = proCols.contains('pro00_pcomax')
-        ? 'COALESCE(p.pro00_pcomax, 0.0) AS pro00_pcomax'
-        : (proCols.contains('pro00_preco')
-            ? 'COALESCE(p.pro00_preco, 0.0) AS pro00_pcomax'
-            : '0.0 AS pro00_pcomax');
-    final hasEstQtd = estCols.contains('pro00_qtdest');
-    final hasEstPen = estCols.contains('pro00_qtdpen');
-    final hasProQtd = proCols.contains('pro00_qtdest');
-
-    String selQtdest;
-    if (hasEstQtd && hasEstPen) {
-      selQtdest = 'COALESCE(e.pro00_qtdest - COALESCE(e.pro00_qtdpen, 0), 0) AS pro00_qtdest';
-    } else if (hasEstQtd) {
-      selQtdest = 'COALESCE(e.pro00_qtdest, 0) AS pro00_qtdest';
-    } else if (hasProQtd) {
-      selQtdest = 'COALESCE(p.pro00_qtdest, 0) AS pro00_qtdest';
-    } else {
-      selQtdest = '0 AS pro00_qtdest';
-    }
-
     final bool temTermo = termo != null && termo.trim().isNotEmpty;
-    final String termoLike = temTermo ? '%${termo.trim()}%' : '';
+    final String termoTrim = temTermo ? termo.trim() : '';
     final bool temCursor = cursorDescri != null && cursorDescri.trim().isNotEmpty;
 
+    bool temEstpcopro00 = false;
+    try {
+      final r = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='estpcopro00'");
+      temEstpcopro00 = r.isNotEmpty;
+    } catch (_) {}
+
     final List<String> condicoes = [];
+    final List<dynamic> args = [filialAtiva];
+    if (temEstpcopro00) {
+      args.add(codTabela);
+    }
+
     if (temTermo) {
-      condicoes.add('(p.pro00_descri LIKE ? OR CAST(p.pro00_codigo AS TEXT) LIKE ? OR p.pro00_codbar LIKE ?)');
+      condicoes.add('(p.pro00_descri LIKE ? OR CAST(p.pro00_codigo AS TEXT) = ? OR p.pro00_codbar = ?)');
+      args.add('%$termoTrim%');
+      args.add(termoTrim);
+      args.add(termoTrim);
     }
     if (temCursor) {
       condicoes.add('p.pro00_descri > ?');
+      args.add(cursorDescri.trim());
     }
 
     final String whereClause = condicoes.isNotEmpty ? 'WHERE ${condicoes.join(' AND ')}' : '';
 
-    final List<dynamic> args = [];
-    String joinEstoque = '';
-    if (estCols.isNotEmpty) {
-      joinEstoque = '''
-        LEFT JOIN estpro00 e 
-               ON (e.pro00_codpro = p.pro00_codigo OR CAST(e.pro00_codpro AS INTEGER) = p.pro00_codigo)
-              AND CAST(e.pro00_codfil AS INTEGER) = ?
-      ''';
-      args.add(filialAtiva);
+    String limitClause = '';
+    if (limit > 0) {
+      limitClause = 'LIMIT ? OFFSET ?';
+      args.add(limit);
+      args.add(offset);
     }
 
-    if (temTermo) {
-      args.add(termoLike);
-      args.add(termoLike);
-      args.add(termoLike);
-    }
-    if (temCursor) {
-      args.add(cursorDescri.trim());
-    }
-    args.add(limit);
-    args.add(offset);
+    final joinPreco = temEstpcopro00
+        ? '''LEFT JOIN estpcopro00 t 
+                   ON t.pro00_codpro = p.pro00_codigo 
+                  AND t.pro00_codtab = ?'''
+        : '';
+    final selPreco = temEstpcopro00
+        ? 'COALESCE(t.pro00_pcosub, t.pro00_preco, 0.0) AS pro00_pcomax'
+        : '0.0 AS pro00_pcomax';
 
     final sql = '''
       SELECT 
         p.pro00_codigo,
         p.pro00_descri,
-        p.pro00_unidad,
+        COALESCE(p.pro00_unidad, 'UN') AS pro00_unidad,
         COALESCE(p.pro00_codbar, '') AS pro00_codbar,
-        $selCodimg,
+        p.pro00_codimg,
         $selPreco,
-        $selQtdest
+        COALESCE(e.pro00_qtdest - COALESCE(e.pro00_qtdpen, 0), 0) AS pro00_qtdest
       FROM cadpro00 p
-      $joinEstoque
+      LEFT JOIN estpro00 e 
+             ON e.pro00_codpro = p.pro00_codigo 
+            AND e.pro00_codfil = ?
+      $joinPreco
       $whereClause
-      GROUP BY p.pro00_codigo
       ORDER BY p.pro00_descri ASC
-      LIMIT ? OFFSET ?;
+      $limitClause;
     ''';
 
     final rows = await db.rawQuery(sql, args);

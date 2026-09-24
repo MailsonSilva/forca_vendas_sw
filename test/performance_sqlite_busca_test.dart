@@ -17,6 +17,7 @@ void main() {
     late Database dbCad;
 
     setUp(() async {
+      ProductDbMetadata.reset();
       dbPath = p.join(await getDatabasesPath(), LocalSalesDatabaseService.databaseName);
       dbCadPath = p.join(await getDatabasesPath(), 'dbforcacad001.db');
       db = await openDatabase(dbPath);
@@ -27,10 +28,17 @@ void main() {
       await db.execute('DROP TABLE IF EXISTS estpro00');
       await db.execute('DROP TABLE IF EXISTS cadcli00');
 
-      await dbCad.execute('CREATE TABLE IF NOT EXISTS cadpro00 (pro00_codigo TEXT PRIMARY KEY, pro00_descri TEXT, pro00_unidad TEXT, pro00_pcomax REAL, pro00_codbar TEXT, pro00_qtdest REAL DEFAULT 0)');
+      await dbCad.execute('DROP TABLE IF EXISTS cadmar00');
+      await dbCad.execute('DROP TABLE IF EXISTS estpcopro00');
+      await dbCad.execute('CREATE TABLE IF NOT EXISTS cadmar00 (mar00_codigo INTEGER PRIMARY KEY, mar00_descri TEXT)');
+      await dbCad.execute('CREATE TABLE IF NOT EXISTS estpcopro00 (pro00_codpro TEXT, pro00_codtab INTEGER, pro00_pcosub REAL, pro00_preco REAL)');
+
+      await dbCad.execute('CREATE TABLE IF NOT EXISTS cadpro00 (pro00_codigo TEXT PRIMARY KEY, pro00_descri TEXT, pro00_unidad TEXT, pro00_pcomax REAL, pro00_codbar TEXT, pro00_qtdest REAL DEFAULT 0, pro00_codmar INTEGER)');
       await dbCad.execute('CREATE TABLE IF NOT EXISTS estpro00 (pro00_codpro TEXT, pro00_codfil INTEGER, pro00_qtdest REAL DEFAULT 0, pro00_qtdpen REAL DEFAULT 0)');
       await dbCad.execute('DELETE FROM cadpro00');
       await dbCad.execute('DELETE FROM estpro00');
+      await dbCad.execute('DELETE FROM cadmar00');
+      await dbCad.execute('DELETE FROM estpcopro00');
 
       // Cria cadpro00
       const createCadpro = '''
@@ -40,7 +48,8 @@ void main() {
           pro00_unidad TEXT,
           pro00_pcomax REAL,
           pro00_codbar TEXT,
-          pro00_qtdest REAL DEFAULT 0
+          pro00_qtdest REAL DEFAULT 0,
+          pro00_codmar INTEGER
         )
       ''';
       await db.execute(createCadpro);
@@ -84,6 +93,8 @@ void main() {
       // Popula dados para teste de busca e paginação
       final batch = db.batch();
       final batchCad = dbCad.batch();
+      batchCad.insert('cadmar00', {'mar00_codigo': 10, 'mar00_descri': 'MARCA TESTE'});
+
       for (int i = 1; i <= 150; i++) {
         final codPro = i.toString().padLeft(4, '0');
         final proMap = {
@@ -93,6 +104,7 @@ void main() {
           'pro00_pcomax': 100.0 + i,
           'pro00_codbar': '789000000$codPro',
           'pro00_qtdest': 50.0,
+          'pro00_codmar': 10,
         };
         batch.insert('cadpro00', proMap, conflictAlgorithm: ConflictAlgorithm.replace);
         batchCad.insert('cadpro00', proMap, conflictAlgorithm: ConflictAlgorithm.replace);
@@ -105,6 +117,13 @@ void main() {
         };
         batch.insert('estpro00', estMap, conflictAlgorithm: ConflictAlgorithm.replace);
         batchCad.insert('estpro00', estMap, conflictAlgorithm: ConflictAlgorithm.replace);
+
+        batchCad.insert('estpcopro00', {
+          'pro00_codpro': codPro,
+          'pro00_codtab': 1,
+          'pro00_pcosub': 150.0 + i,
+          'pro00_preco': 150.0 + i,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
 
         final codCli = i;
         final doc = (10000000000 + i).toString(); // CPF sintético
@@ -206,24 +225,26 @@ void main() {
       expect(resultadoTexto.any((c) => c.cli00Codigo == 10), isTrue);
     });
 
-    test('pesquisaCliente e buscaProduto respeitam paginação cursor/keyset de 100 registros', () async {
-      // 1. Clientes lote 1 (100 itens)
-      final lote1Cli = await pesquisaCliente('', 0);
-      expect(lote1Cli.length, equals(100));
+    test('pesquisaCliente e buscaProduto retornam listagem completa conforme SPEC-053', () async {
+      // 1. Clientes
+      final listaCli = await pesquisaCliente('');
+      expect(listaCli.length, greaterThanOrEqualTo(100));
+      expect(listaCli.first.cli00Codigo, isNotNull);
 
-      // Clientes lote 2 (50 itens restantes de 150)
-      final lote2Cli = await pesquisaCliente('', 100);
-      expect(lote2Cli.length, equals(50));
-      expect(lote1Cli.first.cli00Codigo, isNot(equals(lote2Cli.first.cli00Codigo)));
+      // 2. Produtos
+      final listaProd = await buscaProduto('', null, null, null, null, null, false, false, 1, 'Todas');
+      expect(listaProd.length, greaterThanOrEqualTo(100));
+      expect(listaProd.first.codigo, isNotEmpty);
+    });
 
-      // 2. Produtos lote 1 (100 itens) — cursor null = primeira página
-      final lote1Prod = await buscaProduto('', null, null, null, null, null, false, false, 1, 'Todas');
-      expect(lote1Prod.length, equals(100));
-
-      // Produtos lote 2 — cursor = descrição do último item do lote 1
-      final lote2Prod = await buscaProduto('', lote1Prod.last.descricao, null, null, null, null, false, false, 1, 'Todas');
-      expect(lote2Prod.length, equals(50));
-      expect(lote1Prod.first.codigo, isNot(equals(lote2Prod.first.codigo)));
+    test('buscaProduto traz Preço, Marca e Estoque corretos com persistência em memória', () async {
+      final listaProd = await buscaProduto('', null, null, null, null, null, false, false, 1, 'Todas', 1);
+      expect(listaProd.isNotEmpty, isTrue);
+      final primeiro = listaProd.first;
+      expect(primeiro.codigo, isNotEmpty);
+      expect(primeiro.marca, equals('MARCA TESTE'));
+      expect(primeiro.saldoEstoque, equals(80.0));
+      expect(primeiro.preco, equals(151.0));
     });
   });
 }

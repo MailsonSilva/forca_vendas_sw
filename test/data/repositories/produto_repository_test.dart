@@ -1,7 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forca_de_vendas/data/repositories/produto_repository.dart';
-import 'package:forca_de_vendas/domain/models/produto_card_dto.dart';
-import 'package:forca_de_vendas/domain/models/produto_detalhe_dto.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {

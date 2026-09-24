@@ -93,6 +93,16 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
 > **REGRA 4: Tratamento de Conflito de Chave Primária**  
 > Como o pedido pode ser pré-salvo como rascunho antes da seleção do cobrador, a finalização deve sempre executar `UPDATE pckvendig000 ... WHERE ped00_numped = ?` ou `INSERT OR REPLACE INTO pckvendig000`. Nunca realize `INSERT` direto sem cláusula de substituição/conflito.
 
+> [!CAUTION]
+> **REGRA 5: Proibição Estrita de `db.close()` em Custom Actions e Repositórios (SPEC-053)**  
+> **É TERMINANTEMENTE PROIBIDO** invocar `db.close()` em custom actions, repositórios, DAOs ou blocos `finally` de consultas SQLite locais (`dbforcacad001.db` ou `dbforcadig001.db`).  
+> O fechamento prematuro quebra o pool de conexões abertas do SQLite e causa o congelamento perpétuo da interface (spinner infinito) na navegação subsequente.
+
+> [!IMPORTANT]
+> **REGRA 6: Mapeamento em Memória via `ProductDbMetadata` e Extração Canônica (SPEC-054)**  
+> É **obrigatório** o uso de `ProductDbMetadata.ensureLoaded(db)` para descobrir tabelas e colunas físicas uma única vez por sessão, salvando-as em memória estática e eliminando consultas repetidas a `PRAGMA table_info` e `sqlite_master` durante a digitação.  
+> Na busca e catálogo de produtos, o preço unitário de venda deve ser extraído de `estpcopro00`/`pcopro00` (`pro00_preco` / `pro00_pcosub`) vinculado à tabela do pedido/cliente, e o estoque deve ser extraído de `estpro00` filtrando pela filial ativa, com fallback seguro para `cadpro00`.
+
 ---
 
 ## 4. Guia Rápido de Arquivos e Funções Principais

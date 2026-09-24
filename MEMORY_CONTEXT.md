@@ -1,6 +1,6 @@
 # MEMORY CONTEXT — FORÇA DE VENDAS (FLUTTER & SQLITE)
-> **Versão:** 2.4.0  
-> **Status:** 100% Homologado, Testado e Protegido (151/151 Testes Automatizados Aprovados)  
+> **Versão:** 2.5.0  
+> **Status:** 100% Homologado, Testado e Protegido (Alta Performance SQLite - SPEC-053/SPEC-054)  
 > **Escopo:** Aplicativo Mobile Força de Vendas Offline-First (Flutter / SQLite / XML-PAC / FTP)
 
 ---
@@ -145,6 +145,16 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
 > Todo e qualquer novo modal/bottom sheet do sistema **DEVE** utilizar exclusivamente `showAppModalBottomSheet<T>()` e estruturar seu conteúdo em `AppBottomSheet` com `SafeArea(bottom: true)`.  
 > **É ESTRITAMENTE PROIBIDO** chamar `showModalBottomSheet` cru sem proteção de SafeArea ou permitir botões ocultos atrás da barra virtual de navegação.  
 > Todo valor financeiro apresentado para o usuário **DEVE** utilizar `formatMoeda()` ou `.toMoeda()` de `currency_formatter.dart`.
+
+> [!CAUTION]
+> **REGRA 6: Proibição Estrita de `db.close()` em Custom Actions e Repositórios (SPEC-053)**  
+> **É TERMINANTEMENTE PROIBIDO** invocar `db.close()` em custom actions, repositórios, DAOs ou blocos `finally` de consultas SQLite locais (`dbforcacad001.db` ou `dbforcadig001.db`).  
+> O fechamento prematuro quebra o pool de conexões abertas do SQLite e causa o congelamento perpétuo da interface (spinner infinito) na navegação subsequente.
+
+> [!IMPORTANT]
+> **REGRA 7: Mapeamento em Memória via `ProductDbMetadata` e Extração Canônica (SPEC-054)**  
+> É **obrigatório** o uso de `ProductDbMetadata.ensureLoaded(db)` para descobrir tabelas e colunas físicas uma única vez por sessão, salvando-as em memória estática e eliminando consultas repetidas a `PRAGMA table_info` e `sqlite_master` durante a digitação.  
+> Na busca e catálogo de produtos, o preço unitário de venda deve ser extraído de `estpcopro00`/`pcopro00` (`pro00_preco` / `pro00_pcosub`) vinculado à tabela do pedido/cliente, e o estoque deve ser extraído de `estpro00` filtrando pela filial ativa, com fallback seguro para `cadpro00`.
 
 ---
 

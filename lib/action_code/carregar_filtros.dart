@@ -1,28 +1,17 @@
-// Imports do app
-import '/backend/schema/structs/index.dart';
-// Imports other custom actions
-// Imports custom functions
-// Begin custom action code
-// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
-
-// Imports do app
-// Imports other custom actions
-// Imports custom functions
-// Begin custom action code
-// DO NOT REMOVE OR MODIFY THE CODE ABOVE!
-
-// Imports necessários
+import 'dart:io';
 import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
+import '/backend/schema/structs/index.dart';
+import '/data/services/local_sales_database_service.dart';
 
 Future<List<ListaPadraoStruct>> carregarFiltros(String tabela) async {
   Database? db;
   try {
-    db = await openDatabase(join(await getDatabasesPath(), 'dbforcacad001.db'));
+    final dbPath = await LocalSalesDatabaseService.getDatabasePath();
+    if (!await File(dbPath).exists()) return [];
 
-    // Força o texto para minúsculo para evitar problemas de digitação
+    db = await openDatabase(dbPath, readOnly: true, singleInstance: false);
+
     final t = tabela.toLowerCase().trim();
-
     String nomeTabelaReal = '';
     String colCodigo = '';
     String colDescri = '';
@@ -36,8 +25,7 @@ Future<List<ListaPadraoStruct>> carregarFiltros(String tabela) async {
       colCodigo = 'gru00_codigo';
       colDescri = 'gru00_descri';
     } else if (t.contains('for') || t.contains('fab')) {
-      nomeTabelaReal =
-          'cadfor00'; // ou 'fornecedores' se o nome físico for este
+      nomeTabelaReal = 'cadfor00';
       colCodigo = 'for00_codigo';
       colDescri = 'for00_descri';
     } else {
@@ -46,10 +34,15 @@ Future<List<ListaPadraoStruct>> carregarFiltros(String tabela) async {
       colDescri = 'mar00_descri';
     }
 
+    final hasTable = (await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
+      [nomeTabelaReal],
+    )).isNotEmpty;
+
+    if (!hasTable) return [];
+
     final List<Map<String, dynamic>> maps = await db.rawQuery(
         'SELECT $colCodigo, $colDescri FROM $nomeTabelaReal ORDER BY $colDescri');
-
-    await db.close();
 
     return maps.map((m) {
       final codigo = m[colCodigo]?.toString() ?? '';
@@ -62,9 +55,10 @@ Future<List<ListaPadraoStruct>> carregarFiltros(String tabela) async {
     }).toList();
   } catch (e) {
     print('ERRO CARREGAR FILTROS ($tabela): $e');
+    return [];
+  } finally {
     if (db != null && db.isOpen) {
       await db.close();
     }
-    return [];
   }
 }
