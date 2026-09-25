@@ -6,11 +6,13 @@ class SalesAccessConfig {
     required this.downloadPath,
     required this.uploadPath,
     required this.databaseFilePrefix,
+    this.nomeEmpresa = '',
   });
 
   final String downloadPath;
   final String uploadPath;
   final String databaseFilePrefix;
+  final String nomeEmpresa;
 
   bool get hasDownloadConfig =>
       downloadPath.isNotEmpty && databaseFilePrefix.isNotEmpty;
@@ -21,11 +23,15 @@ class SalesAccessConfig {
     final downloadPath = map['pasta_download']?.toString().trim() ?? '';
     final uploadPath = map['pasta_upload']?.toString().trim() ?? '';
     final databaseFilePrefix = map['nome_arquivo_db']?.toString().trim() ?? '';
+    final nomeEmpresa = map['nome_empresa']?.toString().trim() ??
+        map['empresa']?.toString().trim() ??
+        '';
 
     return SalesAccessConfig(
       downloadPath: downloadPath,
       uploadPath: uploadPath,
       databaseFilePrefix: databaseFilePrefix,
+      nomeEmpresa: nomeEmpresa,
     );
   }
 }

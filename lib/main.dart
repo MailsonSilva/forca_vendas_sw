@@ -7,6 +7,7 @@ import '/core/app_theme.dart';
 import 'core/app_util.dart';
 import 'index.dart';
 import 'services/background_sync_service.dart';
+import 'services/nav_bar_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -143,6 +144,24 @@ class _NavBarPageState extends State<NavBarPage> {
     super.initState();
     _currentPageName = widget.initialPage ?? _currentPageName;
     _currentPage = widget.page;
+    NavBarService().selectTab(_currentPageName);
+    NavBarService().addListener(_onNavBarChanged);
+  }
+
+  @override
+  void dispose() {
+    NavBarService().removeListener(_onNavBarChanged);
+    super.dispose();
+  }
+
+  void _onNavBarChanged() {
+    final newTab = NavBarService().currentTab;
+    if (mounted && _currentPageName != newTab) {
+      safeSetState(() {
+        _currentPage = null;
+        _currentPageName = newTab;
+      });
+    }
   }
 
   @override
@@ -157,11 +176,15 @@ class _NavBarPageState extends State<NavBarPage> {
       resizeToAvoidBottomInset: !widget.disableResizeToAvoidBottomInset,
       body: _currentPage ?? tabs[_currentPageName],
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentIndex,
-        onTap: (i) => safeSetState(() {
-          _currentPage = null;
-          _currentPageName = tabs.keys.toList()[i];
-        }),
+        currentIndex: currentIndex >= 0 ? currentIndex : 0,
+        onTap: (i) {
+          final tabName = tabs.keys.toList()[i];
+          NavBarService().selectTab(tabName);
+          safeSetState(() {
+            _currentPage = null;
+            _currentPageName = tabName;
+          });
+        },
         backgroundColor: AppTheme.of(context).primary,
         selectedItemColor: const Color(0x80FFFFFF),
         unselectedItemColor: Colors.white,

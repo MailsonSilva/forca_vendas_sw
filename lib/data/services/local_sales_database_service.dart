@@ -17,9 +17,23 @@ class LocalSalesDatabaseService {
   static const _tempDatabaseName = 'temp_db.db';
 
   static Database? _dbForTesting;
+  static Database? _activeDb;
 
   static void setDatabaseForTesting(Database? db) {
     _dbForTesting = db;
+  }
+
+  /// Reinicializa o pool de conexões com o SQLite ('dbforcacad001.db')
+  /// para invalidar caches antigos em memória e liberar file locks.
+  static Future<void> closeAndResetConnectionPool() async {
+    if (_activeDb != null) {
+      if (_activeDb!.isOpen) {
+        try {
+          await _activeDb!.close();
+        } catch (_) {}
+      }
+      _activeDb = null;
+    }
   }
 
   Future<File> get databaseFile async {
@@ -624,6 +638,10 @@ class LocalSalesDatabaseService {
 
     try {
       await _validateSalespersonTable(tempFile.path);
+
+      // Reinicializa o pool de conexões antes de substituir o arquivo físico
+      await closeAndResetConnectionPool();
+
       if (await finalFile.exists()) {
         await finalFile.delete();
       }
@@ -662,11 +680,32 @@ class LocalSalesDatabaseService {
         try {
           await EmpresaLogoService.instance.extrairLogoDaCarga(newDb);
         } catch (_) {}
+
+        // 4. Extrai e atualiza razão social / nome da empresa da nova carga (cadace00.srv00_descri)
+        try {
+          final tAce = await newDb.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='cadace00'");
+          if (tAce.isNotEmpty) {
+            final aceCols = await newDb.rawQuery('PRAGMA table_info(cadace00)');
+            final aceCn = aceCols.map((r) => r['name'].toString().toLowerCase()).toSet();
+            if (aceCn.contains('srv00_descri')) {
+              final rows = await newDb.rawQuery('SELECT srv00_descri FROM cadace00 WHERE srv00_descri IS NOT NULL AND TRIM(srv00_descri) != "" LIMIT 1');
+              if (rows.isNotEmpty && rows.first['srv00_descri'] != null) {
+                final emp = rows.first['srv00_descri'].toString().trim();
+                if (emp.isNotEmpty) {
+                  AppState().empresaNome = emp;
+                }
+              }
+            }
+          }
+        } catch (_) {}
       } finally {
         if (newDb != null && newDb.isOpen) {
           await newDb.close();
         }
       }
+
+      // Reinicializa o pool de conexões logo após a substituição do arquivo físico
+      await closeAndResetConnectionPool();
     } finally {
       if (await tempFile.exists()) {
         await tempFile.delete();

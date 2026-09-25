@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import '/domain/models/produto_lookup_dto.dart';
 import '/domain/models/produto_card_dto.dart';
 import '/domain/models/produto_detalhe_dto.dart';
+import '/app_state.dart';
 
 /// Repositório de dados para consulta e seleção de produtos.
 /// Implementa a estratégia em duas etapas da SPEC-052 e método Tcadpro00::cload de usysctr00.cpp.
@@ -84,7 +85,7 @@ class ProdutoRepository {
         COALESCE(p.pro00_codbar, '') AS pro00_codbar,
         p.pro00_codimg,
         $selPreco,
-        COALESCE(e.pro00_qtdest - COALESCE(e.pro00_qtdpen, 0), 0) AS pro00_qtdest
+        COALESCE(e.pro00_qtdest - COALESCE(e.pro00_qtdpen, 0), p.pro00_qtdest, 0) AS pro00_qtdest
       FROM cadpro00 p
       LEFT JOIN estpro00 e 
              ON e.pro00_codpro = p.pro00_codigo 
@@ -135,7 +136,7 @@ class ProdutoRepository {
         bon.bon00_defbonven,
         ed0.pro00_entdat,
         est.pro00_prifil,
-        COALESCE(est.pro00_qtdest - est.pro00_qtdpen, 0) AS pro00_qtdest,
+        COALESCE(est.pro00_qtdest - est.pro00_qtdpen, sel.pro00_qtdest, 0) AS pro00_qtdest,
         COALESCE(pr2.pro02_mulemb, 1)                    AS pro02_mulemb,
         COALESCE(pr2.pro02_mulven, 1.0)                  AS pro02_mulven
       FROM cadpro00 sel
@@ -181,6 +182,21 @@ class ProdutoRepository {
       binds.addAll([likeTermo, likeTermo, likeTermo, likeTermo, likeTermo]);
     }
 
+    final int filialAtiva = AppState().codFilialAtiva > 0 ? AppState().codFilialAtiva : 1;
+
+    bool temEstpro00 = false;
+    try {
+      final r = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='estpro00'");
+      temEstpro00 = r.isNotEmpty;
+    } catch (_) {}
+
+    final joinEst = temEstpro00
+        ? 'LEFT JOIN estpro00 e ON e.pro00_codpro = p.pro00_codigo AND e.pro00_codfil = ?'
+        : '';
+    final selEst = temEstpro00
+        ? 'COALESCE(e.pro00_qtdest, p.pro00_qtdest, 0.0) AS estoque_saldo'
+        : 'COALESCE(p.pro00_qtdest, 0.0) AS estoque_saldo';
+
     final sql = '''
       SELECT 
         p.pro00_codigo   AS produto_id,
@@ -192,10 +208,11 @@ class ProdutoRepository {
         COALESCE(f.for00_descri, '')          AS fabricante_nome,
         COALESCE(p.pro00_embala, p.pro00_unidad, 'UN') AS embalagem,
         COALESCE(p.pro00_unidad, 'UN')        AS unidade,
-        COALESCE(p.pro00_qtdest, 0.0)         AS estoque_saldo,
+        $selEst,
         0.0                                   AS preco_tabela,
         p.pro00_codimg   AS imagem_id
       FROM cadpro00 p
+      $joinEst
       LEFT JOIN cadmar00 m ON m.mar00_codigo = p.pro00_codmar
       LEFT JOIN cadfor00 f ON f.for00_codigo = p.pro00_codfab
       $whereClause
@@ -203,6 +220,9 @@ class ProdutoRepository {
       LIMIT ? OFFSET ?
     ''';
 
+    if (temEstpro00) {
+      binds.insert(0, filialAtiva);
+    }
     binds.addAll([limit, offset]);
 
     final rows = await db.rawQuery(sql, binds);

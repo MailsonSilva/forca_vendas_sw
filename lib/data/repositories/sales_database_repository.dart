@@ -28,16 +28,66 @@ class SalesDatabaseRepository {
   }) async {
     FtpClient? ftp;
     try {
+      // 1. Garante que os diretórios locais e paths do SQLite estejam criados
+      try {
+        final databasesPath = await _localDatabase.databaseFile;
+        await databasesPath.parent.create(recursive: true);
+      } catch (_) {}
+
       ftp = await FtpClient.connect();
       final config = await _readAccessConfig(ftp, companyCode);
       if (!config.hasDownloadConfig) {
-        throw StateError('Configuracao de download incompleta.');
+        return SalesDatabaseInstallResult(
+          message: 'Configuracao de download incompleta.',
+          config: config,
+          success: false,
+        );
       }
 
       await _changeDirectory(ftp, config.downloadPath);
 
       final crgName = '${config.databaseFilePrefix}$salespersonCode.crg';
-      final crgBytes = await ftp.retr(crgName);
+
+      // 2. Verificação de carga remota no FTP antes do download
+      List<String> remoteFiles = [];
+      try {
+        remoteFiles = await ftp.nlst();
+      } catch (_) {}
+
+      final bool arquivoEncontrado = remoteFiles.isEmpty ||
+          remoteFiles.any((f) {
+            final nomeLimpo = f.replaceAll('\\', '/').split('/').last.trim().toLowerCase();
+            return nomeLimpo == crgName.toLowerCase();
+          });
+
+      if (remoteFiles.isNotEmpty && !arquivoEncontrado) {
+        return SalesDatabaseInstallResult(
+          message: 'Não há carga disponível para download no momento.',
+          config: config,
+          success: false,
+        );
+      }
+
+      // 3. Download do arquivo com proteção de erro
+      List<int> crgBytes;
+      try {
+        crgBytes = await ftp.retr(crgName);
+      } catch (_) {
+        return SalesDatabaseInstallResult(
+          message: 'Não há carga disponível para download no momento.',
+          config: config,
+          success: false,
+        );
+      }
+
+      if (crgBytes.isEmpty) {
+        return SalesDatabaseInstallResult(
+          message: 'Não há carga disponível para download no momento.',
+          config: config,
+          success: false,
+        );
+      }
+
       final databaseBytes = _crgCodec.decodeDatabase(crgBytes);
       await _localDatabase.replaceWithValidatedBytes(databaseBytes);
 
@@ -56,6 +106,12 @@ class SalesDatabaseRepository {
       return SalesDatabaseInstallResult(
         message: 'Base local atualizada.',
         config: config,
+        success: true,
+      );
+    } catch (e) {
+      return SalesDatabaseInstallResult(
+        message: 'Falha ao baixar carga: $e',
+        success: false,
       );
     } finally {
       await ftp?.quit();
@@ -177,8 +233,34 @@ class SalesDatabaseRepository {
       };
     }
 
-    return SalesAccessConfig.fromMap(rawConfig);
+    final config = SalesAccessConfig.fromMap(rawConfig);
+    if (config.nomeEmpresa.isNotEmpty) {
+      AppState().empresaNome = config.nomeEmpresa;
+    }
+    return config;
+  }
 
+  /// Consulta o arquivo de configuração no FTP ('/config/acesso') para o [companyCode]
+  /// informado (ou AppState().empresa_codigo) e atualiza AppState().empresaNome
+  Future<String?> sincronizarNomeEmpresaDoAcessoFtp([String? companyCode]) async {
+    final code = (companyCode != null && companyCode.trim().isNotEmpty)
+        ? companyCode.trim()
+        : AppState().empresa_codigo.trim();
+    if (code.isEmpty) return null;
+
+    FtpClient? ftp;
+    try {
+      ftp = await FtpClient.connect();
+      final config = await _readAccessConfig(ftp, code);
+      if (config.nomeEmpresa.isNotEmpty) {
+        AppState().empresaNome = config.nomeEmpresa;
+        return config.nomeEmpresa;
+      }
+    } catch (_) {
+    } finally {
+      await ftp?.quit();
+    }
+    return null;
   }
 
   Future<void> _changeDirectory(FtpClient ftp, String path) async {

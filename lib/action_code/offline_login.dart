@@ -83,6 +83,36 @@ Future<LoginResultStruct> offlineLogin(String vendedorCodigo, {String? dbPath}) 
         }
       }
 
+      // Carregar razão social/nome da empresa (cadace00.srv00_descri ou cadrep00.ven00_empresa)
+      try {
+        bool empresaEncontrada = false;
+        final tAce = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='cadace00'");
+        if (tAce.isNotEmpty) {
+          final aceCols = await db.rawQuery('PRAGMA table_info(cadace00)');
+          final aceCn = aceCols.map((r) => r['name'].toString().toLowerCase()).toSet();
+          if (aceCn.contains('srv00_descri')) {
+            final aceRows = await db.rawQuery('SELECT srv00_descri FROM cadace00 WHERE srv00_descri IS NOT NULL AND TRIM(srv00_descri) != "" LIMIT 1');
+            if (aceRows.isNotEmpty && aceRows.first['srv00_descri'] != null) {
+              final nome = aceRows.first['srv00_descri'].toString().trim();
+              if (nome.isNotEmpty) {
+                AppState().empresaNome = nome;
+                empresaEncontrada = true;
+              }
+            }
+          }
+        }
+
+        if (!empresaEncontrada) {
+          if (row.containsKey('ven00_empresa') && row['ven00_empresa'] != null) {
+            final nomeRep = row['ven00_empresa'].toString().trim();
+            if (nomeRep.isNotEmpty) {
+              AppState().empresaNome = nomeRep;
+              empresaEncontrada = true;
+            }
+          }
+        }
+      } catch (_) {}
+
       // PRD B4/C3/Carga Completa: carregar parâmetros do representante
       try {
         final cols = await db.rawQuery('PRAGMA table_info(cadrep00)');

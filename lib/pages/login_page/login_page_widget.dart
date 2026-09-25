@@ -13,6 +13,8 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '/services/filial_service.dart';
 import '/data/services/local_sales_database_service.dart';
+import '/data/repositories/sales_database_repository.dart';
+import 'dart:async';
 import 'login_page_model.dart';
 export 'login_page_model.dart';
 
@@ -273,6 +275,11 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
         if (empTxt.isNotEmpty) {
           AppState().empresa_codigo = empTxt;
           safeSetState(() {});
+        }
+
+        // Sincroniza o nome da empresa a partir do arquivo /config/acesso do FTP caso esteja vazio
+        if (AppState().empresaNome.trim().isEmpty && AppState().empresa_codigo.trim().isNotEmpty) {
+          unawaited(SalesDatabaseRepository().sincronizarNomeEmpresaDoAcessoFtp(AppState().empresa_codigo));
         }
 
         // SPEC-047 §1.1: Consulta filiais e processa seleção multi-filial antes de prosseguir

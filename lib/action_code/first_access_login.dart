@@ -51,7 +51,11 @@ Future<FirstAccessResultStruct> firstAccessLogin(
     if (config != null) {
       AppState().pastaDownload0 = config.downloadPath;
       AppState().pastaUpload0 = config.uploadPath;
+      if (config.nomeEmpresa.isNotEmpty) {
+        AppState().empresaNome = config.nomeEmpresa;
+      }
     }
+    AppState().empresa_codigo = empresa;
     // PRD B4/C3: carregar ven00_chkest/gerbonfor após instalação
     try {
       final dbPath = p.join(await getDatabasesPath(), 'dbforcacad001.db');

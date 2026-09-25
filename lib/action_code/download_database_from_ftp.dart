@@ -33,7 +33,7 @@ Future<FirstAccessResultStruct> downloadDatabaseFromFtp(
     );
 
     return FirstAccessResultStruct.fromMap({
-      'success': true,
+      'success': result.success,
       'message': result.message,
     });
   } catch (e) {

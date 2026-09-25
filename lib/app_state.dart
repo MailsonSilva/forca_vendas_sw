@@ -15,6 +15,8 @@ class AppState extends ChangeNotifier {
   static const _ultimaAtualizacaoCargaKey = 'ultima_atualizacao_carga';
   static const _venEstnegKey = 'app_ven_estneg';
   static const _venSelfilKey = 'app_ven_selfil';
+  static const _empresaNomeKey = 'app_empresa_nome';
+  static const _empresaCodigoKey = 'app_empresa_codigo';
 
   static AppState _instance = AppState._internal();
 
@@ -89,6 +91,12 @@ class AppState extends ChangeNotifier {
     _safeInit(() {
       _ven_selfil = prefs.getInt(_venSelfilKey) ?? _ven_selfil;
     });
+    _safeInit(() {
+      _empresaNome = prefs.getString(_empresaNomeKey) ?? _empresaNome;
+    });
+    _safeInit(() {
+      _empresa_codigo = prefs.getString(_empresaCodigoKey) ?? _empresa_codigo;
+    });
   }
 
   void update(VoidCallback callback) {
@@ -97,6 +105,15 @@ class AppState extends ChangeNotifier {
   }
 
   late SharedPreferences prefs;
+
+  /// Nome/Razão Social da empresa da sessão autenticada
+  String _empresaNome = '';
+  String get empresaNome => _empresaNome;
+  set empresaNome(String value) {
+    _empresaNome = value;
+    prefs.setString(_empresaNomeKey, value);
+    notifyListeners();
+  }
 
   /// DSL app state vendedor_codigo
   int _vendedor_codigo = 0;
@@ -125,6 +142,8 @@ class AppState extends ChangeNotifier {
   String get empresa_codigo => _empresa_codigo;
   set empresa_codigo(String value) {
     _empresa_codigo = value;
+    prefs.setString(_empresaCodigoKey, value);
+    notifyListeners();
   }
 
   /// DSL app state is_first_access

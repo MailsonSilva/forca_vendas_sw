@@ -8,8 +8,10 @@ class SalesDatabaseInstallResult {
   const SalesDatabaseInstallResult({
     required this.message,
     this.config,
+    this.success = true,
   });
 
   final String message;
   final SalesAccessConfig? config;
+  final bool success;
 }

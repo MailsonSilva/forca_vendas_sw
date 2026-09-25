@@ -12,6 +12,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import 'package:provider/provider.dart';
+import '/services/nav_bar_service.dart';
+import '/pages/home_page/home_page_widget.dart';
+import '/data/repositories/sales_database_repository.dart';
 import 'atualizar_carga_model.dart';
 export 'atualizar_carga_model.dart';
 
@@ -59,6 +62,14 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
         _startPolling();
       }
       _refreshStatus();
+
+      // Sincroniza nome da empresa do /config/acesso do FTP caso esteja pendente
+      if (AppState().empresaNome.trim().isEmpty && AppState().empresa_codigo.trim().isNotEmpty) {
+        final nome = await SalesDatabaseRepository().sincronizarNomeEmpresaDoAcessoFtp(AppState().empresa_codigo);
+        if (nome != null && nome.isNotEmpty && mounted) {
+          safeSetState(() {});
+        }
+      }
     });
   }
 
@@ -81,9 +92,23 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
               content: Text(_dbText),
               backgroundColor: _dbStatus == 'complete'
                   ? const Color(0xFF5CB85C)
-                  : Colors.red,
+                  : Colors.orange,
             ),
           );
+        }
+        if (_dbStatus == 'complete') {
+          // 3. SINCRONIZAÇÃO PARCIAL DE IMAGENS AUTOMÁTICA
+          unawaited(BackgroundSyncService.instance.startImageSync('parcial'));
+
+          await Future.delayed(const Duration(milliseconds: 500));
+          // 2. FECHAR CARD E NAVEGAR PARA O MENU PRINCIPAL
+          if (mounted) {
+            Navigator.of(context, rootNavigator: true).pop();
+          }
+          NavBarService().navegarParaHome();
+          try {
+            appNavigatorKey.currentContext?.goNamed(HomePageWidget.routeName);
+          } catch (_) {}
         }
       }
     });
@@ -101,9 +126,14 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
   }
 
   Future<void> _startDownload() async {
-    final String empresa = AppState().empresa_codigo.trim().isEmpty
-        ? 'DINIZ'
+    final String empresaFtp = AppState().empresa_codigo.trim().isEmpty
+        ? 'SW'
         : AppState().empresa_codigo.trim();
+    final String nomeEmpresaExibicao = AppState().empresaNome.trim().isNotEmpty
+        ? AppState().empresaNome.trim()
+        : (AppState().empresa_codigo.trim().isNotEmpty
+            ? AppState().empresa_codigo.trim()
+            : 'Empresa');
     final String vendedor = AppState().vendedor_codigo > 0
         ? AppState().vendedor_codigo.toString()
         : '1';
@@ -117,10 +147,12 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
     try {
       safeSetState(() {
         _dbProgress = 0.5;
-        _dbText = 'Baixando base de dados $empresa ($vendedor)...';
+        _dbText = 'Baixando base de dados $nomeEmpresaExibicao ($vendedor)...';
       });
 
-      final result = await actions.downloadDatabaseFromFtp(empresa, vendedor);
+      final result = await actions.downloadDatabaseFromFtp(empresaFtp, vendedor);
+
+      if (!mounted) return;
 
       safeSetState(() {
         _dbStatus = result.success ? 'complete' : 'error';
@@ -133,25 +165,43 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
           SnackBar(
             content: Text(result.message),
             backgroundColor:
-                result.success ? const Color(0xFF5CB85C) : Colors.red,
+                result.success ? const Color(0xFF5CB85C) : Colors.orange,
           ),
         );
       }
 
-      await Future.delayed(const Duration(seconds: 2));
-      if (mounted) {
-        safeSetState(() {
-          _dbStatus = 'idle';
-          _dbProgress = 0.0;
-          _dbText = '';
-        });
+      if (result.success) {
+        // 3. SINCRONIZAÇÃO PARCIAL DE IMAGENS AUTOMÁTICA
+        unawaited(BackgroundSyncService.instance.startImageSync('parcial'));
+
+        await Future.delayed(const Duration(milliseconds: 600));
+
+        // 2. FECHAR CARD E NAVEGAR PARA O MENU PRINCIPAL
+        if (mounted) {
+          Navigator.of(context, rootNavigator: true).pop();
+        }
+        NavBarService().navegarParaHome();
+        try {
+          appNavigatorKey.currentContext?.goNamed(HomePageWidget.routeName);
+        } catch (_) {}
+      } else {
+        await Future.delayed(const Duration(seconds: 2));
+        if (mounted) {
+          safeSetState(() {
+            _dbStatus = 'idle';
+            _dbProgress = 0.0;
+            _dbText = '';
+          });
+        }
       }
     } catch (e) {
-      safeSetState(() {
-        _dbStatus = 'error';
-        _dbProgress = 0.0;
-        _dbText = 'Erro ao baixar carga: $e';
-      });
+      if (mounted) {
+        safeSetState(() {
+          _dbStatus = 'error';
+          _dbProgress = 0.0;
+          _dbText = 'Erro ao baixar carga: $e';
+        });
+      }
     }
   }
 
@@ -160,8 +210,13 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
     context.watch<AppState>();
 
     final bool isBusy = _dbStatus == 'baixando';
-    final String empresa = AppState().empresa_codigo.trim().isEmpty ? 'DINIZ' : AppState().empresa_codigo.trim();
-    final int vendedor = AppState().vendedor_codigo > 0 ? AppState().vendedor_codigo : 1;
+    final String nomeEmpresa = AppState().empresaNome.trim().isNotEmpty
+        ? AppState().empresaNome.trim()
+        : (AppState().empresa_codigo.trim().isNotEmpty
+            ? AppState().empresa_codigo.trim()
+            : 'Empresa');
+    final int vendedor =
+        AppState().vendedor_codigo > 0 ? AppState().vendedor_codigo : 1;
 
     return Center(
       child: ConstrainedBox(
@@ -185,181 +240,198 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-            // ── Header ──────────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0.0),
-              child: Row(
-                children: [
-                  widget.icon ?? const Icon(Icons.storage_rounded, color: Color(0xFF3572F7)),
-                  const SizedBox(width: 8.0),
-                  Expanded(
-                    child: Text(
-                      valueOrDefault<String>(
-                        widget.titulo,
-                        'Carga de Dados',
-                      ),
-                      style: AppTheme.of(context).bodyMedium.override(
-                            font: GoogleFonts.inter(
-                              fontWeight: FontWeight.w600,
-                              fontStyle:
-                                  AppTheme.of(context).bodyMedium.fontStyle,
+                  // ── Header ──────────────────────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0.0),
+                    child: Row(
+                      children: [
+                        widget.icon ??
+                            const Icon(Icons.storage_rounded,
+                                color: Color(0xFF3572F7)),
+                        const SizedBox(width: 8.0),
+                        Expanded(
+                          child: Text(
+                            valueOrDefault<String>(
+                              widget.titulo,
+                              'Carga de Dados',
                             ),
-                            fontSize: 16.0,
-                            letterSpacing: 0.0,
-                            fontWeight: FontWeight.w600,
-                            fontStyle:
-                                AppTheme.of(context).bodyMedium.fontStyle,
+                            style: AppTheme.of(context).bodyMedium.override(
+                                  font: GoogleFonts.inter(
+                                    fontWeight: FontWeight.w600,
+                                    fontStyle: AppTheme.of(context)
+                                        .bodyMedium
+                                        .fontStyle,
+                                  ),
+                                  fontSize: 16.0,
+                                  letterSpacing: 0.0,
+                                  fontWeight: FontWeight.w600,
+                                  fontStyle:
+                                      AppTheme.of(context).bodyMedium.fontStyle,
+                                ),
                           ),
-                    ),
-                  ),
-                  AppIconButton(
-                    borderColor: const Color(0xFFE0E3E7),
-                    borderRadius: 12.0,
-                    borderWidth: 1.0,
-                    buttonSize: 36.0,
-                    icon: Icon(
-                      Icons.close_rounded,
-                      color: AppTheme.of(context).primaryText,
-                      size: 18.0,
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-            // ── Description ─────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16.0, 6.0, 16.0, 0.0),
-              child: Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: Text(
-                  valueOrDefault<String>(
-                    widget.descricao,
-                    'Atualização da base de dados e tabelas comerciais com o servidor.',
-                  ),
-                  maxLines: 2,
-                  style: AppTheme.of(context).bodyMedium.override(
-                        font: GoogleFonts.inter(
-                          fontWeight:
-                              AppTheme.of(context).bodyMedium.fontWeight,
-                          fontStyle:
-                              AppTheme.of(context).bodyMedium.fontStyle,
                         ),
-                        color: AppTheme.of(context).secondaryText,
-                        letterSpacing: 0.0,
+                        AppIconButton(
+                          borderColor: const Color(0xFFE0E3E7),
+                          borderRadius: 12.0,
+                          borderWidth: 1.0,
+                          buttonSize: 36.0,
+                          icon: Icon(
+                            Icons.close_rounded,
+                            color: AppTheme.of(context).primaryText,
+                            size: 18.0,
+                          ),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // ── Description ─────────────────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16.0, 6.0, 16.0, 0.0),
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Text(
+                        valueOrDefault<String>(
+                          widget.descricao,
+                          'Atualização da base de dados e tabelas comerciais com o servidor.',
+                        ),
+                        maxLines: 2,
+                        style: AppTheme.of(context).bodyMedium.override(
+                              font: GoogleFonts.inter(
+                                fontWeight:
+                                    AppTheme.of(context).bodyMedium.fontWeight,
+                                fontStyle:
+                                    AppTheme.of(context).bodyMedium.fontStyle,
+                              ),
+                              color: AppTheme.of(context).secondaryText,
+                              letterSpacing: 0.0,
+                            ),
                       ),
-                ),
-              ),
-            ),
-
-            // ── Info Card (Empresa & Representante) ───────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 0.0),
-              child: Container(
-                padding: const EdgeInsets.all(12.0),
-                decoration: BoxDecoration(
-                  color: AppTheme.of(context).primaryBackground,
-                  borderRadius: BorderRadius.circular(8.0),
-                  border: Border.all(color: AppTheme.of(context).alternate),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    Column(
-                      children: [
-                        Text(
-                          'Empresa',
-                          style: TextStyle(fontSize: 11.0, color: Colors.grey[600]),
-                        ),
-                        const SizedBox(height: 2.0),
-                        Text(
-                          empresa,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.0),
-                        ),
-                      ],
                     ),
-                    Container(height: 24.0, width: 1.0, color: AppTheme.of(context).alternate),
-                    Column(
-                      children: [
-                        Text(
-                          'Vendedor / Rep',
-                          style: TextStyle(fontSize: 11.0, color: Colors.grey[600]),
-                        ),
-                        const SizedBox(height: 2.0),
-                        Text(
-                          '#$vendedor',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.0),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
+                  ),
 
-            // ── Progress bar ─────────────────────────────────────────────────
-            if (isBusy || _dbStatus == 'complete' || _dbStatus == 'error')
-              Padding(
-                padding:
-                    const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 0.0),
-                child: LinearPercentIndicator(
-                  percent: _dbProgress.clamp(0.0, 1.0),
-                  lineHeight: 20.0,
-                  animation: true,
-                  animateFromLastPercent: true,
-                  progressColor: _dbStatus == 'error' ? Colors.red : AppTheme.of(context).primary,
-                  backgroundColor: AppTheme.of(context).accent4,
-                  center: Text(
-                    _dbText,
-                    style: AppTheme.of(context).headlineSmall.override(
-                          font: GoogleFonts.plusJakartaSans(
-                            fontWeight: AppTheme.of(context)
-                                .headlineSmall
-                                .fontWeight,
-                            fontStyle: AppTheme.of(context)
-                                .headlineSmall
-                                .fontStyle,
+                  // ── Info Card (Empresa & Representante) ───────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 0.0),
+                    child: Container(
+                      padding: const EdgeInsets.all(12.0),
+                      decoration: BoxDecoration(
+                        color: AppTheme.of(context).primaryBackground,
+                        borderRadius: BorderRadius.circular(8.0),
+                        border:
+                            Border.all(color: AppTheme.of(context).alternate),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          Column(
+                            children: [
+                              Text(
+                                'Empresa',
+                                style: TextStyle(
+                                    fontSize: 11.0, color: Colors.grey[600]),
+                              ),
+                              const SizedBox(height: 2.0),
+                              Text(
+                                nomeEmpresa,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13.0),
+                              ),
+                            ],
                           ),
-                          color: AppTheme.of(context).primaryText,
-                          fontSize: 12.0,
-                          letterSpacing: 0.0,
-                        ),
-                  ),
-                  barRadius: const Radius.circular(8.0),
-                  padding: EdgeInsets.zero,
-                ),
-              ),
-
-            // ── Footer: Action Button (Apenas Baixar Carga) ──────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 16.0),
-              child: SizedBox(
-                width: double.infinity,
-                height: 48.0,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.of(context).primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
+                          Container(
+                              height: 24.0,
+                              width: 1.0,
+                              color: AppTheme.of(context).alternate),
+                          Column(
+                            children: [
+                              Text(
+                                'Vendedor / Rep',
+                                style: TextStyle(
+                                    fontSize: 11.0, color: Colors.grey[600]),
+                              ),
+                              const SizedBox(height: 2.0),
+                              Text(
+                                '#$vendedor',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13.0),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                    elevation: 0,
                   ),
-                  onPressed: isBusy ? null : _startDownload,
-                  icon: isBusy
-                      ? const SizedBox(
-                          width: 18.0,
-                          height: 18.0,
-                          child: CircularProgressIndicator(strokeWidth: 2.0, color: Colors.white),
-                        )
-                      : const Icon(Icons.cloud_download_outlined, size: 20.0),
-                  label: Text(
-                    isBusy ? 'Baixando Carga...' : 'Baixar Carga',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15.0),
+
+                  // ── Progress bar ─────────────────────────────────────────────────
+                  if (isBusy || _dbStatus == 'complete' || _dbStatus == 'error')
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 0.0),
+                      child: LinearPercentIndicator(
+                        percent: _dbProgress.clamp(0.0, 1.0),
+                        lineHeight: 20.0,
+                        animation: true,
+                        animateFromLastPercent: true,
+                        progressColor: _dbStatus == 'error'
+                            ? Colors.red
+                            : AppTheme.of(context).primary,
+                        backgroundColor: AppTheme.of(context).accent4,
+                        center: Text(
+                          _dbText,
+                          style: AppTheme.of(context).headlineSmall.override(
+                                font: GoogleFonts.plusJakartaSans(
+                                  fontWeight: AppTheme.of(context)
+                                      .headlineSmall
+                                      .fontWeight,
+                                  fontStyle: AppTheme.of(context)
+                                      .headlineSmall
+                                      .fontStyle,
+                                ),
+                                color: AppTheme.of(context).primaryText,
+                                fontSize: 12.0,
+                                letterSpacing: 0.0,
+                              ),
+                        ),
+                        barRadius: const Radius.circular(8.0),
+                        padding: EdgeInsets.zero,
+                      ),
+                    ),
+
+                  // ── Footer: Action Button (Apenas Baixar Carga) ──────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 16.0),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 48.0,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.of(context).primary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          elevation: 0,
+                        ),
+                        onPressed: isBusy ? null : _startDownload,
+                        icon: isBusy
+                            ? const SizedBox(
+                                width: 18.0,
+                                height: 18.0,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2.0, color: Colors.white),
+                              )
+                            : const Icon(Icons.cloud_download_outlined,
+                                size: 20.0),
+                        label: Text(
+                          isBusy ? 'Baixando Carga...' : 'Baixar Carga',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 15.0),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ),
                 ],
               ),
             ),
@@ -369,4 +441,3 @@ class _AtualizarCargaWidgetState extends State<AtualizarCargaWidget> {
     );
   }
 }
-
