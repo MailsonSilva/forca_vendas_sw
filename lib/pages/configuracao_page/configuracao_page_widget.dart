@@ -7,6 +7,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '/action_code/index.dart';
 import '/index.dart';
+import '/services/nav_bar_service.dart';
 import 'configuracao_page_model.dart';
 export 'configuracao_page_model.dart';
 
@@ -40,6 +41,23 @@ class _ConfiguracaoPageWidgetState extends State<ConfiguracaoPageWidget> {
     super.dispose();
   }
 
+  void _voltarParaHome() {
+    if (!mounted) return;
+    // 1. Notifica o NavBarService para trocar a tab para HomePage
+    NavBarService().navegarParaHome();
+
+    // 2. Se a tela foi aberta via push no Navigator, desempilha
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+      return;
+    }
+
+    // 3. Se estiver em rota direta (/configuracaoPage), redireciona
+    try {
+      context.goNamed(HomePageWidget.routeName);
+    } catch (_) {}
+  }
+
   Future<void> _abrirSuporteWhatsApp() async {
     final uri = Uri.parse(
       'https://wa.me/559881283380?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20For%C3%A7a%20de%20Vendas',
@@ -55,20 +73,35 @@ class _ConfiguracaoPageWidgetState extends State<ConfiguracaoPageWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-        FocusManager.instance.primaryFocus?.unfocus();
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _voltarParaHome();
       },
-      child: Scaffold(
-        key: scaffoldKey,
-        backgroundColor: AppTheme.of(context).primaryBackground,
-        appBar: AppBar(
-          backgroundColor: AppTheme.of(context).primary,
-          automaticallyImplyLeading: false,
-          title: Text(
-            'Configurações',
-            style: AppTheme.of(context).headlineMedium.override(
+      child: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+          FocusManager.instance.primaryFocus?.unfocus();
+        },
+        child: Scaffold(
+          key: scaffoldKey,
+          backgroundColor: AppTheme.of(context).primaryBackground,
+          appBar: AppBar(
+            backgroundColor: AppTheme.of(context).primary,
+            automaticallyImplyLeading: false,
+            leading: IconButton(
+              icon: const Icon(
+                Icons.arrow_back_rounded,
+                color: Colors.white,
+                size: 24.0,
+              ),
+              tooltip: 'Voltar ao Menu Principal',
+              onPressed: _voltarParaHome,
+            ),
+            title: Text(
+              'Configurações',
+              style: AppTheme.of(context).headlineMedium.override(
                   font: GoogleFonts.plusJakartaSans(
                     fontWeight: AppTheme.of(context).headlineMedium.fontWeight,
                     fontStyle: AppTheme.of(context).headlineMedium.fontStyle,
@@ -381,6 +414,7 @@ class _ConfiguracaoPageWidgetState extends State<ConfiguracaoPageWidget> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

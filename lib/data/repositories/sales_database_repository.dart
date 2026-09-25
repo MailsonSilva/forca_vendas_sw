@@ -45,9 +45,9 @@ class SalesDatabaseRepository {
         await EmpresaLogoService.instance.sincronizarLogoDoBanco();
       } catch (_) {}
 
-      // Renomeia o arquivo original no FTP (removendo extensão e sufixando data/hora conforme SPEC-047)
+      // Renomeia o arquivo original no FTP (removendo qualquer extensão antiga e formatando ven[cod].[YYYY-MM-DD] [HH-mm-ss])
       try {
-        final novoNomeCrg = gerarNomeArquivoRenomeadoIso(crgName, DateTime.now());
+        final novoNomeCrg = gerarNomeArquivoRenomeado(crgName, DateTime.now());
         await ftp.rename(crgName, novoNomeCrg);
       } catch (_) {}
 
@@ -63,10 +63,11 @@ class SalesDatabaseRepository {
   }
 
   /// Gera a nomenclatura pós-download exigida pelo servidor FTP:
-  /// ven+codigo do vendedor+.YYYY-MM-DD HH-mm-ss (data e hora separados por traço)
-  /// Exemplo: ven105.2025-03-07 14-08-02
+  /// ven[codVendedor].[YYYY-MM-DD] [HH-mm-ss] (data e hora separados por traço)
+  /// Exemplo exato: ven268.2025-03-07 14-08-02
+  /// Remove qualquer extensão antiga (.db, .tmp, .crg, etc.)
   static String gerarNomeArquivoRenomeado(String nomeArquivoOriginal, DateTime dataHora) {
-    final dotIndex = nomeArquivoOriginal.lastIndexOf('.');
+    final dotIndex = nomeArquivoOriginal.indexOf('.');
     final base = dotIndex != -1 ? nomeArquivoOriginal.substring(0, dotIndex) : nomeArquivoOriginal;
     final y = dataHora.year.toString().padLeft(4, '0');
     final m = dataHora.month.toString().padLeft(2, '0');

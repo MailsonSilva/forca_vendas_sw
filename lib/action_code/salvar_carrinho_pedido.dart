@@ -10,6 +10,7 @@ Future<bool> salvarCarrinhoPedido({
   required String? linhaCodigo,
   required String? planoCodigo,
   required List<ItemPedidoStruct> carrinhoItens,
+  int? codFilial,
   int? sttDig,
   int? codAgenteCobrador,
   double? subtot,
@@ -30,6 +31,7 @@ Future<bool> salvarCarrinhoPedido({
           ped00_codlin INTEGER,
           ped00_codpla INTEGER,
           ped00_codfil INTEGER,
+          dig00_digfil INTEGER,
           ped00_codrep INTEGER,
           ped00_codagt INTEGER,
           ped00_digtab INTEGER,
@@ -146,7 +148,12 @@ Future<bool> salvarCarrinhoPedido({
 
       final linVal = int.tryParse(linhaCodigo ?? '') ?? 0;
       final plaVal = int.tryParse(planoCodigo ?? '') ?? 0;
-      final codFil = resolverCodFilial(AppState().empresa_codigo) ?? 1;
+      final codFil = codFilial ??
+          (AppState().codFilialAtiva > 0
+              ? AppState().codFilialAtiva
+              : (AppState().filialAtiva > 0
+                  ? AppState().filialAtiva
+                  : (resolverCodFilial(AppState().empresa_codigo) ?? 1)));
       final codRep = AppState().vendedor_codigo;
       final datSys = DateFormat('yyyy-MM-dd').format(DateTime.now());
 

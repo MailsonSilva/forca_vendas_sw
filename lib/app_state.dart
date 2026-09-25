@@ -297,6 +297,12 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Alias de conveniência para filial ativa
+  int get filialAtiva => _codFilialAtiva;
+  set filialAtiva(int value) {
+    codFilialAtiva = value;
+  }
+
   String _filialAtivaDes = '';
   String get filialAtivaDes => _filialAtivaDes;
   set filialAtivaDes(String value) {

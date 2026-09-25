@@ -6,6 +6,8 @@ import '/functions/proximo_numero_pedido.dart';
 import '/index.dart';
 import '/domain/services/bloqueio_financeiro_service.dart';
 import '/services/filial_service.dart';
+import '/data/services/local_sales_database_service.dart';
+import '/functions/resolver_cod_filial.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'pedido_novo_inicio_model.dart';
@@ -36,6 +38,30 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
   }
 
   Future<void> _loadDatabaseData() async {
+    // Garante inicialização e vinculação da filial ativa no AppState
+    if (AppState().filialAtiva <= 0) {
+      try {
+        final db = await LocalSalesDatabaseService.getDatabase();
+        final repRows = await db.rawQuery(
+          'SELECT ven00_codfil FROM cadrep00 WHERE ven00_codigo = ? LIMIT 1',
+          [AppState().vendedor_codigo],
+        );
+        if (repRows.isNotEmpty && repRows.first['ven00_codfil'] != null) {
+          final fil = int.tryParse(repRows.first['ven00_codfil'].toString()) ?? 1;
+          if (fil > 0) {
+            AppState().filialAtiva = fil;
+          }
+        }
+        if (AppState().filialAtiva <= 0) {
+          final filRows = await db.rawQuery('SELECT fil00_codigo, fil00_descri FROM cadfil00 LIMIT 1');
+          if (filRows.isNotEmpty && filRows.first['fil00_codigo'] != null) {
+            AppState().filialAtiva = int.tryParse(filRows.first['fil00_codigo'].toString()) ?? 1;
+            AppState().filialAtivaDes = filRows.first['fil00_descri']?.toString() ?? '';
+          }
+        }
+      } catch (_) {}
+    }
+
     final result = await obterDadosPedidoNovo();
     safeSetState(() {
       _model.clientes = result.clientes;
@@ -1111,7 +1137,9 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                                     const SizedBox(height: 16.0),
                                     _buildSummaryRow(
                                       'Filial',
-                                      AppState().empresa_codigo.isNotEmpty ? AppState().empresa_codigo : '1234',
+                                      AppState().filialAtiva > 0
+                                          ? '${AppState().filialAtiva}${AppState().filialAtivaDes.isNotEmpty ? ' - ${AppState().filialAtivaDes}' : ''}'
+                                          : (AppState().empresa_codigo.isNotEmpty ? AppState().empresa_codigo : '1'),
                                     ),
                                     _buildSummaryRow(
                                       'Razão Social',
@@ -1177,9 +1205,15 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
                             ),
                             onPressed: () async {
                               try {
+                                final int filialAtiva = AppState().filialAtiva > 0
+                                    ? AppState().filialAtiva
+                                    : (AppState().codFilialAtiva > 0
+                                        ? AppState().codFilialAtiva
+                                        : (resolverCodFilial(AppState().empresa_codigo) ?? 1));
+
                                 int tempOrderId = 0;
                                 try {
-                                  tempOrderId = await obterProximoNumeroPedido();
+                                  tempOrderId = await obterProximoNumeroPedido(codFilial: filialAtiva);
                                 } catch (e) {
                                   print('Aviso ao obter proximo numero do pedido: $e');
                                   tempOrderId = 1;
@@ -1193,13 +1227,14 @@ class _PedidoNovoInicioWidgetState extends State<PedidoNovoInicioWidget> {
 
                                 final cli = _model.selectedCliente;
 
-                                // Persiste o cabeçalho inicial como rascunho de forma segura
+                                // Persiste o cabeçalho inicial como rascunho de forma segura com a filial ativa
                                 try {
                                   await salvarCarrinhoPedido(
                                     pedidoId: tempOrderId,
                                     clienteCodigo: cli?.cli00Codigo ?? 0,
                                     linhaCodigo: _model.selectedLinha?.codigo,
                                     planoCodigo: _model.selectedPlano?.codigo,
+                                    codFilial: filialAtiva,
                                     carrinhoItens: [],
                                   );
                                 } catch (e) {
