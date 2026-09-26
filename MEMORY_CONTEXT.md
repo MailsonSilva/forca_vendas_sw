@@ -35,10 +35,17 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
 - **Seleção e Persistência de Filial Ativa:** Suporte a múltiplas filiais configuradas em `cadfil00`. A filial escolhida fica gravada no `AppState` (`codFilialAtiva`) e é propagada para todas as consultas de estoque e cabeçalho dos pedidos (`ped00_codfil`).
 - **Isolamento de Dados:** Cada representante e filial operam de forma particionada no banco de dados local.
 
-### 2.2 Clientes & Análise Financeira
+### 2.2 Clientes & Análise Financeira (Extrato e Duplicatas)
 - **Busca Rápida de Clientes:** Filtro instantâneo por código, razão social, nome fantasia e CNPJ/CPF em `cadcli00` / View `cli00`.
-- **Consulta de Títulos em Aberto e Vencidos (`dup00`):** Consulta das duplicatas do cliente com detalhamento de parcelas, valores, vencimentos e dias de atraso.
-- **Modal Informativo de Títulos Vencidos:** Exibição prévia das pendências financeiras antes do início da digitação do pedido.
+- **Apuração de Títulos e Juros Canônicos (`finrecdup00` / `dup00`):**
+  - **Taxa Diária Nativa (`dup00_pctjurday`):** A taxa de juros diária reside na coluna física `dup00_pctjurday` (e não em uma coluna estática de montante como `dup00_valjur`).
+  - **Hierarquia de Resolução:** $\text{taxaDiaria} = \text{COALESCE}(\text{dup00\_pctjurday}, \text{cadrep00.ven00\_txajur}, 0.0)$.
+  - **Dias de Atraso e Parsing de Datas:** $\text{diasAtraso} = \max(0, \text{Hoje} - \text{Vencimento})$, com parse resiliente no Dart aceitando formatos `DD/MM/AAAA` e `AAAA-MM-DD` com normalização de horas.
+  - **Cálculo de Juros em Memória:** $\text{valorJuros} = \text{dup00\_valdev} \times (\text{taxaDiaria} / 100.0) \times \text{diasAtraso}$.
+  - **Totalizadores no Extrato:** `vlrTotJuros` soma os juros dos títulos vencidos; o campo "Dias de atraso" exibe o acumulado total em atraso (soma de dias de todas as duplicatas vencidas).
+- **Estrutura das Abas do Extrato do Cliente:**
+  - Aba padrão de abertura: índice 1 ("Vencidos").
+  - Aba 0 ("Todos"): Exibe todos os títulos pendentes com botão "Copiar Texto" no rodapé e sem quadro inferior de totais.
 - **Limite de Crédito Informativo:** O limite de crédito e o saldo disponível são informados de forma transparente, não bloqueando a abertura do carrinho, mas alertando o vendedor conforme o perfil comercial (`ven_ignlimfis`).
 
 ### 2.3 Catálogo de Produtos & Estoque
@@ -49,8 +56,9 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
 - **Combos e Bonificações:** Suporte a itens bonificados com valor unitário a **R$ 0,00**, gravando flags `bontyp = 1` e totalizadores em `ped00_bontot` sem afetar o faturamento líquido.
 
 ### 2.4 Digitação & Fechamento de Pedidos (Crítico)
-- **Persistência Relacional Atômica:**
+- **Persistência Relacional Atômica e Filial Ativa:**
   - Cabeçalho em `pckvendig000` (View `dig00`) com snapshots do cliente, linha, plano e totais (`ped00_*`).
+  - **Propagação de Filial Ativa:** A filial selecionada na sessão (`AppState.codFilialAtiva` / `cadrep00.ven00_codfil`) é obrigatoriamente vinculada ao cabeçalho do pedido em `pckvendig000.dig00_digfil` (ou `ped00_codfil`).
   - Itens em `pckvendig010` (View `dig01`) com sequencial (`ped10_seq`), código, quantidade, preço e flags (`ped10_*`).
 - **Migração Automática e Resiliente de Schema:**
   - Rotina de auto-migração (`ALTER TABLE ADD COLUMN`) executada no `LocalSalesDatabaseService.getDatabase()` e nos serviços de gravação, garantindo que colunas ausentes em bases legadas (`ped00_numped`, `ped00_codcli`, `ped00_codagt`, etc.) sejam criadas sem erro.
@@ -65,14 +73,19 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
 - **Edição Direta de Quantidade no Card (`ItemPedidoCardWidget`):**
   - O campo de quantidade no card de pedidos opera diretamente como um `TextField` numérico (`TextInputType.number`), abrindo unicamente o teclado numérico do dispositivo ao clicar, sem modais ou telas inferiores intermediárias.
   - Implementa controle de idempotência (`_ultimoValorSubmetido`) e limpeza prévia da fila de alertas (`clearSnackBars`), eliminando mensagens de validação duplicadas no `ScaffoldMessenger`.
-- **Navegação Resiliente do Histórico de Pedidos (`PedidosRascunhosPageWidget`):**
+- **Navegação Resiliente e Prevenção de Fechamento com `PopScope`:**
   - `AppBar` com `leading` explícito com fallback para `/homePage` quando a tela for rota raiz pós-conclusão de venda.
-  - Envoltório global com `PopScope(canPop: false)` interceptando o botão voltar nativo do Android para garantir retorno seguro ao menu principal sem fechamento indevido do aplicativo.
+  - Envoltório global com `PopScope(canPop: false)` no histórico de pedidos e no menu de Configurações, interceptando o botão voltar nativo do sistema para retornar à tela inicial (`/homePage`) sem encerramento acidental do app.
 
-### 2.5 Sincronização & Upload FTP
+### 2.5 Sincronização, Download de Carga & Comunicação FTP
 - **Geração de Pacotes `.pac` Comprimidos:** Geração do XML do pedido pelo `PacXmlGeneratorService` e compressão em formato ZIP `.pac` em memória.
 - **Nomenclatura Padrão de Arquivos:** `p<codRep>-<codMov>.pac` (ex: `p71-1007.pac`), gravado em `temp/` (fila) e `documents/` (backup).
 - **Upload Idempotente com Verificação de Tamanho (`SIZE`):** Envio para o FTP com verificação estrita de integridade via comando FTP `SIZE`. O pedido só é marcado como `ped00_sttenv = 2` (Transmitido) e o arquivo local excluído após a confirmação exata dos bytes no servidor.
+- **Renomeação de Arquivos no FTP:** Padrão mandatório de renomeação no servidor FTP após processamento:
+  `ven[codVendedor].[YYYY-MM-DD] [HH-mm-ss]` (estritamente sem extensão).
+- **Tratamento Defensivo de Ausência de Carga:** Proteção contra tela vermelha de erro caso não haja nova carga remota, exibindo aviso amigável ao representante.
+- **Dinamismo da Empresa nas Ferramentas:** Nome da empresa obtido dinamicamente da sessão (`cadace00`/`cadrep00`), eliminando hardcodes (`'sw'`).
+- **Sincronização Compulsória de Fotos:** Disparo automático da sincronização incremental de imagens de produtos ao término da carga.
 
 ### 2.6 Relatórios & Conta-Corrente do Vendedor (CCV / Saldo Flex)
 - **Menu "Relatórios" na Home:** Botão dedicado no painel principal que aciona o `ModalRelatoriosWidget`.

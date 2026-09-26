@@ -45,3 +45,43 @@ WHERE (
     CAST(COALESCE(dup00_clicod, dup00_codcli) AS INTEGER) = CAST(:codcli AS INTEGER)
 )
 AND COALESCE(dup00_valdev, dup00_valori) > 0;
+2.3. Algoritmo em Dart para Dias de Atraso e Juros
+Para evitar falhas com formatos de data no SQLite, implementar a lógica em Dart espelhando a função ffrmextractcli00::diasAtrasado:
+
+Dart
+DateTime? parseDateString(String rawDate) {
+  try {
+    if (rawDate.contains('/')) {
+      final parts = rawDate.split('/');
+      return DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+    }
+    return DateTime.tryParse(rawDate);
+  } catch (_) {
+    return null;
+  }
+}
+
+int calcularDiasAtraso(String dataVencimentoStr) {
+  final dtVen = parseDateString(dataVencimentoStr);
+  if (dtVen == null) return 0;
+  
+  final hoje = DateTime.now();
+  final dataHoje = DateTime(hoje.year, hoje.month, hoje.day);
+  final vencimento = DateTime(dtVen.year, dtVen.month, dtVen.day);
+
+  if (vencimento.isBefore(dataHoje)) {
+    return dataHoje.difference(vencimento).inDays;
+  }
+  return 0;
+}
+
+3. Critérios de Aceite
+[ ] Ao selecionar o cliente 48785, o rótulo "Agente: 501" não deve ser exibido na tela de Novo Pedido.
+
+[ ] A tela de Extrato do Cliente para o código 48785 deve exibir as 11 duplicatas pendentes listadas no legado.
+
+[ ] Duplicatas vencidas devem exibir a contagem real de dias de atraso e valor de juros calculado.
+
+[ ] Duplicatas vincendas (a vencer) devem ser listadas com Dias de Atraso = 0 e Juros = 0,00.
+
+[ ] O cabeçalho da aba deve atualizar para Títulos (11).

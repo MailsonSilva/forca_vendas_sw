@@ -34,26 +34,51 @@
 
 ## Módulo: Contas a Receber e Gestão de Duplicatas (Receber)
 
-### 1. Duplicata / Título (`dup00`)
+### 1. Duplicata / Título (`finrecdup00` / `dup00`)
 - **Registro Financeiro**: Título individual emitido pelo ERP (`dup00_codigo`), vinculado ao cliente (`dup00_codcli`), com valor original (`dup00_valori`), saldo devedor (`dup00_valdev`), valor pago (`dup00_valpag`), data de emissão (`dup00_datemi`) e vencimento (`dup00_datven`).
+- **Taxa de Juros Diária Nativa (`dup00_pctjurday`)**: Na tabela física local `finrecdup00`, a taxa de juros diária por título reside na coluna física `dup00_pctjurday` (e não em uma coluna estática de montante como `dup00_valjur`).
 - **Escopo Negativo Estrito**: O aplicativo móvel opera em modo 100% consulta/auditoria. O vendedor **não** realiza baixa, **não** gera segundas vias ou Pix locais e **não** altera prazos ou juros.
 
-### 2. Apuração de Atraso e Juros de Mora
-- **Dias de Atraso (`diasAtrasado`)**: Diferença em dias corridos calculada offline entre `dup00_datven` e a data corrente do dispositivo (`hoje - datven`), quando `datven < hoje`.
-- **Taxa de Juros do Representante (`ven00_txajur`)**: Parâmetro percentual diário cadastrado em `cadrep00`. Se nulo ou zero, juros apurados são R$ 0,00 (sem inventar alíquotas não parametrizadas pelo ERP).
-- **Cálculo de Juros**: $\text{Juros} = \text{dup00\_valdev} \times (\text{ven00\_txajur} / 100) \times \text{diasAtrasado}$.
+### 2. Apuração de Atraso e Juros de Mora (Fórmula Canônica)
+- **Hierarquia de Resolução da Taxa Diária**:
+  $$\text{taxaDiaria} = \text{COALESCE}(\text{dup00\_pctjurday}, \text{cadrep00.ven00\_txajur}, 0.0)$$
+- **Dias de Atraso (`diasAtraso`)**:
+  $$\text{diasAtraso} = \max(0, \text{Hoje} - \text{Vencimento})$$
+  Tratamento robusto de datas no Dart aceitando tanto `DD/MM/AAAA` quanto `AAAA-MM-DD`, normalizando horas para apuração por datas cheias.
+- **Cálculo de Juros em Memória**:
+  $$\text{valorJuros} = \text{dup00\_valdev} \times (\text{taxaDiaria} / 100.0) \times \text{diasAtraso}$$
+- **Totalizadores do Extrato**:
+  - `vlrTotJuros`: Soma consolidada de juros apurados de todos os títulos vencidos.
+  - `Dias de atraso`: Exibe o acumulado total de dias em atraso (soma de dias de todas as duplicatas vencidas).
 
-### 3. Classificação e Saldos do Cliente
-- **Total Vencido (`cli00_titven`)**: Soma consolidada de `dup00_valdev + Juros` dos títulos com vencimento anterior à data atual.
-- **Total A Vencer (`cli00_titave`)**: Soma de `dup00_valdev` de títulos com vencimento igual ou posterior à data atual.
-- **Filtros Operacionais**: *Todos com Débito* (`valdev > 0`), *Apenas Vencidos* (`valdev > 0 AND datven < hoje`), *A Vencer* (`valdev > 0 AND datven >= hoje`).
+### 3. Classificação e Abas do Extrato do Cliente
+- **Aba Padrão de Abertura**: Índice 1 ("Vencidos"), abrindo diretamente as pendências críticas do cliente.
+- **Aba "Todos"**: Exibe a totalidade de títulos (vencidos e a vencer) com botão de rodapé "Copiar Texto" (sem rodapé/quadro de totais).
+- **Classificação de Débitos**: *Todos com Débito* (`valdev > 0`), *Apenas Vencidos* (`valdev > 0 AND datven < hoje`), *A Vencer* (`valdev > 0 AND datven >= hoje`).
 
 ### 4. Extrato Analítico e Cobrança Amigável
 - **Extrato em Sliding BottomSheet**: Apresentação analítica reativa deslizante por cliente, mantendo a posição de scroll da lista macro.
 - **Destaque Visual de Inadimplência**: Títulos vencidos evidenciados em vermelho com badge de dias de atraso.
-- **Compartilhamento Textual**: Exportação formatada das pendências para canal de mensagens (WhatsApp / Clipboard) para cobrança amigável direta.
+- **Compartilhamento Textual**: Exportação formatada das pendências para cópia direta (Clipboard) para cobrança amigável.
 - **Ordenação por Aging (Tempo de Atraso)**: Ordenação prioritária da carteira pelo título com vencimento mais antigo, antecipando o risco de crédito e bloqueio comercial.
 - **Barreira de Checkout / Termo de Responsabilidade**: Validação integrada que exige auditoria e termo de consentimento ao abrir pedido para cliente com títulos em atraso (`totalVencido > 0`).
+
+## Módulo: Sincronização, Carga e Comunicação FTP
+
+### 1. Nomenclatura e Arquivamento Remoto no FTP
+- **Renomeação de Arquivo de Carga**: Padrão mandatório de renomeação no servidor FTP após processamento:
+  `ven[codVendedor].[YYYY-MM-DD] [HH-mm-ss]` (estritamente sem extensão).
+- **Tratamento Defensivo de Ausência de Carga**: Tratamento resiliente quando não houver nova carga disponível no servidor FTP, evitando exceções não tratadas (tela vermelha) e apresentando feedback amigável ao usuário.
+- **Dinamismo da Razão da Distribuidora**: Nome da empresa no card de Ferramentas e cabeçalhos extraído dinamicamente da sessão/login (`cadace00`/`cadrep00`), substituindo hardcodes (ex: `'sw'`).
+- **Sincronização Compulsória de Imagens**: Disparo automático da sincronização incremental/parcial de fotos de produtos logo após a conclusão bem-sucedida da carga de dados.
+
+## Módulo: Pedidos, Filial Ativa e Navegação Segura
+
+### 1. Propagação de Filial Ativa
+- **Vinculação de Filial no Pedido**: Propagação compulsória da filial selecionada na sessão (`AppState.codFilialAtiva` / `cadrep00.ven00_codfil`) para o cabeçalho do pedido `pckvendig000.dig00_digfil` (ou `ped00_codfil`).
+
+### 2. Navegação e Interceptação com PopScope
+- **Prevenção de Fechamento Acidental do App**: Uso de `PopScope(canPop: false)` no menu de Configurações e rotas raiz para interceptar o botão voltar do sistema operacional e retornar à tela inicial (`/homePage`), impedindo encerramento involuntário da aplicação.
 
 ## Padrões Transversais de Interface e Apresentação
 

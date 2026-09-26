@@ -78,6 +78,7 @@ void main() {
     expect(find.textContaining('COMERCIAL ALVORADA LTDA'), findsOneWidget);
     expect(find.text('Limite Crédito'), findsOneWidget);
     expect(find.text('Disponível'), findsOneWidget);
-    expect(find.text('Faturamento'), findsOneWidget);
+    expect(find.text('Vencidos (1)'), findsOneWidget);
+    expect(find.text('Todos (1)'), findsOneWidget);
   });
 }

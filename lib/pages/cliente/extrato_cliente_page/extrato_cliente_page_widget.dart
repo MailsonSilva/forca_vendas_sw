@@ -23,7 +23,9 @@ class _ClienteExtratoInfo {
   final double totalAVencer;
   final double totalDevedor;
   final double totalJuros;
+  final double vlrTotJuros;
   final int maiorDiasAtraso;
+  final int totalDiasAtraso;
   final int qtdTitulosVencidos;
   final int qtdTitulosTotal;
 
@@ -40,7 +42,9 @@ class _ClienteExtratoInfo {
     this.totalAVencer = 0.0,
     this.totalDevedor = 0.0,
     this.totalJuros = 0.0,
+    this.vlrTotJuros = 0.0,
     this.maiorDiasAtraso = 0,
+    this.totalDiasAtraso = 0,
     this.qtdTitulosVencidos = 0,
     this.qtdTitulosTotal = 0,
   });
@@ -73,8 +77,6 @@ class _PedidoExtratoItem {
   bool get isPronto => sttDig != 0 && sttEnv < 2;
   bool get isTransmitido => sttEnv == 2;
 }
-
-
 
 /// Tela de Extrato Detalhado do Cliente
 class ExtratoClientePageWidget extends StatefulWidget {
@@ -135,11 +137,22 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
   void initState() {
     super.initState();
     _model = createModel(context, () => ExtratoClientePageModel());
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 3, vsync: this, initialIndex: 1);
     if (widget.clienteInicial != null) {
       _loading = false;
       _clienteReceber = widget.clienteInicial;
       _titulosDetalhados = widget.clienteInicial!.titulos;
+      int somaDias = 0;
+      double somaJuros = 0.0;
+      for (final t in widget.clienteInicial!.titulos) {
+        if (t.isVencido) {
+          somaDias += t.diasAtraso;
+          somaJuros += t.valorJuros;
+        }
+      }
+      final vlrTotJuros = widget.clienteInicial!.totalJuros > 0
+          ? widget.clienteInicial!.totalJuros
+          : somaJuros;
       _clienteInfo = _ClienteExtratoInfo(
         codigo: widget.clienteInicial!.codCli,
         razaoSocial: widget.clienteInicial!.razaoSocial,
@@ -148,12 +161,16 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
         cidadeUf: widget.clienteInicial!.cidadeUf,
         limiteCredito: widget.clienteInicial!.limiteCredito,
         limiteUtilizado: widget.clienteInicial!.limiteAtual,
-        limiteDisponivel: widget.clienteInicial!.limiteCredito - widget.clienteInicial!.limiteAtual,
+        limiteDisponivel: widget.clienteInicial!.limiteCredito -
+            widget.clienteInicial!.limiteAtual,
         totalVencido: widget.clienteInicial!.totalVencido,
         totalAVencer: widget.clienteInicial!.totalAVencer,
         totalDevedor: widget.clienteInicial!.totalDevedor,
-        totalJuros: widget.clienteInicial!.totalJuros,
+        totalJuros: vlrTotJuros,
+        vlrTotJuros: vlrTotJuros,
         maiorDiasAtraso: widget.clienteInicial!.maiorDiasAtraso,
+        totalDiasAtraso:
+            somaDias > 0 ? somaDias : widget.clienteInicial!.maiorDiasAtraso,
         qtdTitulosVencidos: widget.clienteInicial!.qtdTitulosVencidos,
         qtdTitulosTotal: widget.clienteInicial!.qtdTitulosTotal,
       );
@@ -172,7 +189,8 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
     if (widget.clienteInicial == null) {
       setState(() => _loading = true);
     }
-    final codInt = widget.clienteId ?? int.tryParse(widget.codigoCliente ?? '') ?? 0;
+    final codInt =
+        widget.clienteId ?? int.tryParse(widget.codigoCliente ?? '') ?? 0;
     if (codInt == 0) {
       if (mounted) setState(() => _loading = false);
       return;
@@ -189,19 +207,32 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
       try {
         // 1. Dados do cliente
         final cliCols = await db.rawQuery('PRAGMA table_info(cadcli00)');
-        final cnCli = cliCols.map((r) => r['name'].toString().toLowerCase()).toSet();
-        String cCod = cnCli.contains('cli00_codigo') ? 'cli00_codigo' : 'codigo';
-        final cliRows = await db.rawQuery('SELECT * FROM cadcli00 WHERE $cCod = ? LIMIT 1', [codInt]);
+        final cnCli =
+            cliCols.map((r) => r['name'].toString().toLowerCase()).toSet();
+        String cCod =
+            cnCli.contains('cli00_codigo') ? 'cli00_codigo' : 'codigo';
+        final cliRows = await db.rawQuery(
+            'SELECT * FROM cadcli00 WHERE $cCod = ? LIMIT 1', [codInt]);
 
         if (cliRows.isNotEmpty) {
           final cr = cliRows.first;
-          final descri = cr['cli00_descri']?.toString() ?? cr['cli00_nome']?.toString() ?? 'Cliente #$codInt';
-          final fantas = cr['cli00_fantasi']?.toString() ?? cr['cli00_fantas']?.toString() ?? '';
-          final cnpj = cr['cli00_cpfcnp']?.toString() ?? cr['cli00_cnpj']?.toString() ?? '';
+          final descri = cr['cli00_descri']?.toString() ??
+              cr['cli00_nome']?.toString() ??
+              'Cliente #$codInt';
+          final fantas = cr['cli00_fantasi']?.toString() ??
+              cr['cli00_fantas']?.toString() ??
+              '';
+          final cnpj = cr['cli00_cpfcnp']?.toString() ??
+              cr['cli00_cnpj']?.toString() ??
+              '';
           final cid = cr['cli00_ciddes']?.toString() ?? '';
           final uf = cr['cli00_estsgl']?.toString() ?? '';
-          final crelim = (cr['cli00_crelim'] is num) ? (cr['cli00_crelim'] as num).toDouble() : (double.tryParse(cr['cli00_crelim']?.toString() ?? '') ?? 0.0);
-          final creatu = (cr['cli00_creatu'] is num) ? (cr['cli00_creatu'] as num).toDouble() : (double.tryParse(cr['cli00_creatu']?.toString() ?? '') ?? 0.0);
+          final crelim = (cr['cli00_crelim'] is num)
+              ? (cr['cli00_crelim'] as num).toDouble()
+              : (double.tryParse(cr['cli00_crelim']?.toString() ?? '') ?? 0.0);
+          final creatu = (cr['cli00_creatu'] is num)
+              ? (cr['cli00_creatu'] as num).toDouble()
+              : (double.tryParse(cr['cli00_creatu']?.toString() ?? '') ?? 0.0);
 
           _clienteInfo = _ClienteExtratoInfo(
             codigo: codInt,
@@ -217,31 +248,63 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
 
         // 2. Pedidos locais (pckvendig000)
         final List<_PedidoExtratoItem> pList = [];
-        final tPed = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='pckvendig000'");
+        final tPed = await db.rawQuery(
+            "SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='pckvendig000'");
         if (tPed.isNotEmpty) {
           final pCols = await db.rawQuery('PRAGMA table_info(pckvendig000)');
-          final cnP = pCols.map((r) => r['name'].toString().toLowerCase()).toSet();
+          final cnP =
+              pCols.map((r) => r['name'].toString().toLowerCase()).toSet();
           String colNum = 'ped00_numped';
           for (final c in ['ped00_numped', 'ped00_pedcod', 'ped00_codmov']) {
-            if (cnP.contains(c)) { colNum = c; break; }
+            if (cnP.contains(c)) {
+              colNum = c;
+              break;
+            }
           }
           String colCli = 'ped00_codcli';
           for (final c in ['ped00_codcli', 'ped00_clicod']) {
-            if (cnP.contains(c)) { colCli = c; break; }
+            if (cnP.contains(c)) {
+              colCli = c;
+              break;
+            }
           }
 
-          final pRows = await db.rawQuery('SELECT * FROM pckvendig000 WHERE $colCli = ? ORDER BY $colNum DESC', [codInt]);
+          final pRows = await db.rawQuery(
+              'SELECT * FROM pckvendig000 WHERE $colCli = ? ORDER BY $colNum DESC',
+              [codInt]);
           for (final pr in pRows) {
-            final id = pr[colNum] is int ? pr[colNum] as int : (int.tryParse(pr[colNum]?.toString() ?? '') ?? 0);
-            final dat = pr['ped00_datsys']?.toString() ?? pr['ped00_datemi']?.toString() ?? '';
-            final digTot = (pr['ped00_digtot'] is num) ? (pr['ped00_digtot'] as num).toDouble() : (double.tryParse(pr['ped00_digtot']?.toString() ?? '') ?? 0.0);
-            final subTot = (pr['ped00_subtot'] is num) ? (pr['ped00_subtot'] as num).toDouble() : 0.0;
-            final bonTot = (pr['ped00_bontot'] is num) ? (pr['ped00_bontot'] as num).toDouble() : 0.0;
-            final fatTot = (pr['ped00_fattot'] is num) ? (pr['ped00_fattot'] as num).toDouble() : (double.tryParse(pr['ped00_fattot']?.toString() ?? '') ?? (digTot + subTot));
-            final sDig = (pr['ped00_sttdig'] is int) ? pr['ped00_sttdig'] as int : (int.tryParse(pr['ped00_sttdig']?.toString() ?? '') ?? 0);
-            final sEnv = (pr['ped00_sttenv'] is int) ? pr['ped00_sttenv'] as int : (int.tryParse(pr['ped00_sttenv']?.toString() ?? '') ?? 0);
-            final pla = pr['ped00_plades']?.toString() ?? pr['ped00_codpla']?.toString() ?? '';
-            final lin = pr['ped00_lindes']?.toString() ?? pr['ped00_codlin']?.toString() ?? '';
+            final id = pr[colNum] is int
+                ? pr[colNum] as int
+                : (int.tryParse(pr[colNum]?.toString() ?? '') ?? 0);
+            final dat = pr['ped00_datsys']?.toString() ??
+                pr['ped00_datemi']?.toString() ??
+                '';
+            final digTot = (pr['ped00_digtot'] is num)
+                ? (pr['ped00_digtot'] as num).toDouble()
+                : (double.tryParse(pr['ped00_digtot']?.toString() ?? '') ??
+                    0.0);
+            final subTot = (pr['ped00_subtot'] is num)
+                ? (pr['ped00_subtot'] as num).toDouble()
+                : 0.0;
+            final bonTot = (pr['ped00_bontot'] is num)
+                ? (pr['ped00_bontot'] as num).toDouble()
+                : 0.0;
+            final fatTot = (pr['ped00_fattot'] is num)
+                ? (pr['ped00_fattot'] as num).toDouble()
+                : (double.tryParse(pr['ped00_fattot']?.toString() ?? '') ??
+                    (digTot + subTot));
+            final sDig = (pr['ped00_sttdig'] is int)
+                ? pr['ped00_sttdig'] as int
+                : (int.tryParse(pr['ped00_sttdig']?.toString() ?? '') ?? 0);
+            final sEnv = (pr['ped00_sttenv'] is int)
+                ? pr['ped00_sttenv'] as int
+                : (int.tryParse(pr['ped00_sttenv']?.toString() ?? '') ?? 0);
+            final pla = pr['ped00_plades']?.toString() ??
+                pr['ped00_codpla']?.toString() ??
+                '';
+            final lin = pr['ped00_lindes']?.toString() ??
+                pr['ped00_codlin']?.toString() ??
+                '';
 
             pList.add(_PedidoExtratoItem(
               id: id,
@@ -259,40 +322,83 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
         _pedidosLocais = pList;
 
         // 3. Títulos / Duplicatas (SPEC-045: centralizado via ReceberDuplicatasService com suporte a finrecdup00 e multi-bancos)
-        final taxaJuros = await ReceberDuplicatasService.obterTaxaJurosVendedor(AppState().vendedor_codigo);
-        var titulosService = await ReceberDuplicatasService.carregarTitulosCliente(
+        final taxaJuros = await ReceberDuplicatasService.obterTaxaJurosVendedor(
+            AppState().vendedor_codigo);
+        var titulosService =
+            await ReceberDuplicatasService.carregarTitulosCliente(
           codInt,
           dbOverride: db,
           taxaJurosOverride: taxaJuros,
         );
         if (titulosService.isEmpty) {
           // Se não encontrou no banco principal, tenta busca multi-banco (dbforcadig001.db)
-          titulosService = await ReceberDuplicatasService.carregarTitulosCliente(
+          titulosService =
+              await ReceberDuplicatasService.carregarTitulosCliente(
             codInt,
             taxaJurosOverride: taxaJuros,
           );
         }
-        if (titulosService.isEmpty && widget.clienteInicial != null && widget.clienteInicial!.titulos.isNotEmpty) {
-          titulosService = widget.clienteInicial!.titulos;
+        if (titulosService.isEmpty &&
+            widget.clienteInicial != null &&
+            widget.clienteInicial!.titulos.isNotEmpty) {
+          titulosService = widget.clienteInicial!.titulos.map((t) {
+            if (t.isVencido && t.valorJuros == 0.0) {
+              // Hierarquia: pctJurDay da duplicata > taxa do vendedor > 0
+              final taxaEfetiva = t.pctJurDay > 0.0
+                  ? t.pctJurDay
+                  : (taxaJuros > 0.0 ? taxaJuros : 0.0);
+              if (taxaEfetiva > 0.0) {
+                final novoJuros = ReceberDuplicatasService.calcularJurosMora(
+                  saldoDevedor:
+                      t.saldoDevedor > 0 ? t.saldoDevedor : t.valorOriginal,
+                  taxaJurosDiaria: taxaEfetiva,
+                  diasAtraso: t.diasAtraso,
+                );
+                return TituloDuplicataItem(
+                  codigo: t.codigo,
+                  codCli: t.codCli,
+                  numeroDocumento: t.numeroDocumento,
+                  dataEmissao: t.dataEmissao,
+                  dataVencimento: t.dataVencimento,
+                  valorOriginal: t.valorOriginal,
+                  valorPago: t.valorPago,
+                  saldoDevedor: t.saldoDevedor,
+                  diasAtraso: t.diasAtraso,
+                  isVencido: t.isVencido,
+                  taxaJurosDiaria: taxaEfetiva,
+                  valorJuros: novoJuros,
+                  totalComJuros: t.saldoDevedor + novoJuros,
+                  pctJurDay: t.pctJurDay,
+                  codVen: t.codVen,
+                  codAgt: t.codAgt,
+                  codCob: t.codCob,
+                );
+              }
+            }
+            return t;
+          }).toList();
         }
         _titulosDetalhados = titulosService;
 
-        // 4. Apuração dos Totais Financeiros das Duplicatas
+        // 4. Apuração dos Totais Financeiros das Duplicatas (ffrmextractcli00)
         double totVenc = 0.0;
         double totAVenc = 0.0;
-        double totJuros = 0.0;
+        double vlrTotJuros = 0.0;
         int maiorAtraso = 0;
+        int totalDiasAtraso = 0;
         int qtdVenc = 0;
         for (final t in titulosService) {
           if (t.isVencido) {
             qtdVenc++;
-            totVenc += (t.saldoDevedor + t.valorJuros);
-            totJuros += t.valorJuros;
+            totVenc += t.saldoDevedor;
+            vlrTotJuros += t.valorJuros;
+            totalDiasAtraso += t.diasAtraso;
             if (t.diasAtraso > maiorAtraso) maiorAtraso = t.diasAtraso;
           } else {
             totAVenc += t.saldoDevedor;
           }
         }
+        final double vlrSaldoDevedor = totVenc + vlrTotJuros;
 
         if (_clienteInfo != null) {
           _clienteInfo = _ClienteExtratoInfo(
@@ -306,9 +412,11 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
             limiteDisponivel: _clienteInfo!.limiteDisponivel,
             totalVencido: totVenc,
             totalAVencer: totAVenc,
-            totalDevedor: totVenc + totAVenc,
-            totalJuros: totJuros,
+            totalDevedor: vlrSaldoDevedor + totAVenc,
+            totalJuros: vlrTotJuros,
+            vlrTotJuros: vlrTotJuros,
             maiorDiasAtraso: maiorAtraso,
+            totalDiasAtraso: totalDiasAtraso,
             qtdTitulosVencidos: qtdVenc,
             qtdTitulosTotal: titulosService.length,
           );
@@ -323,20 +431,22 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
           limiteAtual: _clienteInfo?.limiteUtilizado ?? 0.0,
           totalVencido: totVenc,
           totalAVencer: totAVenc,
-          totalDevedor: totVenc + totAVenc,
-          totalJuros: totJuros,
+          totalDevedor: vlrSaldoDevedor + totAVenc,
+          totalJuros: vlrTotJuros,
           maiorDiasAtraso: maiorAtraso,
+          totalDiasAtraso: totalDiasAtraso,
           qtdTitulosVencidos: qtdVenc,
           qtdTitulosTotal: titulosService.length,
           titulos: titulosService,
         );
-
-
       } finally {
         await db.close();
       }
-    } catch (e) {
-      print('Erro ao carregar extrato do cliente: $e');
+    } catch (e, st) {
+      // Log estruturado sem interpolação de string — reason: regra global
+      debugPrint('Erro ao carregar extrato do cliente');
+      debugPrint(e.toString());
+      debugPrint(st.toString());
     }
 
     if (mounted) setState(() => _loading = false);
@@ -385,19 +495,22 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
           indicatorWeight: 3.0,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
-          labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13.0),
+          labelStyle:
+              GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13.0),
           tabs: [
             Tab(
               text: 'Pedidos (${_pedidosLocais.length})',
               icon: const Icon(Icons.shopping_bag_outlined, size: 18.0),
             ),
             Tab(
-              text: 'Títulos (${_titulosDetalhados.length})',
+              text:
+                  'Vencidos (${_titulosDetalhados.where((t) => t.isVencido && t.saldoDevedor > 0).length})',
               icon: const Icon(Icons.receipt_outlined, size: 18.0),
             ),
-            const Tab(
-              text: 'Faturamento',
-              icon: Icon(Icons.analytics_outlined, size: 18.0),
+            Tab(
+              text:
+                  'Todos (${_titulosDetalhados.where((t) => t.saldoDevedor > 0).length})',
+              icon: const Icon(Icons.analytics_outlined, size: 18.0),
             ),
           ],
         ),
@@ -418,17 +531,16 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
                       controller: _tabController,
                       children: [
                         _buildTabPedidos(theme),
-                        _buildTabTitulos(theme),
-                        _buildTabFaturamento(theme),
+                        _buildTabVencidos(theme),
+                        _buildTabTodos(theme),
                       ],
                     ),
                   ),
                 ],
               ),
             ),
-      bottomNavigationBar: (widget.modoBloqueio && !_loading)
-          ? _buildBottomBar(theme)
-          : null,
+      bottomNavigationBar:
+          (widget.modoBloqueio && !_loading) ? _buildBottomBar(theme) : null,
     );
   }
 
@@ -450,6 +562,10 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
     }
 
     final temVencido = info.totalVencido > 0 || info.qtdTitulosVencidos > 0;
+    final jurosResumo =
+        info.vlrTotJuros > 0 ? info.vlrTotJuros : info.totalJuros;
+    final diasAtrasoTot =
+        info.totalDiasAtraso > 0 ? info.totalDiasAtraso : info.maiorDiasAtraso;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(12.0, 12.0, 12.0, 6.0),
@@ -458,7 +574,9 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
         color: theme.secondaryBackground,
         borderRadius: BorderRadius.circular(12.0),
         border: Border.all(
-          color: temVencido ? Colors.red.shade200 : theme.alternate.withValues(alpha: 0.5),
+          color: temVencido
+              ? Colors.red.shade200
+              : theme.alternate.withValues(alpha: 0.5),
           width: temVencido ? 1.5 : 1.0,
         ),
         boxShadow: const [
@@ -477,7 +595,8 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
             children: [
               CircleAvatar(
                 radius: 20.0,
-                backgroundColor: (temVencido ? Colors.red : theme.primary).withValues(alpha: 0.12),
+                backgroundColor: (temVencido ? Colors.red : theme.primary)
+                    .withValues(alpha: 0.12),
                 child: Icon(
                   temVencido ? Icons.warning_amber_rounded : Icons.person,
                   color: temVencido ? Colors.red.shade700 : theme.primary,
@@ -505,18 +624,26 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: temVencido ? Colors.red.shade50 : Colors.green.shade50,
+                            color: temVencido
+                                ? Colors.red.shade50
+                                : Colors.green.shade50,
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: temVencido ? Colors.red.shade200 : Colors.green.shade200),
+                            border: Border.all(
+                                color: temVencido
+                                    ? Colors.red.shade200
+                                    : Colors.green.shade200),
                           ),
                           child: Text(
                             temVencido ? 'Inadimplência Ativa' : 'Em Dia',
                             style: GoogleFonts.inter(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
-                              color: temVencido ? Colors.red.shade800 : Colors.green.shade800,
+                              color: temVencido
+                                  ? Colors.red.shade800
+                                  : Colors.green.shade800,
                             ),
                           ),
                         ),
@@ -534,7 +661,9 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
                       Padding(
                         padding: const EdgeInsets.only(top: 2.0),
                         child: Text(
-                          [info.cpfCnpj, info.cidadeUf].where((s) => s.isNotEmpty).join(' • '),
+                          [info.cpfCnpj, info.cidadeUf]
+                              .where((s) => s.isNotEmpty)
+                              .join(' • '),
                           style: GoogleFonts.inter(
                             fontSize: 12.0,
                             color: theme.secondaryText,
@@ -554,9 +683,14 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
-              color: temVencido ? const Color(0xFFFEF2F2) : const Color(0xFFF8FAFC),
+              color: temVencido
+                  ? const Color(0xFFFEF2F2)
+                  : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: temVencido ? Colors.red.shade100 : Colors.blueGrey.shade100),
+              border: Border.all(
+                  color: temVencido
+                      ? Colors.red.shade100
+                      : Colors.blueGrey.shade100),
             ),
             child: Column(
               children: [
@@ -565,11 +699,17 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
                   children: [
                     Text(
                       'Total Vencido',
-                      style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.red.shade800),
+                      style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red.shade800),
                     ),
                     Text(
                       _fmtMoeda(info.totalVencido),
-                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.red.shade800),
+                      style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red.shade800),
                     ),
                   ],
                 ),
@@ -579,11 +719,17 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
                   children: [
                     Text(
                       'Total A Vencer',
-                      style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.blueGrey.shade700),
+                      style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.blueGrey.shade700),
                     ),
                     Text(
                       _fmtMoeda(info.totalAVencer),
-                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blueGrey.shade700),
+                      style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.blueGrey.shade700),
                     ),
                   ],
                 ),
@@ -593,26 +739,62 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
                   children: [
                     Text(
                       'Total Devedor Geral',
-                      style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
+                      style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF1E293B)),
                     ),
                     Text(
                       _fmtMoeda(info.totalDevedor),
-                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
+                      style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF1E293B)),
                     ),
                   ],
                 ),
-                if (info.maiorDiasAtraso > 0) ...[
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Total Juros',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: jurosResumo > 0
+                            ? Colors.orange.shade900
+                            : Colors.blueGrey.shade700,
+                      ),
+                    ),
+                    Text(
+                      _fmtMoeda(jurosResumo),
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: jurosResumo > 0
+                            ? Colors.orange.shade900
+                            : Colors.blueGrey.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+                if (diasAtrasoTot > 0) ...[
                   const SizedBox(height: 4),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Maior Dias de Atraso',
-                        style: GoogleFonts.inter(fontSize: 10, color: Colors.red.shade700),
+                        'Dias de atraso',
+                        style: GoogleFonts.inter(
+                            fontSize: 10, color: Colors.red.shade700),
                       ),
                       Text(
-                        '${info.maiorDiasAtraso} dias',
-                        style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red.shade700),
+                        '$diasAtrasoTot dias',
+                        style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red.shade700),
                       ),
                     ],
                   ),
@@ -639,7 +821,9 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
               _buildMetric(
                 'Disponível',
                 _fmtMoeda(info.limiteDisponivel),
-                info.limiteDisponivel >= 0 ? Colors.green.shade700 : Colors.red.shade700,
+                info.limiteDisponivel >= 0
+                    ? Colors.green.shade700
+                    : Colors.red.shade700,
               ),
             ],
           ),
@@ -653,7 +837,8 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
       children: [
         Text(
           label,
-          style: GoogleFonts.inter(fontSize: 11.0, color: const Color(0xFF677681)),
+          style:
+              GoogleFonts.inter(fontSize: 11.0, color: const Color(0xFF677681)),
         ),
         const SizedBox(height: 2.0),
         Text(
@@ -673,11 +858,13 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
       return _buildEmptyState(
         icon: Icons.shopping_bag_outlined,
         title: 'Nenhum pedido encontrado',
-        subtitle: 'Não existem pedidos registrados para este cliente na base local.',
+        subtitle:
+            'Não existem pedidos registrados para este cliente na base local.',
       );
     }
 
-    final totalGeral = _pedidosLocais.fold<double>(0.0, (acc, p) => acc + p.valorTotal);
+    final totalGeral =
+        _pedidosLocais.fold<double>(0.0, (acc, p) => acc + p.valorTotal);
 
     return Column(
       children: [
@@ -689,11 +876,15 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
             children: [
               Text(
                 '${_pedidosLocais.length} pedidos encontrados',
-                style: GoogleFonts.inter(fontSize: 13.0, fontWeight: FontWeight.w600),
+                style: GoogleFonts.inter(
+                    fontSize: 13.0, fontWeight: FontWeight.w600),
               ),
               Text(
                 'Total: ${_fmtMoeda(totalGeral)}',
-                style: GoogleFonts.inter(fontSize: 13.0, fontWeight: FontWeight.bold, color: theme.primary),
+                style: GoogleFonts.inter(
+                    fontSize: 13.0,
+                    fontWeight: FontWeight.bold,
+                    color: theme.primary),
               ),
             ],
           ),
@@ -731,7 +922,8 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
                   decoration: BoxDecoration(
                     color: theme.secondaryBackground,
                     borderRadius: BorderRadius.circular(10.0),
-                    border: Border.all(color: theme.alternate.withValues(alpha: 0.5)),
+                    border: Border.all(
+                        color: theme.alternate.withValues(alpha: 0.5)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -750,7 +942,8 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
                               ),
                               const SizedBox(width: 8.0),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6.0, vertical: 2.0),
                                 decoration: BoxDecoration(
                                   color: statusColor.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(4.0),
@@ -782,12 +975,14 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
                         children: [
                           Text(
                             'Data: ${_fmtData(item.data)}',
-                            style: GoogleFonts.inter(fontSize: 12.0, color: theme.secondaryText),
+                            style: GoogleFonts.inter(
+                                fontSize: 12.0, color: theme.secondaryText),
                           ),
                           if (item.planoDesc.isNotEmpty)
                             Text(
                               'Plano: ${item.planoDesc}',
-                              style: GoogleFonts.inter(fontSize: 12.0, color: theme.secondaryText),
+                              style: GoogleFonts.inter(
+                                  fontSize: 12.0, color: theme.secondaryText),
                             ),
                         ],
                       ),
@@ -796,7 +991,8 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
                           padding: const EdgeInsets.only(top: 4.0),
                           child: Text(
                             'Bônus: ${_fmtMoeda(item.valorBonus)}',
-                            style: GoogleFonts.inter(fontSize: 11.0, color: Colors.purple.shade600),
+                            style: GoogleFonts.inter(
+                                fontSize: 11.0, color: Colors.purple.shade600),
                           ),
                         ),
                     ],
@@ -810,85 +1006,25 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
     );
   }
 
-  Widget _buildTabTitulos(AppTheme theme) {
-    final titulos = _titulosDetalhados.where((t) => t.saldoDevedor > 0).toList();
+  Widget _buildTabVencidos(AppTheme theme) {
+    final titulos = _titulosDetalhados
+        .where((t) => t.isVencido && t.saldoDevedor > 0)
+        .toList();
     if (titulos.isEmpty) {
       return _buildEmptyState(
-        icon: Icons.receipt_outlined,
-        title: 'Nenhum título a receber',
-        subtitle: 'Não há duplicatas ou títulos pendentes para este cliente.',
+        icon: Icons.check_circle_outline_rounded,
+        title: 'Nenhum título vencido',
+        subtitle: 'Não há duplicatas vencidas em aberto para este cliente.',
       );
     }
 
-    final titulosVencidos = titulos.where((t) => t.isVencido).toList();
-    final totalAberto = titulos.fold<double>(0.0, (acc, t) => acc + t.saldoDevedor);
-
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          color: theme.primary.withValues(alpha: 0.06),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  'Títulos Pendentes (${titulos.length})',
-                  style: GoogleFonts.inter(fontSize: 13.0, fontWeight: FontWeight.w600),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (titulosVencidos.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.red.shade200),
-                      ),
-                      child: Text(
-                        'Inadimplência Ativa',
-                        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.red.shade800),
-                      ),
-                    )
-                  else
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.blue.shade200),
-                      ),
-                      child: Text(
-                        'Em Dia',
-                        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue.shade800),
-                      ),
-                    ),
-                  Text(
-                    'Total: ${_fmtMoeda(totalAberto)}',
-                    style: GoogleFonts.inter(fontSize: 13.0, fontWeight: FontWeight.bold, color: Colors.redAccent.shade700),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(12.0),
-            itemCount: titulos.length,
-            itemBuilder: (context, index) {
-              final t = titulos[index];
-              return _buildTituloItemCard(t, theme);
-            },
-          ),
-        ),
-      ],
+    return ListView.builder(
+      padding: const EdgeInsets.all(12.0),
+      itemCount: titulos.length,
+      itemBuilder: (context, index) {
+        final t = titulos[index];
+        return _buildTituloItemCard(t, theme);
+      },
     );
   }
 
@@ -921,8 +1057,11 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
             children: [
               Expanded(
                 child: Text(
-                  'Documento: ${t.numeroDocumento}',
-                  style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
+                  'Título: ${t.numeroDocumento}',
+                  style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF1E293B)),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -931,7 +1070,10 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
                 decoration: BoxDecoration(
                   color: isVencido ? Colors.red.shade50 : Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: isVencido ? Colors.red.shade200 : Colors.blue.shade200),
+                  border: Border.all(
+                      color: isVencido
+                          ? Colors.red.shade200
+                          : Colors.blue.shade200),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -941,7 +1083,9 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: isVencido ? Colors.red.shade800 : Colors.blue.shade800,
+                        color: isVencido
+                            ? Colors.red.shade800
+                            : Colors.blue.shade800,
                       ),
                     ),
                     if (isVencido && t.diasAtraso > 0)
@@ -966,14 +1110,16 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
             children: [
               Text(
                 'Emissão: ${ReceberDuplicatasService.formatarData(t.dataEmissao)}',
-                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade700),
+                style: GoogleFonts.inter(
+                    fontSize: 12, color: Colors.grey.shade700),
               ),
               Text(
                 'Vencimento: ${ReceberDuplicatasService.formatarData(t.dataVencimento)}',
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: isVencido ? Colors.red.shade700 : const Color(0xFF1E293B),
+                  color:
+                      isVencido ? Colors.red.shade700 : const Color(0xFF1E293B),
                 ),
               ),
             ],
@@ -986,11 +1132,13 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
             children: [
               Text(
                 'Valor Original: ${t.valorOriginal.toMoeda()}',
-                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade800),
+                style: GoogleFonts.inter(
+                    fontSize: 12, color: Colors.grey.shade800),
               ),
               Text(
                 'Recebido: ${t.valorPago.toMoeda()}',
-                style: GoogleFonts.inter(fontSize: 12, color: Colors.green.shade800),
+                style: GoogleFonts.inter(
+                    fontSize: 12, color: Colors.green.shade800),
               ),
             ],
           ),
@@ -1005,7 +1153,8 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: isVencido ? Colors.orange.shade800 : Colors.grey.shade600,
+                  color:
+                      isVencido ? Colors.orange.shade800 : Colors.grey.shade600,
                 ),
               ),
               Text(
@@ -1013,7 +1162,9 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: isVencido ? const Color(0xFFB91C1C) : const Color(0xFF1E293B),
+                  color: isVencido
+                      ? const Color(0xFFB91C1C)
+                      : const Color(0xFF1E293B),
                 ),
               ),
             ],
@@ -1043,459 +1194,78 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
       ),
       child: Text(
         '$label: $value',
-        style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w500, color: Colors.grey.shade700),
+        style: GoogleFonts.inter(
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey.shade700),
       ),
     );
   }
 
-  Widget _buildTabFaturamento(AppTheme theme) {
-    final titulos = _titulosDetalhados.where((t) => t.saldoDevedor > 0).toList();
-    final titulosVencidos = titulos.where((t) => t.isVencido).toList();
-
-    double totalValOriVencidos = 0.0;
-    double totalJuros = 0.0;
-    int somaDiasAtraso = 0;
-
-    for (final t in titulosVencidos) {
-      totalValOriVencidos += t.saldoDevedor;
-      totalJuros += t.valorJuros;
-      somaDiasAtraso += t.diasAtraso;
-    }
-
-    double totalValDevGeral = 0.0;
-    for (final t in titulos) {
-      totalValDevGeral += t.totalComJuros;
-    }
-
-    final info = _clienteInfo;
-    final totalVencido = (info != null && info.totalVencido > 0) ? info.totalVencido : totalValOriVencidos;
-    final totalDevedor = (info != null && info.totalDevedor > 0) ? info.totalDevedor : totalValDevGeral;
-    final totalJurosFinal = (info != null && info.totalJuros > 0) ? info.totalJuros : totalJuros;
-    final diasAtrasoFinal = (info != null && info.maiorDiasAtraso > 0 && somaDiasAtraso == 0)
-        ? info.maiorDiasAtraso
-        : somaDiasAtraso;
+  Widget _buildTabTodos(AppTheme theme) {
+    final titulos =
+        _titulosDetalhados.where((t) => t.saldoDevedor > 0).toList();
 
     if (titulos.isEmpty) {
       return _buildEmptyState(
-        icon: Icons.analytics_outlined,
+        icon: Icons.receipt_outlined,
         title: 'Nenhum título pendente',
-        subtitle: 'Não há duplicatas ou pendências financeiras em aberto para este cliente.',
+        subtitle:
+            'Não há duplicatas ou pendências financeiras em aberto para este cliente.',
       );
     }
 
-    return Column(
-      children: [
-        // ── Lista Rolável de Títulos no Formato do Legado (Conforme Imagem) ──
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(14.0, 10.0, 14.0, 16.0),
-            itemCount: titulos.length + 1,
-            itemBuilder: (context, index) {
-              if (index < titulos.length) {
-                return _buildItemFaturamentoLegado(titulos[index], index, theme);
-              }
-              // Item final: Ação de Copiar Texto
-              return Padding(
-                padding: const EdgeInsets.only(top: 4.0, bottom: 8.0),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.copy_rounded, color: Colors.black87, size: 18),
-                    label: Text(
-                      'Copiar Texto',
-                      style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.black87),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      side: BorderSide(color: Colors.grey.shade400),
-                    ),
-                    onPressed: () {
-                      final cli = _obterClienteReceberCompleto();
-                      if (cli != null) {
-                        ReceberDuplicatasService.copiarClipboard(
-                          context,
-                          cli,
-                          nomeVendedor: AppState().vendedor_nome,
-                        );
-                      }
-                    },
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-
-        // ── Tabela Inferior Fixa de Totais Legados (Conforme Imagem) ──────────
-        _buildTabelaTotaisLegada(
-          totVencido: totalVencido,
-          totJuros: totalJurosFinal,
-          diasAtraso: diasAtrasoFinal,
-          valorDevedor: totalDevedor,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildItemFaturamentoLegado(TituloDuplicataItem t, int index, AppTheme theme) {
-    final dtEmi = ReceberDuplicatasService.formatarData(t.dataEmissao);
-    final dtVen = ReceberDuplicatasService.formatarData(t.dataVencimento);
-    final txJuros = t.taxaJurosDiaria.toStringAsFixed(2).replaceAll('.', ',');
-    final isVencido = t.isVencido;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10.0),
-        border: Border.all(
-          color: isVencido ? const Color(0xFFFCA5A5) : const Color(0xFFE2E8F0),
-          width: isVencido ? 1.2 : 1.0,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A000000),
-            blurRadius: 4.0,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // 1. Cabeçalho do Card: Número do Título + Badge de Status
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12.0, 10.0, 12.0, 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Text(
-                        'TÍTULO: ',
-                        style: GoogleFonts.inter(
-                          fontSize: 14.0,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF0F172A),
-                        ),
-                      ),
-                      Flexible(
-                        child: Text(
-                          t.numeroDocumento,
-                          style: GoogleFonts.inter(
-                            fontSize: 15.0,
-                            fontWeight: FontWeight.w900,
-                            color: const Color(0xFF0F172A),
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
-                  decoration: BoxDecoration(
-                    color: isVencido ? const Color(0xFFFEF2F2) : const Color(0xFFF0FDF4),
-                    borderRadius: BorderRadius.circular(6.0),
-                    border: Border.all(
-                      color: isVencido ? const Color(0xFFFECACA) : const Color(0xFFBBF7D0),
-                    ),
-                  ),
-                  child: Text(
-                    isVencido
-                        ? 'VENCIDO${t.diasAtraso > 0 ? ' (${t.diasAtraso}d)' : ''}'
-                        : 'EM DIA',
-                    style: GoogleFonts.inter(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.bold,
-                      color: isVencido ? const Color(0xFFB91C1C) : const Color(0xFF15803D),
-                    ),
-                  ),
-                ),
-              ],
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(14.0, 10.0, 14.0, 16.0),
+      itemCount: titulos.length + 1,
+      itemBuilder: (context, index) {
+        if (index < titulos.length) {
+          return _buildTituloItemCard(titulos[index], theme);
+        }
+        // Item final: Ação de Copiar Texto
+        return Padding(
+          padding: const EdgeInsets.only(top: 4.0, bottom: 8.0),
+          child: SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.copy_rounded,
+                  color: Colors.black87, size: 18),
+              label: Text(
+                'Copiar Texto',
+                style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: Colors.black87),
+              ),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                side: BorderSide(color: Colors.grey.shade400),
+              ),
+              onPressed: () {
+                final cli = _obterClienteReceberCompleto();
+                if (cli != null) {
+                  ReceberDuplicatasService.copiarClipboard(
+                    context,
+                    cli,
+                    nomeVendedor: AppState().vendedor_nome,
+                  );
+                }
+              },
             ),
           ),
-
-          const Divider(height: 1.0, thickness: 1.0, color: Color(0xFFF1F5F9)),
-
-          // 2. Grade de Dados: Emissão, Vencimento, Juros e Dias de Atraso
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildInfoItem(
-                        label: 'EMISSÃO',
-                        value: dtEmi,
-                      ),
-                    ),
-                    const SizedBox(width: 12.0),
-                    Expanded(
-                      child: _buildInfoItem(
-                        label: 'VENCIMENTO',
-                        value: dtVen,
-                        valueColor: isVencido ? const Color(0xFFDC2626) : const Color(0xFF1E293B),
-                        isBold: isVencido,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8.0),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildInfoItem(
-                        label: '% JUROS/DIA',
-                        value: '$txJuros%',
-                      ),
-                    ),
-                    const SizedBox(width: 12.0),
-                    Expanded(
-                      child: _buildInfoItem(
-                        label: 'DIAS/ATRASO',
-                        value: '${t.diasAtraso}',
-                        valueColor: isVencido ? const Color(0xFFDC2626) : const Color(0xFF1E293B),
-                        isBold: isVencido,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8.0),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildInfoItem(
-                        label: 'VALOR TÍTULO',
-                        value: _fmtMoeda(t.saldoDevedor),
-                        isBold: true,
-                      ),
-                    ),
-                    const SizedBox(width: 12.0),
-                    Expanded(
-                      child: _buildInfoItem(
-                        label: 'VALOR JUROS',
-                        value: _fmtMoeda(t.valorJuros),
-                        valueColor: t.valorJuros > 0 ? const Color(0xFFDC2626) : const Color(0xFF1E293B),
-                        isBold: t.valorJuros > 0,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // 3. Barra de Destaque Inferior: SALDO DEVEDOR
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-            decoration: BoxDecoration(
-              color: isVencido ? const Color(0xFFFEF2F2) : const Color(0xFFF8FAFC),
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(9.0),
-                bottomRight: Radius.circular(9.0),
-              ),
-              border: Border(
-                top: BorderSide(
-                  color: isVencido ? const Color(0xFFFECACA) : const Color(0xFFE2E8F0),
-                  width: 1.0,
-                ),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'SALDO DEVEDOR:',
-                  style: GoogleFonts.inter(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
-                    color: isVencido ? const Color(0xFF991B1B) : const Color(0xFF334155),
-                  ),
-                ),
-                Text(
-                  _fmtMoeda(t.totalComJuros),
-                  style: GoogleFonts.inter(
-                    fontSize: 15.0,
-                    fontWeight: FontWeight.w900,
-                    color: const Color(0xFFDC2626), // Vermelho vivo idêntico ao legado
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoItem({
-    required String label,
-    required String value,
-    Color? valueColor,
-    bool isBold = false,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 10.5,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF64748B),
-            letterSpacing: 0.2,
-          ),
-        ),
-        const SizedBox(height: 2.0),
-        Text(
-          value,
-          style: GoogleFonts.inter(
-            fontSize: 13.0,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-            color: valueColor ?? const Color(0xFF1E293B),
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTabelaTotaisLegada({
-    required double totVencido,
-    required double totJuros,
-    required int diasAtraso,
-    required double valorDevedor,
-  }) {
-    final borderSide = BorderSide(color: Colors.grey.shade300, width: 1.0);
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: borderSide,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 4,
-            offset: Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Linha 1: Tot.Vencido | <valor> | Total Juros | <valor>
-          Row(
-            children: [
-              _buildTabelaCelula(
-                texto: 'Tot.Vencido',
-                isHeader: true,
-                flex: 3,
-                border: Border(right: borderSide, bottom: borderSide),
-              ),
-              _buildTabelaCelula(
-                texto: _fmtMoeda(totVencido),
-                isHeader: false,
-                alignRight: true,
-                flex: 3,
-                valueColor: totVencido > 0 ? const Color(0xFFB91C1C) : null,
-                border: Border(right: borderSide, bottom: borderSide),
-              ),
-              _buildTabelaCelula(
-                texto: 'Total Juros',
-                isHeader: true,
-                flex: 3,
-                border: Border(right: borderSide, bottom: borderSide),
-              ),
-              _buildTabelaCelula(
-                texto: _fmtMoeda(totJuros),
-                isHeader: false,
-                alignRight: true,
-                flex: 3,
-                border: Border(bottom: borderSide),
-              ),
-            ],
-          ),
-          // Linha 2: Dias/Atraso | <valor> | Valor Devedor | <valor>
-          Row(
-            children: [
-              _buildTabelaCelula(
-                texto: 'Dias/Atraso',
-                isHeader: true,
-                flex: 3,
-                border: Border(right: borderSide),
-              ),
-              _buildTabelaCelula(
-                texto: diasAtraso.toString(),
-                isHeader: false,
-                alignRight: true,
-                flex: 3,
-                border: Border(right: borderSide),
-              ),
-              _buildTabelaCelula(
-                texto: 'Valor Devedor',
-                isHeader: true,
-                flex: 3,
-                border: Border(right: borderSide),
-              ),
-              _buildTabelaCelula(
-                texto: _fmtMoeda(valorDevedor),
-                isHeader: false,
-                alignRight: true,
-                flex: 3,
-                valueColor: const Color(0xFFDC2626),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabelaCelula({
-    required String texto,
-    required bool isHeader,
-    required int flex,
-    bool alignRight = false,
-    BoxBorder? border,
-    Color? valueColor,
-  }) {
-    return Expanded(
-      flex: flex,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 7.0),
-        decoration: BoxDecoration(
-          color: isHeader ? const Color(0xFFF1F5F9) : Colors.white,
-          border: border,
-        ),
-        alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
-        child: Text(
-          texto,
-          style: GoogleFonts.inter(
-            fontSize: 11.5,
-            fontWeight: isHeader ? FontWeight.w600 : FontWeight.bold,
-            color: isHeader
-                ? const Color(0xFF475569)
-                : (valueColor ?? const Color(0xFF0F172A)),
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
+        );
+      },
     );
   }
 
   ClienteReceberItem? _obterClienteReceberCompleto() {
     double jurosCalculados = 0.0;
     for (final t in _titulosDetalhados) {
-      jurosCalculados += t.valorJuros;
+      if (t.isVencido) {
+        jurosCalculados += t.valorJuros;
+      }
     }
 
     if (_clienteReceber != null) {
@@ -1569,7 +1339,8 @@ class _ExtratoClientePageWidgetState extends State<ExtratoClientePageWidget>
             width: double.infinity,
             height: 48.0,
             child: ElevatedButton.icon(
-              icon: const Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 20.0),
+              icon: const Icon(Icons.check_circle_outline_rounded,
+                  color: Colors.white, size: 20.0),
               label: Text(
                 'Liberar Pedido',
                 style: GoogleFonts.inter(

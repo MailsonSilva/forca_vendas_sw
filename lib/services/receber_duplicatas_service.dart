@@ -24,6 +24,8 @@ class TituloDuplicataItem {
   final double taxaJurosDiaria;
   final double valorJuros;
   final double totalComJuros;
+  /// Taxa de juros diária nativa da duplicata (coluna dup00_pctjurday)
+  final double pctJurDay;
   // SPEC-042: Mapeamento de Vendedor, Agente Cobrador e Tipo de Cobrança
   final int codVen;
   final int codAgt;
@@ -43,6 +45,7 @@ class TituloDuplicataItem {
     this.taxaJurosDiaria = 0.0,
     this.valorJuros = 0.0,
     required this.totalComJuros,
+    this.pctJurDay = 0.0,
     this.codVen = 0,
     this.codAgt = 0,
     this.codCob = 0,
@@ -62,6 +65,7 @@ class ClienteReceberItem {
   final double totalDevedor;
   final double totalJuros;
   final int maiorDiasAtraso;
+  final int totalDiasAtraso;
   final int qtdTitulosVencidos;
   final int qtdTitulosTotal;
   final List<TituloDuplicataItem> titulos;
@@ -78,10 +82,17 @@ class ClienteReceberItem {
     required this.totalDevedor,
     required this.totalJuros,
     required this.maiorDiasAtraso,
+    this.totalDiasAtraso = 0,
     required this.qtdTitulosVencidos,
     required this.qtdTitulosTotal,
     required this.titulos,
   });
+
+  int get diasAtrasoAcumulado {
+    if (totalDiasAtraso > 0) return totalDiasAtraso;
+    final soma = titulos.where((t) => t.isVencido).fold<int>(0, (acc, t) => acc + t.diasAtraso);
+    return soma > 0 ? soma : maiorDiasAtraso;
+  }
 
   bool get temInadimplencia => qtdTitulosVencidos > 0 || totalVencido > 0;
 }
@@ -136,13 +147,25 @@ class ReceberDuplicatasService {
   /// Converte string em DateTime de forma resiliente
   static DateTime? parseData(dynamic value) {
     if (value == null) return null;
-    if (value is DateTime) return value;
-    final str = value.toString().trim();
+    if (value is DateTime) return normalizarData(value);
+    var str = value.toString().trim();
     if (str.isEmpty) return null;
 
     try {
+      if (str.contains(' ')) {
+        str = str.split(' ')[0].trim();
+      } else if (str.contains('T')) {
+        str = str.split('T')[0].trim();
+      }
+
       if (str.contains('-')) {
-        return DateTime.parse(str.length == 10 ? str : str.substring(0, 10));
+        final parts = str.split('-');
+        if (parts.length == 3) {
+          final y = int.tryParse(parts[0]) ?? 2000;
+          final m = int.tryParse(parts[1]) ?? 1;
+          final d = int.tryParse(parts[2]) ?? 1;
+          return DateTime(y, m, d);
+        }
       }
       if (str.contains('/')) {
         final parts = str.split('/');
@@ -153,7 +176,7 @@ class ReceberDuplicatasService {
           return DateTime(y, m, d);
         }
       }
-      if (str.length == 8) {
+      if (str.length == 8 && int.tryParse(str) != null) {
         final y = int.tryParse(str.substring(0, 4)) ?? 2000;
         final m = int.tryParse(str.substring(4, 6)) ?? 1;
         final d = int.tryParse(str.substring(6, 8)) ?? 1;
@@ -169,38 +192,99 @@ class ReceberDuplicatasService {
     Database? dbOverride,
     String? dbPathOverride,
   }) async {
-    final shouldClose = dbOverride == null;
-    try {
-      final db = dbOverride ??
-          (dbPathOverride != null
-              ? await openDatabase(dbPathOverride)
-              : await LocalSalesDatabaseService.getDatabase(readOnly: true));
-      try {
-        final cols = await db.rawQuery('PRAGMA table_info(cadrep00)');
-        final colNames = cols.map((r) => r['name'].toString().toLowerCase()).toSet();
-        String colVen = colNames.contains('ven00_codigo')
-            ? 'ven00_codigo'
-            : (colNames.contains('rep00_codigo') ? 'rep00_codigo' : 'codigo');
+    final bool buscaEspecifica = codVen > 0;
+    final repId = buscaEspecifica
+        ? codVen
+        : (AppState().vendedor_codigo > 0
+            ? AppState().vendedor_codigo
+            : AppState().vendedor_logado_codigo);
 
-        final rows = await db.rawQuery(
-          'SELECT * FROM cadrep00 WHERE $colVen = ? LIMIT 1',
-          [codVen],
-        );
-        if (rows.isNotEmpty) {
-          final r = rows.first;
-          for (final k in ['ven00_txajur', 'rep00_txajur', 'txajur', 'txa_jur']) {
-            if (r.containsKey(k) && r[k] != null) {
-              final v = _asDouble(r[k]);
-              if (v >= 0) return v;
+    final dbsToSearch = <Database>[];
+    final dbsToClose = <Database>[];
+
+    try {
+      if (dbOverride != null) {
+        dbsToSearch.add(dbOverride);
+      }
+      if (dbPathOverride != null) {
+        try {
+          final d = await openDatabase(dbPathOverride);
+          dbsToSearch.add(d);
+          dbsToClose.add(d);
+        } catch (_) {}
+      }
+
+      if (dbOverride == null && dbPathOverride == null) {
+        try {
+          final mainDbPath = await LocalSalesDatabaseService.getDatabasePath();
+          if (await File(mainDbPath).exists()) {
+            final d = await openDatabase(mainDbPath, readOnly: true);
+            dbsToSearch.add(d);
+            dbsToClose.add(d);
+          }
+        } catch (_) {}
+
+        try {
+          final databasesPath = await getDatabasesPath();
+          for (final f in ['dbforcacad001.db', 'dbforcadig001.db']) {
+            final pth = p.join(databasesPath, f);
+            if (await File(pth).exists()) {
+              final d = await openDatabase(pth, readOnly: true);
+              dbsToSearch.add(d);
+              dbsToClose.add(d);
             }
           }
-        }
-      } finally {
-        if (shouldClose) {
-          await db.close();
-        }
+        } catch (_) {}
       }
-    } catch (_) {}
+
+      for (final db in dbsToSearch) {
+        try {
+          final cols = await db.rawQuery('PRAGMA table_info(cadrep00)');
+          if (cols.isEmpty) continue;
+          final colNames = cols.map((r) => r['name'].toString().toLowerCase()).toSet();
+          String colVen = colNames.contains('ven00_codigo')
+              ? 'ven00_codigo'
+              : (colNames.contains('rep00_codigo') ? 'rep00_codigo' : 'codigo');
+
+          List<Map<String, dynamic>> rows = [];
+          if (repId > 0) {
+            rows = await db.rawQuery(
+              'SELECT * FROM cadrep00 WHERE $colVen = ? LIMIT 1',
+              [repId],
+            );
+          } else {
+            rows = await db.rawQuery('SELECT * FROM cadrep00 LIMIT 1');
+          }
+
+          if (rows.isNotEmpty) {
+            final r = rows.first;
+            for (final k in ['ven00_txajur', 'rep00_txajur', 'txajur', 'txa_jur']) {
+              if (r.containsKey(k) && r[k] != null) {
+                final v = _asDouble(r[k]);
+                if (v > 0) {
+                  if (!buscaEspecifica || repId == AppState().vendedor_codigo) {
+                    AppState().ven00_txajur = v;
+                  }
+                  return v;
+                }
+              }
+            }
+          }
+        } catch (_) {}
+      }
+    } finally {
+      for (final d in dbsToClose) {
+        try {
+          await d.close();
+        } catch (_) {}
+      }
+    }
+
+    if (!buscaEspecifica || repId == AppState().vendedor_codigo) {
+      if (AppState().ven00_txajur > 0) {
+        return AppState().ven00_txajur;
+      }
+    }
     return 0.0;
   }
 
@@ -369,7 +453,15 @@ class ReceberDuplicatasService {
           final codAgt = int.tryParse((r['dup00_codagt'] ?? r['codagt'] ?? '0').toString()) ?? 0;
           final codCob = int.tryParse((r['dup00_codcob'] ?? r['codcob'] ?? '0').toString()) ?? 0;
 
-          double taxaAplicada = taxaJurosOverride ?? 0.0;
+          // Hierarquia: 1) dup00_pctjurday (taxa nativa da duplicata)
+          //             2) taxaJurosOverride (passada pelo chamador)
+          //             3) taxa per-vendedor (cadrep00)
+          //             4) AppState().ven00_txajur (fallback global)
+          final pctJurDay = _asDouble(r['dup00_pctjurday'] ?? r['pctjurday']);
+          double taxaAplicada = pctJurDay;
+          if (taxaAplicada <= 0.0 && (taxaJurosOverride ?? 0.0) > 0.0) {
+            taxaAplicada = taxaJurosOverride!;
+          }
           if (taxaAplicada <= 0.0 && codVen > 0) {
             if (!cacheTaxasRep.containsKey(codVen)) {
               cacheTaxasRep[codVen] = await obterTaxaJurosVendedor(codVen, dbOverride: db);
@@ -383,19 +475,24 @@ class ReceberDuplicatasService {
             }
             taxaAplicada = cacheTaxasRep[AppState().vendedor_codigo] ?? 0.0;
           }
+          if (taxaAplicada <= 0.0 && AppState().ven00_txajur > 0.0) {
+            taxaAplicada = AppState().ven00_txajur;
+          }
 
           final diasCalculados = calcularDiasAtraso(dtVen, hoje: hoje);
           final isVencido = diasCalculados > 0;
           final diasAtraso = isVencido ? diasCalculados : 0;
+          final baseSaldo = valDev > 0 ? valDev : valOri;
           double juros = isVencido
               ? calcularJurosMora(
-                  saldoDevedor: valDev,
+                  saldoDevedor: baseSaldo,
                   taxaJurosDiaria: taxaAplicada,
                   diasAtraso: diasAtraso,
                 )
               : 0.0;
 
-          if (juros <= 0.0 && r.containsKey('dup00_valjur') && r['dup00_valjur'] != null) {
+          // Fallback: usar dup00_valjur do banco quando cálculo resulta 0
+          if (juros <= 0.0 && isVencido && r.containsKey('dup00_valjur') && r['dup00_valjur'] != null) {
             juros = _asDouble(r['dup00_valjur']);
           }
 
@@ -413,6 +510,7 @@ class ReceberDuplicatasService {
             taxaJurosDiaria: taxaAplicada,
             valorJuros: juros,
             totalComJuros: valDev + juros,
+            pctJurDay: pctJurDay,
             codVen: codVen,
             codAgt: codAgt,
             codCob: codCob,
@@ -544,7 +642,10 @@ class ReceberDuplicatasService {
             (int.tryParse((c[colCliKey] ?? c['cli00_codigo'] ?? c['codigo']).toString()) ?? 0): c
         };
 
-        final taxaJuros = taxaJurosOverride ?? 0.0;
+        final taxaJurosBase = taxaJurosOverride ??
+            (AppState().ven00_txajur > 0 ? AppState().ven00_txajur : 0.0);
+
+        final Map<int, double> cacheTaxasRep = {};
 
         for (final entry in titulosPorCliente.entries) {
           final codCli = entry.key;
@@ -588,15 +689,45 @@ class ReceberDuplicatasService {
 
             if (valDev <= 0) continue;
 
+            final codVen = int.tryParse((r['dup00_codven'] ?? r['codven'] ?? '0').toString()) ?? 0;
+
+            // Hierarquia: 1) dup00_pctjurday → 2) taxaJurosBase → 3) per-vendedor → 4) AppState
+            final pctJurDay = _asDouble(r['dup00_pctjurday'] ?? r['pctjurday']);
+            double taxaAplicada = pctJurDay;
+            if (taxaAplicada <= 0.0 && taxaJurosBase > 0.0) {
+              taxaAplicada = taxaJurosBase;
+            }
+            if (taxaAplicada <= 0.0 && codVen > 0) {
+              if (!cacheTaxasRep.containsKey(codVen)) {
+                cacheTaxasRep[codVen] = await obterTaxaJurosVendedor(codVen, dbOverride: db);
+              }
+              taxaAplicada = cacheTaxasRep[codVen] ?? 0.0;
+            }
+            if (taxaAplicada <= 0.0 && AppState().vendedor_codigo > 0) {
+              if (!cacheTaxasRep.containsKey(AppState().vendedor_codigo)) {
+                cacheTaxasRep[AppState().vendedor_codigo] =
+                    await obterTaxaJurosVendedor(AppState().vendedor_codigo, dbOverride: db);
+              }
+              taxaAplicada = cacheTaxasRep[AppState().vendedor_codigo] ?? 0.0;
+            }
+            if (taxaAplicada <= 0.0 && AppState().ven00_txajur > 0.0) {
+              taxaAplicada = AppState().ven00_txajur;
+            }
+
             final diasAtraso = calcularDiasAtraso(dtVen, hoje: hoje);
             final isVencido = diasAtraso > 0;
-            final juros = isVencido
+            double juros = isVencido
                 ? calcularJurosMora(
                     saldoDevedor: valDev,
-                    taxaJurosDiaria: taxaJuros,
+                    taxaJurosDiaria: taxaAplicada,
                     diasAtraso: diasAtraso,
                   )
                 : 0.0;
+
+            // Fallback: usar dup00_valjur do banco quando cálculo resulta 0
+            if (juros <= 0.0 && isVencido && r.containsKey('dup00_valjur') && r['dup00_valjur'] != null) {
+              juros = _asDouble(r['dup00_valjur']);
+            }
 
             if (isVencido) {
               qtdVencidos++;
@@ -609,7 +740,6 @@ class ReceberDuplicatasService {
               totalAVencer += valDev;
             }
 
-            final codVen = int.tryParse((r['dup00_codven'] ?? r['codven'] ?? '0').toString()) ?? 0;
             final codAgt = int.tryParse((r['dup00_codagt'] ?? r['codagt'] ?? '0').toString()) ?? 0;
             final codCob = int.tryParse((r['dup00_codcob'] ?? r['codcob'] ?? '0').toString()) ?? 0;
 
@@ -624,9 +754,10 @@ class ReceberDuplicatasService {
               saldoDevedor: valDev,
               diasAtraso: diasAtraso,
               isVencido: isVencido,
-              taxaJurosDiaria: taxaJuros,
+              taxaJurosDiaria: taxaAplicada,
               valorJuros: juros,
               totalComJuros: valDev + juros,
+              pctJurDay: pctJurDay,
               codVen: codVen,
               codAgt: codAgt,
               codCob: codCob,
@@ -669,6 +800,7 @@ class ReceberDuplicatasService {
             totalDevedor: totalVencido + totalAVencer,
             totalJuros: totalJuros,
             maiorDiasAtraso: maiorDiasAtraso,
+            totalDiasAtraso: titulosCliente.where((t) => t.isVencido).fold<int>(0, (acc, t) => acc + t.diasAtraso),
             qtdTitulosVencidos: qtdVencidos,
             qtdTitulosTotal: titulosCliente.length,
             titulos: titulosCliente,

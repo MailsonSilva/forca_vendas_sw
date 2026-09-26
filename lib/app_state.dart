@@ -17,6 +17,7 @@ class AppState extends ChangeNotifier {
   static const _venSelfilKey = 'app_ven_selfil';
   static const _empresaNomeKey = 'app_empresa_nome';
   static const _empresaCodigoKey = 'app_empresa_codigo';
+  static const _ven00TxajurKey = 'app_ven00_txajur';
 
   static AppState _instance = AppState._internal();
 
@@ -97,6 +98,9 @@ class AppState extends ChangeNotifier {
     _safeInit(() {
       _empresa_codigo = prefs.getString(_empresaCodigoKey) ?? _empresa_codigo;
     });
+    _safeInit(() {
+      _ven00_txajur = prefs.getDouble(_ven00TxajurKey) ?? _ven00_txajur;
+    });
   }
 
   void update(VoidCallback callback) {
@@ -105,6 +109,31 @@ class AppState extends ChangeNotifier {
   }
 
   late SharedPreferences prefs;
+
+  /// Taxa de juros do vendedor/representante logado (cadrep00.ven00_txajur)
+  double _ven00_txajur = 0.0;
+  double get ven00_txajur => _ven00_txajur;
+  set ven00_txajur(double value) {
+    _ven00_txajur = value;
+    try {
+      prefs.setDouble(_ven00TxajurKey, value);
+    } catch (_) {}
+    notifyListeners();
+  }
+
+  double get ven00Txajur => _ven00_txajur;
+  set ven00Txajur(double value) => ven00_txajur = value;
+
+  double get vendedor_taxa_juros => _ven00_txajur;
+  set vendedor_taxa_juros(double value) => ven00_txajur = value;
+
+  /// Representação do vendedor logado com acesso a ven00Txajur
+  VendedorLogadoInfo get vendedorLogado => VendedorLogadoInfo(
+        codigo: _vendedor_codigo > 0 ? _vendedor_codigo : _vendedor_logado_codigo,
+        nome: _vendedor_nome.isNotEmpty ? _vendedor_nome : _vendedor_logado_nome,
+        equipe: _vendedor_equipe,
+        ven00Txajur: _ven00_txajur,
+      );
 
   /// Nome/Razão Social da empresa da sessão autenticada
   String _empresaNome = '';
@@ -419,4 +448,19 @@ void _safeInit(Function() initializeField) {
   try {
     initializeField();
   } catch (_) {}
+}
+
+/// Informações consolidadas do vendedor ativo na sessão
+class VendedorLogadoInfo {
+  final int codigo;
+  final String nome;
+  final int equipe;
+  final double ven00Txajur;
+
+  const VendedorLogadoInfo({
+    this.codigo = 0,
+    this.nome = '',
+    this.equipe = 0,
+    this.ven00Txajur = 0.0,
+  });
 }

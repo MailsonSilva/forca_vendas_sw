@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:forca_de_vendas/app_state.dart';
-import 'package:forca_de_vendas/core/formatters/currency_formatter.dart';
 import 'package:forca_de_vendas/services/receber_duplicatas_service.dart';
 import 'package:forca_de_vendas/pages/cliente/extrato_cliente_page/extrato_cliente_page_widget.dart';
 
@@ -349,27 +348,24 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // 1. Aba superior deve exibir Títulos (11)
-      expect(find.text('Títulos (11)'), findsOneWidget);
+      // 1. Aba superior deve exibir Vencidos (5) e Todos (11)
+      expect(find.text('Vencidos (5)'), findsOneWidget);
+      expect(find.text('Todos (11)'), findsOneWidget);
 
-      // 2. Alternar para a Aba Títulos
-      await tester.tap(find.text('Títulos (11)'));
-      await tester.pumpAndSettle();
-
-      // Deve exibir os títulos na lista, incluindo vincendos
-      expect(find.text('Documento: VENC-1'), findsOneWidget);
-      expect(find.text('Documento: VINC-1'), findsOneWidget);
+      // 2. Aba Vencidos é a padrão (initialIndex: 1) e exibe os vencidos
+      expect(find.text('Título: VENC-1'), findsOneWidget);
+      expect(find.text('Título: VINC-1'), findsNothing);
 
       // 3. Título vencido deve ter indicador de Vencido
       expect(find.text('Vencido'), findsWidgets);
 
-      // 4. Alternar para a Aba Faturamento (Resumo & Totais)
-      await tester.tap(find.text('Faturamento'));
+      // 4. Alternar para a Aba Todos (Exibe todos os títulos)
+      await tester.tap(find.text('Todos (11)'));
       await tester.pumpAndSettle();
 
-      // 5. Card de Totais consolidados
-      expect(find.text(3375.70.toMoeda()), findsWidgets);
-      expect(find.text(5940.92.toMoeda()), findsWidgets);
+      // 5. Exibe tanto vencidos quanto vincendos
+      expect(find.text('Título: VENC-1'), findsOneWidget);
+      expect(find.text('Título: VINC-1'), findsOneWidget);
     });
 
     testWidgets('ExtratoClientePageWidget com modoBloqueio exibe botão Liberar Pedido e retorna true ao tocar', (tester) async {
@@ -439,20 +435,14 @@ void main() {
       // Botão "Liberar Pedido" deve estar visível
       expect(find.text('Liberar Pedido'), findsOneWidget);
 
-      // Alternar para aba Faturamento
-      await tester.tap(find.text('Faturamento'));
-      await tester.pumpAndSettle();
+      // Na aba Vencidos, a tabela inferior de totais e o container superior foram removidos
+      expect(find.text('Tot.Vencido'), findsNothing);
+      expect(find.text('Dias/Atraso'), findsNothing);
+      expect(find.text('Inadimplência Ativa'), findsOneWidget);
 
-      // Verificar layout estruturado de Faturamento
-      expect(find.text('TÍTULO: '), findsOneWidget);
-      expect(find.text('19994/1'), findsOneWidget);
-      expect(find.text('EMISSÃO'), findsOneWidget);
-      expect(find.text('VENCIMENTO'), findsOneWidget);
-      expect(find.text('SALDO DEVEDOR:'), findsOneWidget);
-      expect(find.text('Tot.Vencido'), findsOneWidget);
-      expect(find.text('Total Juros'), findsOneWidget);
-      expect(find.text('Dias/Atraso'), findsOneWidget);
-      expect(find.text('Valor Devedor'), findsOneWidget);
+      // Alternar para aba Todos (1)
+      await tester.tap(find.text('Todos (1)'));
+      await tester.pumpAndSettle();
 
       // Botão WhatsApp removido e botão Copiar Texto presente
       expect(find.text('Enviar via WhatsApp'), findsNothing);

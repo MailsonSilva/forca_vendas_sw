@@ -7,6 +7,18 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [Ajustes] - Correção de Juros no Extrato, Nomenclatura FTP e Filial no Pedido - 2026-09-26
+
+- Correção definitiva do campo de juros no Extrato utilizando a taxa nativa 'dup00_pctjurday'.
+- Renomeação e ordenação de abas do Extrato ("Vencidos" como padrão e "Todos").
+- Acumulação da soma de dias de atraso e remoção do rodapé de totais na aba Todos.
+- Padronização do rename de carga remota no FTP para 'ven[cod].[data] [hora]'.
+- Vinculação da filial selecionada no AppState ao iniciar novo pedido.
+- Tratamento contra tela vermelha no download da carga e disparo automático de imagens parciais.
+- Interceptação com PopScope nas configurações para manter a aplicação aberta.
+
+---
+
 ## [5.4.2] - 2026-09-24
 
 ### 🌟 Adicionado & Aprimorado (Novas Funcionalidades e Usabilidade)

@@ -149,6 +149,10 @@ Future<LoginResultStruct> offlineLogin(String vendedorCodigo, {String? dbPath}) 
           final v = row['ven00_passet'];
           if (v != null) AppState().ven_passet = v.toString().trim();
         }
+        if (cn.contains('ven00_txajur')) {
+          final v = row['ven00_txajur'];
+          if (v != null) AppState().ven00_txajur = (v as num).toDouble();
+        }
 
         // fallback: cadven00
         try {
