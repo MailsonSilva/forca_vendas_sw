@@ -208,6 +208,14 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Log da última carga de dados processada (SPEC-056)
+  String _logUltimaCarga = '';
+  String get logUltimaCarga => _logUltimaCarga;
+  set logUltimaCarga(String value) {
+    _logUltimaCarga = value;
+    notifyListeners();
+  }
+
   /// DSL app state empresa_codigo
   String _empresa_codigo = '';
   String get empresa_codigo => _empresa_codigo;

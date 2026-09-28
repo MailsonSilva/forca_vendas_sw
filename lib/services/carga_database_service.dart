@@ -171,6 +171,18 @@ class CargaDatabaseService {
             } else if (repColNames.contains('rep00_codfil') && row['rep00_codfil'] != null) {
               codfil = int.tryParse(row['rep00_codfil'].toString()) ?? 0;
             }
+
+            // Atualiza nome do perfil do vendedor se presente
+            String? nomeVendedor;
+            if (repColNames.contains('ven00_nome') && row['ven00_nome'] != null) {
+              nomeVendedor = row['ven00_nome'].toString().trim();
+            } else if (repColNames.contains('rep00_nome') && row['rep00_nome'] != null) {
+              nomeVendedor = row['rep00_nome'].toString().trim();
+            }
+            if (nomeVendedor != null && nomeVendedor.isNotEmpty) {
+              AppState().vendedor_nome = nomeVendedor;
+              AppState().vendedor_logado_nome = nomeVendedor;
+            }
           }
         }
       } catch (e) {
@@ -201,6 +213,7 @@ class CargaDatabaseService {
       final logFinal = 'Carga processada: seq=$seqCarga, data=${dtCarga?.toIso8601String()}, '
           'versao=$versao, equipe=$codeqp, filial=$codfil\n${logBuffer.toString()}';
 
+      AppState().logUltimaCarga = logFinal;
       debugPrint('[CargaDatabaseService] $logFinal');
 
       return CargaInfoResult(

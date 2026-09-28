@@ -280,6 +280,7 @@ class FtpUploadService {
     required int codigoEquipe,
     required int codRep,
     required int ipac,
+    String? dirPac,
     Duration intervalo = const Duration(seconds: 5),
     Duration timeout = const Duration(seconds: 60),
     void Function(int tentativa, String mensagem)? onPoll,
@@ -289,11 +290,13 @@ class FtpUploadService {
     final String prefixoRet = 'r$codRep-$ipac';
 
     final String emp = empresa.trim().isEmpty ? 'diniz' : empresa.trim();
-    final String targetFolder = FtpPathBuilder.getRemotePath(
-      empresa: emp,
-      codReg: codigoEquipe,
-      tipo: TipoCarga.pedido,
-    );
+    final String targetFolder = (dirPac != null && dirPac.trim().isNotEmpty)
+        ? dirPac.trim()
+        : FtpPathBuilder.getRemotePath(
+            empresa: emp,
+            codReg: codigoEquipe,
+            tipo: TipoCarga.pedido,
+          );
 
     final DateTime start = DateTime.now();
     int tentativa = 0;

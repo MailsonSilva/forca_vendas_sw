@@ -3,10 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:flutter/material.dart';
 import 'package:forca_de_vendas/app_state.dart';
 import 'package:forca_de_vendas/backend/ftp/ftp_transport.dart';
+import 'package:forca_de_vendas/pages/envio/envio_page_widget.dart';
 import 'package:forca_de_vendas/services/carga_database_service.dart';
 import 'package:forca_de_vendas/services/ftp_upload_service.dart';
+import 'package:forca_de_vendas/services/sincronizacao_service.dart';
 import 'package:forca_de_vendas/services/status_envio_db.dart';
 
 class MockFtpTransport implements FtpTransport {
@@ -217,6 +220,53 @@ void main() {
       expect(AppState().versaoSistema, equals('3.0.0'));
       expect(resultado.sequencialCarga, equals(42));
     });
+
+    test('SincronizacaoService atualiza perfil do vendedor e log de carga', () async {
+      await db.execute('DROP TABLE IF EXISTS cadcfg00');
+      await db.execute('DROP TABLE IF EXISTS cadrep00');
+      await db.execute('''
+        CREATE TABLE cadcfg00 (
+          cfg00_numcar INTEGER,
+          cfg00_datcar TEXT,
+          cfg00_versis TEXT
+        );
+      ''');
+      await db.execute('''
+        CREATE TABLE cadrep00 (
+          ven00_codigo INTEGER PRIMARY KEY,
+          ven00_codeqp INTEGER,
+          ven00_codfil INTEGER,
+          ven00_nome TEXT
+        );
+      ''');
+
+      await db.insert('cadcfg00', {
+        'cfg00_numcar': 2048,
+        'cfg00_datcar': '2026-09-28 15:45:00',
+        'cfg00_versis': '4.1.0',
+      });
+      await db.insert('cadrep00', {
+        'ven00_codigo': 99,
+        'ven00_codeqp': 55,
+        'ven00_codfil': 2,
+        'ven00_nome': 'Representante Suportware',
+      });
+
+      final sincService = SincronizacaoService();
+      final res = await sincService.processarCamposCarga(db: db, vendedorCodigo: 99);
+
+      expect(res.sequencialCarga, equals(2048));
+      expect(res.versaoSistema, equals('4.1.0'));
+      expect(res.equipeVendedor, equals(55));
+      expect(res.filialVendedor, equals(2));
+
+      expect(AppState().sequencialCarga, equals(2048));
+      expect(AppState().versaoSistema, equals('4.1.0'));
+      expect(AppState().vendedor_equipe, equals(55));
+      expect(AppState().vendedor_nome, equals('Representante Suportware'));
+      expect(AppState().logUltimaCarga, contains('seq=2048'));
+      expect(AppState().logUltimaCarga, contains('equipe=55'));
+    });
   });
 
   group('SPEC-056: Rotina de Envio com Aguardo de Retorno FTP', () {
@@ -363,6 +413,52 @@ void main() {
       final rows = await verifyDb3.query('pckvendig000', where: 'ped00_numped = ?', whereArgs: [501]);
       expect(rows.first['ped00_sttenv'], isNot(3));
       await verifyDb3.close();
+    });
+
+    test('Utiliza dirPac customizado quando informado explicitamente', () async {
+      final mockFtp = MockFtpTransport(
+        initialFiles: ['p71-1001.pac'],
+        simulateRenameOnPoll: true,
+      );
+
+      final statusDb = StatusEnvioDb(dbPath: dbDigPath);
+      final uploadService = FtpUploadService(
+        connectFtp: () async => mockFtp,
+        statusDb: statusDb,
+      );
+
+      final result = await uploadService.aguardarRetornoPacote(
+        empresa: 'diniz',
+        codigoEquipe: 12,
+        codRep: 71,
+        ipac: 1001,
+        dirPac: '/diniz/12/dirPAC/',
+        intervalo: const Duration(milliseconds: 10),
+        timeout: const Duration(milliseconds: 100),
+      );
+
+      expect(result.status, equals(PollingRetornoStatus.confirmado));
+      expect(mockFtp.currentDir, equals('dirPAC'));
+    });
+
+    testWidgets('EnvioPageWidget renderiza elementos de controle e botão de transmissão', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: EnvioPageWidget(
+            nomePacote: 'p71-1001.pac',
+            sequencialPacote: 1001,
+          ),
+        ),
+      );
+
+      expect(find.text('Comunicação FTP (ffrmcom00)'), findsOneWidget);
+      expect(find.text('Pacote: p71-1001.pac'), findsOneWidget);
+      expect(find.text('Transmitir e Aguardar Retorno'), findsOneWidget);
+
+      final popScopeFinder = find.byType(PopScope);
+      expect(popScopeFinder, findsWidgets);
+      final popScope = tester.widget<PopScope>(popScopeFinder.first);
+      expect(popScope.canPop, isTrue);
     });
   });
 }
