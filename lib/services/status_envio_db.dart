@@ -21,6 +21,7 @@ class StatusEnvioDb {
   final String? dbPath;
 
   static const List<String> _candidatasPedido = [
+    'dig00_sttenv',
     'ped00_sttenv',
     'ped00_enviado',
     'ped00_status',
@@ -96,18 +97,22 @@ class StatusEnvioDb {
       try {
         final columns = await db.rawQuery('PRAGMA table_info(pckvendig000)');
         final colNames = columns.map((r) => r['name']?.toString().toLowerCase()).toSet();
-        String? colEnv;
-        for (final c in _candidatasPedido) {
-          if (colNames.contains(c.toLowerCase())) { colEnv = c; break; }
+        final List<String> colsEnv = [];
+        for (final c in ['ped00_sttenv', 'dig00_sttenv', 'ped00_enviado', 'ped00_status', 'ped00_sitped', 'ped00_situac']) {
+          if (colNames.contains(c.toLowerCase())) {
+            colsEnv.add(c);
+          }
         }
         String? colPac;
         for (final c in ['ped00_pacstr', 'ped00_pacote', 'pacstr', 'pacote']) {
           if (colNames.contains(c.toLowerCase())) { colPac = c; break; }
         }
-        if (colEnv != null && colPac != null) {
+        if (colsEnv.isNotEmpty && colPac != null) {
+          final setClause = colsEnv.map((c) => '$c = ?').join(', ');
+          final values = List.filled(colsEnv.length, PedidoSttEnv.enviados.value);
           await db.rawUpdate(
-            'UPDATE pckvendig000 SET $colEnv = ? WHERE $colPac = ?',
-            [PedidoSttEnv.enviados.value, nomePacote.trim()],
+            'UPDATE pckvendig000 SET $setClause WHERE $colPac = ?',
+            [...values, nomePacote.trim()],
           );
         }
 
@@ -134,21 +139,30 @@ class StatusEnvioDb {
       final bool isCustom = dbPath != null;
       final db = await _getDb();
       try {
-        final columns = await db.rawQuery('PRAGMA table_info(pckvendig000)');
-        final colNames = columns.map((r) => r['name']?.toString().toLowerCase()).toSet();
-        String? colEnv;
-        for (final c in _candidatasPedido) {
-          if (colNames.contains(c.toLowerCase())) { colEnv = c; break; }
-        }
-        String? colPac;
-        for (final c in ['ped00_pacstr', 'ped00_pacote', 'pacstr', 'pacote']) {
-          if (colNames.contains(c.toLowerCase())) { colPac = c; break; }
-        }
-        if (colEnv != null && colPac != null) {
-          await db.rawUpdate(
-            'UPDATE pckvendig000 SET $colEnv = ? WHERE $colPac = ?',
-            [PedidoSttEnv.recebido.value, nomePacote.trim()],
-          );
+        for (final tbl in ['pckvendig000', 'pckvendig00']) {
+          try {
+            final columns = await db.rawQuery('PRAGMA table_info($tbl)');
+            if (columns.isEmpty) continue;
+            final colNames = columns.map((r) => r['name']?.toString().toLowerCase()).toSet();
+            final List<String> colsEnv = [];
+            for (final c in ['ped00_sttenv', 'dig00_sttenv', 'ped00_enviado', 'ped00_status', 'ped00_sitped', 'ped00_situac']) {
+              if (colNames.contains(c.toLowerCase())) {
+                colsEnv.add(c);
+              }
+            }
+            String? colPac;
+            for (final c in ['ped00_pacstr', 'dig00_pacstr', 'ped00_pacote', 'pacstr', 'pacote']) {
+              if (colNames.contains(c.toLowerCase())) { colPac = c; break; }
+            }
+            if (colsEnv.isNotEmpty && colPac != null) {
+              final setClause = colsEnv.map((c) => '$c = ?').join(', ');
+              final values = List.filled(colsEnv.length, PedidoSttEnv.recebido.value);
+              await db.rawUpdate(
+                'UPDATE $tbl SET $setClause WHERE $colPac = ?',
+                [...values, nomePacote.trim()],
+              );
+            }
+          } catch (_) {}
         }
 
         // Atualiza tabela pac00 para retornado/processado

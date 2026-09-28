@@ -35,5 +35,7 @@ export '/pages/relatorios/faturamento_metas/faturamento_metas_page_widget.dart'
     show FaturamentoMetasPageWidget;
 export '/pages/receber/receber_page_widget.dart'
     show ReceberPageWidget;
+export '/pages/envio/envio_page_widget.dart'
+    show EnvioPageWidget, Ffrmcom00Widget;
 
 

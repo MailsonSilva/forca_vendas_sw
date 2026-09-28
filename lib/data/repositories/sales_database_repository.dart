@@ -7,6 +7,7 @@ import '/data/services/crg_codec.dart';
 import '/data/services/local_sales_database_service.dart';
 import '/domain/models/sales_access_config.dart';
 import '/domain/models/sales_database_install_result.dart';
+import '/services/carga_database_service.dart';
 
 /// Repositorio da carga de vendas.
 ///
@@ -95,13 +96,22 @@ class SalesDatabaseRepository {
         await EmpresaLogoService.instance.sincronizarLogoDoBanco();
       } catch (_) {}
 
+      // SPEC-056: Inspeciona e extrai sequencial, data da carga, versão e equipe
+      try {
+        await CargaDatabaseService().processarCamposCarga(
+          vendedorCodigo: int.tryParse(salespersonCode),
+        );
+      } catch (_) {}
+
       // Renomeia o arquivo original no FTP (removendo qualquer extensão antiga e formatando ven[cod].[YYYY-MM-DD] [HH-mm-ss])
       try {
         final novoNomeCrg = gerarNomeArquivoRenomeado(crgName, DateTime.now());
         await ftp.rename(crgName, novoNomeCrg);
       } catch (_) {}
 
-      AppState().dataHoraUltimaCarga = DateTime.now();
+      if (AppState().dataHoraUltimaCarga == null) {
+        AppState().dataHoraUltimaCarga = DateTime.now();
+      }
 
       return SalesDatabaseInstallResult(
         message: 'Base local atualizada.',

@@ -7,6 +7,24 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [SPEC-056] - Verificação de Carga, Versionamento, Equipe e Handshake de Envio FTP - 2026-09-28
+
+### 🌟 Adicionado & Aprimorado
+- **Leitura de Metadados da Carga (`CargaDatabaseService`)**:
+  - Extração de sequencial da carga (`cfg00_numcar` / `cfg00_seqcar`) e timestamp (`cfg00_datcar`) da tabela `cadcfg00`.
+  - Persistência em `SharedPreferences` e exibição dinâmica no rodapé do Menu Principal ("Última Carga: nº X em DD/MM/AAAA HH:MM").
+  - Identificação da versão homologada do sistema (`cfg00_versis` com fallback para `srv00_verapp` em `cadace00` / `cadcfg00`), persistida em `AppState.versaoSistema` e exibida no rodapé e em Configurações.
+  - Leitura da equipe (`ven00_codeqp`) e filial (`ven00_codfil`) do representante na tabela `cadrep00`, atualizando o perfil do vendedor e registrando no log da carga.
+- **Rotina de Envio de Lotes com Handshake e Aguardo de Retorno FTP**:
+  - Implementação de `aguardarRetornoPacote` em `FtpUploadService` com polling remoto a cada 5s (timeout de 60s) monitorando renomeação do lote (ex: `.pro`, `.lid`) ou geração do arquivo de retorno (`r<codrep>-<ipac>.ret`).
+  - Atualização dos pedidos vinculados para `dig00_sttenv = 3` e `ped00_sttenv = 3` ao confirmar consumo pela retaguarda.
+  - Tratamento resiliente de timeout: mantém o lote enviado sem reenviar e permite saída segura com notificação em segundo plano.
+- **Proteção de Interface e Navegação (`EnvioPageWidget` e `GerarPacotePageWidget`)**:
+  - Modal bloqueante com `PopScope(canPop: false)` impedindo saída ou duplo clique durante o handshake.
+  - Bloqueio do botão voltar físico/gestual durante o processo e navegação automática de volta à Home após a confirmação.
+
+---
+
 ## [Ajustes] - Correção de Juros no Extrato, Nomenclatura FTP e Filial no Pedido - 2026-09-26
 
 - Correção definitiva do campo de juros no Extrato utilizando a taxa nativa 'dup00_pctjurday'.

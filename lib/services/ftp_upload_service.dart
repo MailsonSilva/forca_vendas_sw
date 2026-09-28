@@ -261,4 +261,134 @@ class FtpUploadService {
       // Falha na limpeza não deve reprovar o upload já confirmado.
     }
   }
+
+  /// Realiza polling remoto no diretório do FTP aguardando o consumo/retorno do pacote
+  /// pela retaguarda ERP Suportware (SPEC-056).
+  ///
+  /// Critérios de confirmação:
+  ///   1. O arquivo `p<codrep>-<ipac>.pac` foi renomeado pela retaguarda (ex: .pro, .lid, sem extensão ou movido)
+  ///   OU
+  ///   2. Foi gerado o arquivo de retorno correspondente `r<codrep>-<ipac>.ret` (ou .xml / .crg).
+  ///
+  /// Ao confirmar:
+  ///   - Atualiza pedidos locais vinculados para `dig00_sttenv = 3` (e `ped00_sttenv = 3`).
+  /// Ao expirar timeout (padrão 60s):
+  ///   - Retorna status timeout mantendo o lote como enviado (sttenv = 2) em segundo plano,
+  ///     permitindo o retorno seguro sem reenvio.
+  Future<PollingRetornoResult> aguardarRetornoPacote({
+    required String empresa,
+    required int codigoEquipe,
+    required int codRep,
+    required int ipac,
+    Duration intervalo = const Duration(seconds: 5),
+    Duration timeout = const Duration(seconds: 60),
+    void Function(int tentativa, String mensagem)? onPoll,
+  }) async {
+    final String nomePacoteOriginal = 'p$codRep-$ipac.pac';
+    final String prefixoPac = 'p$codRep-$ipac';
+    final String prefixoRet = 'r$codRep-$ipac';
+
+    final String emp = empresa.trim().isEmpty ? 'diniz' : empresa.trim();
+    final String targetFolder = FtpPathBuilder.getRemotePath(
+      empresa: emp,
+      codReg: codigoEquipe,
+      tipo: TipoCarga.pedido,
+    );
+
+    final DateTime start = DateTime.now();
+    int tentativa = 0;
+
+    FtpTransport? ftp;
+    try {
+      ftp = await _connectFtp();
+      await _navegarFtpPasta(ftp, targetFolder);
+
+      while (DateTime.now().difference(start) < timeout) {
+        tentativa++;
+        onPoll?.call(tentativa, 'Aguardando processamento da retaguarda (tentativa $tentativa)...');
+
+        try {
+          final List<String> remoteFiles = await ftp.nlst();
+          final List<String> limpos = remoteFiles
+              .map((f) => p.basename(f).toLowerCase())
+              .toList();
+
+          // 1. Verifica se foi gerado o arquivo de retorno (r<codrep>-<ipac>.ret / .xml)
+          final String? retMatch = limpos.cast<String?>().firstWhere(
+                (f) =>
+                    f != null &&
+                    f.startsWith(prefixoRet.toLowerCase()) &&
+                    (f.endsWith('.ret') || f.endsWith('.xml') || f.endsWith('.crg')),
+                orElse: () => null,
+              );
+
+          if (retMatch != null) {
+            // Confirmado via arquivo de retorno!
+            await _statusDb.marcarPacoteRecebido(nomePacoteOriginal);
+            return PollingRetornoResult(
+              status: PollingRetornoStatus.confirmado,
+              mensagem: 'Processamento confirmado pela retaguarda. Arquivo de retorno detectado.',
+              arquivoRetorno: retMatch,
+            );
+          }
+
+          // 2. Verifica se o arquivo .pac original foi renomeado (ex: .pro, .lid, sem extensão ou outro sufixo)
+          final bool existePacOriginal = limpos.contains(nomePacoteOriginal.toLowerCase());
+          final bool existeRenomeado = limpos.any((f) =>
+              f.startsWith(prefixoPac.toLowerCase()) && !f.endsWith('.pac'));
+
+          if (existeRenomeado || (!existePacOriginal && tentativa > 1)) {
+            // Confirmado via renomeação ou consumo do arquivo pela retaguarda!
+            await _statusDb.marcarPacoteRecebido(nomePacoteOriginal);
+            return const PollingRetornoResult(
+              status: PollingRetornoStatus.confirmado,
+              mensagem: 'Processamento confirmado pela retaguarda. Lote consumido/renomeado.',
+            );
+          }
+        } catch (_) {
+          // Em caso de oscilação transitória no nlst, aguarda e tenta novamente
+        }
+
+        await Future.delayed(intervalo);
+      }
+
+      // Timeout atingido
+      return const PollingRetornoResult(
+        status: PollingRetornoStatus.timeout,
+        mensagem: 'Lote enviado, aguardando confirmação da retaguarda em segundo plano.',
+      );
+    } catch (e) {
+      return PollingRetornoResult(
+        status: PollingRetornoStatus.erro,
+        mensagem: 'Erro durante o aguardo de retorno: $e',
+      );
+    } finally {
+      try {
+        await ftp?.quit();
+      } catch (_) {}
+    }
+  }
+}
+
+/// Estado do polling de retorno da retaguarda ERP
+enum PollingRetornoStatus {
+  confirmado,
+  timeout,
+  erro,
+}
+
+/// Resultado do polling de retorno do pacote (SPEC-056)
+class PollingRetornoResult {
+  const PollingRetornoResult({
+    required this.status,
+    required this.mensagem,
+    this.arquivoRetorno,
+  });
+
+  final PollingRetornoStatus status;
+  final String mensagem;
+  final String? arquivoRetorno;
+
+  bool get isConfirmado => status == PollingRetornoStatus.confirmado;
+  bool get isTimeout => status == PollingRetornoStatus.timeout;
 }

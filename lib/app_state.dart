@@ -13,6 +13,9 @@ class AppState extends ChangeNotifier {
   static const _pastaUploadKey = 'app_pastaUpload0';
   static const _dataHoraUltimaCargaKey = 'app_data_hora_ultima_carga';
   static const _ultimaAtualizacaoCargaKey = 'ultima_atualizacao_carga';
+  static const _sequencialCargaKey = 'app_sequencial_carga';
+  static const _versaoSistemaKey = 'app_versao_sistema';
+  static const _vendedorEquipeKey = 'app_vendedor_equipe';
   static const _venEstnegKey = 'app_ven_estneg';
   static const _venSelfilKey = 'app_ven_selfil';
   static const _empresaNomeKey = 'app_empresa_nome';
@@ -101,6 +104,15 @@ class AppState extends ChangeNotifier {
     _safeInit(() {
       _ven00_txajur = prefs.getDouble(_ven00TxajurKey) ?? _ven00_txajur;
     });
+    _safeInit(() {
+      _sequencialCarga = prefs.getInt(_sequencialCargaKey) ?? _sequencialCarga;
+    });
+    _safeInit(() {
+      _versaoSistema = prefs.getString(_versaoSistemaKey) ?? _versaoSistema;
+    });
+    _safeInit(() {
+      _vendedor_equipe = prefs.getInt(_vendedorEquipeKey) ?? _vendedor_equipe;
+    });
   }
 
   void update(VoidCallback callback) {
@@ -164,6 +176,36 @@ class AppState extends ChangeNotifier {
   int get vendedor_equipe => _vendedor_equipe;
   set vendedor_equipe(int value) {
     _vendedor_equipe = value;
+    try {
+      prefs.setInt(_vendedorEquipeKey, value);
+    } catch (_) {}
+    notifyListeners();
+  }
+
+  /// Alias de equipe do vendedor (cadrep00.ven00_codeqp)
+  int get equipeVendedor => _vendedor_equipe;
+  set equipeVendedor(int value) => vendedor_equipe = value;
+
+  /// Sequencial da Carga (cadcfg00.cfg00_numcar)
+  int _sequencialCarga = 0;
+  int get sequencialCarga => _sequencialCarga;
+  set sequencialCarga(int value) {
+    _sequencialCarga = value;
+    try {
+      prefs.setInt(_sequencialCargaKey, value);
+    } catch (_) {}
+    notifyListeners();
+  }
+
+  /// Versão do Sistema / Carga Homologada (cadcfg00.cfg00_versis)
+  String _versaoSistema = '';
+  String get versaoSistema => _versaoSistema;
+  set versaoSistema(String value) {
+    _versaoSistema = value;
+    try {
+      prefs.setString(_versaoSistemaKey, value);
+    } catch (_) {}
+    notifyListeners();
   }
 
   /// DSL app state empresa_codigo
@@ -432,7 +474,7 @@ class AppState extends ChangeNotifier {
 
   String get dataHoraUltimaCargaFormatada {
     if (_dataHoraUltimaCarga == null) {
-      return 'Última atualização: Não realizada';
+      return 'Última Carga: Não realizada';
     }
     final dt = _dataHoraUltimaCarga!;
     final d = dt.day.toString().padLeft(2, '0');
@@ -440,7 +482,10 @@ class AppState extends ChangeNotifier {
     final y = dt.year.toString();
     final h = dt.hour.toString().padLeft(2, '0');
     final min = dt.minute.toString().padLeft(2, '0');
-    return 'Última atualização: $d/$m/$y às $h:$min';
+    if (_sequencialCarga > 0) {
+      return 'Última Carga: nº $_sequencialCarga em $d/$m/$y $h:$min';
+    }
+    return 'Última Carga: $d/$m/$y $h:$min';
   }
 }
 

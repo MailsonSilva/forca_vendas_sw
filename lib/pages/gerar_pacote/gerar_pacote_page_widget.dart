@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/app_theme.dart';
@@ -6,6 +7,9 @@ import '/action_code/listar_pedidos_pendentes.dart';
 import '/action_code/listar_clientes_pendentes.dart';
 import '/action_code/gerar_pacote.dart';
 import '/action_code/enviar_arquivos_pendentes_ftp.dart';
+import '/pages/home_page/home_page_widget.dart';
+import '/services/ftp_upload_service.dart';
+import '/services/nav_bar_service.dart';
 
 class GerarPacotePageWidget extends StatefulWidget {
   const GerarPacotePageWidget({super.key});
@@ -36,6 +40,16 @@ class _GerarPacotePageWidgetState extends State<GerarPacotePageWidget> {
 
   bool _loading = true;
   bool _enviando = false;
+  bool _aguardandoRetorno = false;
+  String _statusHandshake = '';
+  int _segundosRestantes = 60;
+  Timer? _timerRegressivo;
+
+  @override
+  void dispose() {
+    _timerRegressivo?.cancel();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -221,7 +235,7 @@ class _GerarPacotePageWidgetState extends State<GerarPacotePageWidget> {
     }
   }
 
-  // ── Ação: Enviar Cargas via FTP ─────────────────────────────────────────────
+  // ── Ação: Enviar Cargas via FTP e Aguardo de Retorno (SPEC-056) ─────────────
 
   Future<void> _enviarCargaFtp({
     bool enviarPedidos = true,
@@ -260,9 +274,26 @@ class _GerarPacotePageWidgetState extends State<GerarPacotePageWidget> {
 
     if (confirmar != true) return;
 
-    safeSetState(() => _enviando = true);
+    safeSetState(() {
+      _enviando = true;
+      _aguardandoRetorno = true;
+      _statusHandshake = 'Enviando lote... Aguardando processamento da retaguarda';
+      _segundosRestantes = 60;
+    });
+
+    _timerRegressivo?.cancel();
+    _timerRegressivo = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (_segundosRestantes > 0) {
+        if (mounted) safeSetState(() => _segundosRestantes--);
+      } else {
+        t.cancel();
+      }
+    });
+
+    _exibirModalBloqueanteHandshake();
 
     try {
+      // Passo 1: Upload dos pacotes
       final result = await enviarArquivosPendentesFtp(
         enviarClientes: enviarClientes,
         enviarPedidos: enviarPedidos,
@@ -271,32 +302,100 @@ class _GerarPacotePageWidgetState extends State<GerarPacotePageWidget> {
 
       if (!mounted) return;
 
-      if (result.success) {
+      if (!result.success) {
+        _fecharModalSeAberto();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Falha na transmissão FTP: ${result.message}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Passo 3: Polling de retorno (Timer a cada 5s, timeout de 60s)
+      final String empresa = AppState().empresa_codigo.trim().isEmpty
+          ? 'diniz'
+          : AppState().empresa_codigo.trim();
+      final int codRep = AppState().vendedor_codigo > 0 ? AppState().vendedor_codigo : 71;
+      final int codigoEquipe = AppState().vendedor_equipe > 0 ? AppState().vendedor_equipe : codRep;
+
+      final List<String> pacotesEnviados = (nomesAlvo != null && nomesAlvo.isNotEmpty)
+          ? nomesAlvo.where((n) => n.toLowerCase().endsWith('.pac')).toList()
+          : _todosPacotes.where((p) => p.isPendente).map((p) => p.nomeArquivo).toList();
+
+      int seqPac = 0;
+      if (pacotesEnviados.isNotEmpty) {
+        final match = RegExp(r'-(\d+)').firstMatch(pacotesEnviados.first);
+        if (match != null) {
+          seqPac = int.tryParse(match.group(1) ?? '') ?? 0;
+        }
+      }
+
+      final uploadService = FtpUploadService();
+      final pollingResult = await uploadService.aguardarRetornoPacote(
+        empresa: empresa,
+        codigoEquipe: codigoEquipe,
+        codRep: codRep,
+        ipac: seqPac > 0 ? seqPac : 1000,
+        intervalo: const Duration(seconds: 5),
+        timeout: const Duration(seconds: 60),
+        onPoll: (tentativa, msg) {
+          if (mounted) {
+            safeSetState(() {
+              _statusHandshake = '$msg (${_segundosRestantes}s)';
+            });
+          }
+        },
+      );
+
+      _fecharModalSeAberto();
+
+      // Passo 4: Finalização
+      if (pollingResult.isConfirmado) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Lote processado e confirmado com sucesso pela retaguarda!'),
+            backgroundColor: Color(0xFF2E7D32),
+            duration: Duration(seconds: 4),
+          ),
+        );
+
+        NavBarService().navegarParaHome();
+        try {
+          context.goNamed(HomePageWidget.routeName);
+        } catch (_) {}
+      } else if (pollingResult.isTimeout) {
+        if (!mounted) return;
         await showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-            icon: const Icon(Icons.check_circle_rounded, size: 48.0, color: Color(0xFF2E7D32)),
-            title: const Text('Transmissão Concluída!'),
-            content: Text(
-              '${result.message}\n\nArquivos confirmados no servidor com verificação de integridade (SIZE) e status atualizado localmente.',
+            icon: const Icon(Icons.info_outline_rounded, color: Colors.orange, size: 48.0),
+            title: const Text('Lote Enviado'),
+            content: const Text(
+              'Lote enviado, aguardando confirmação da retaguarda em segundo plano.\n\n'
+              'Você pode navegar com segurança sem reenviar o lote.',
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('OK'),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  NavBarService().navegarParaHome();
+                  try {
+                    context.goNamed(HomePageWidget.routeName);
+                  } catch (_) {}
+                },
+                child: const Text('OK, Voltar ao Menu'),
               ),
             ],
           ),
         );
-
-        safeSetState(() {
-          _pacotesSelecionados.clear();
-          _filtroPacotes = 'enviados';
-        });
       } else {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Falha na transmissão FTP: ${result.message}'),
+            content: Text(pollingResult.mensagem),
             backgroundColor: Colors.red,
           ),
         );
@@ -304,6 +403,7 @@ class _GerarPacotePageWidgetState extends State<GerarPacotePageWidget> {
 
       await _carregar();
     } catch (e) {
+      _fecharModalSeAberto();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -312,7 +412,62 @@ class _GerarPacotePageWidgetState extends State<GerarPacotePageWidget> {
         ),
       );
     } finally {
-      if (mounted) safeSetState(() => _enviando = false);
+      _timerRegressivo?.cancel();
+      if (mounted) {
+        safeSetState(() {
+          _enviando = false;
+          _aguardandoRetorno = false;
+        });
+      }
+    }
+  }
+
+  void _exibirModalBloqueanteHandshake() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.0)),
+          title: const Row(
+            children: [
+              Icon(Icons.sync_rounded, color: Color(0xFF0284C7)),
+              SizedBox(width: 8.0),
+              Text('Transmissão FTP'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12.0),
+              const CircularProgressIndicator(
+                strokeWidth: 3.5,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0284C7)),
+              ),
+              const SizedBox(height: 20.0),
+              Text(
+                _statusHandshake.isNotEmpty
+                    ? _statusHandshake
+                    : 'Enviando lote... Aguardando processamento da retaguarda',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14.0),
+              ),
+              const SizedBox(height: 10.0),
+              Text(
+                'Tempo limite: ${_segundosRestantes}s',
+                style: const TextStyle(fontSize: 12.0, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _fecharModalSeAberto() {
+    if (Navigator.of(context, rootNavigator: true).canPop()) {
+      Navigator.of(context, rootNavigator: true).pop();
     }
   }
 
@@ -343,12 +498,16 @@ class _GerarPacotePageWidgetState extends State<GerarPacotePageWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.of(context).primaryBackground,
-      appBar: AppBar(
-        backgroundColor: AppTheme.of(context).primary,
-        automaticallyImplyLeading: true,
-        iconTheme: const IconThemeData(color: Colors.white),
+    final bool bloqueado = _enviando || _aguardandoRetorno;
+
+    return PopScope(
+      canPop: !bloqueado,
+      child: Scaffold(
+        backgroundColor: AppTheme.of(context).primaryBackground,
+        appBar: AppBar(
+          backgroundColor: AppTheme.of(context).primary,
+          automaticallyImplyLeading: !bloqueado,
+          iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
           'Central de Transmissão',
           style: AppTheme.of(context).titleLarge.override(
@@ -416,8 +575,9 @@ class _GerarPacotePageWidgetState extends State<GerarPacotePageWidget> {
         ),
       ),
       bottomNavigationBar: _buildBottomAction(),
-    );
-  }
+    ),
+  );
+}
 
   // ── Botão de Seleção de Aba ─────────────────────────────────────────────────
 

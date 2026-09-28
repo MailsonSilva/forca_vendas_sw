@@ -171,7 +171,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                             ),
                       ),
                       Text(
-                        'Bem vindo, ${AppState().vendedor_nome}',
+                        'Bem vindo, ${AppState().vendedor_nome}${AppState().vendedor_equipe > 0 ? " (Equipe ${AppState().vendedor_equipe})" : ""}',
                         style: AppTheme.of(context).bodyMedium.override(
                               font: GoogleFonts.inter(
                                 fontWeight: FontWeight.w500,
@@ -445,25 +445,43 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                   ),
                 ),
               ),
-              // Rodapé: Data e Hora da Última Carga (abaixo dos botões do menu e protegido por SafeArea(bottom: true))
+              // Rodapé: Data e Hora da Última Carga e Versão do Sistema (abaixo dos botões do menu e protegido por SafeArea(bottom: true))
               SafeArea(
                 bottom: true,
                 top: false,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                      vertical: 10.0, horizontal: 16.0),
-                  child: Center(
-                    child: Text(
-                      AppState().dataHoraUltimaCargaFormatada,
-                      textAlign: TextAlign.center,
-                      style: AppTheme.of(context).bodySmall.override(
-                            font: GoogleFonts.inter(
-                              fontWeight: FontWeight.w500,
+                      vertical: 8.0, horizontal: 16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        AppState().dataHoraUltimaCargaFormatada,
+                        textAlign: TextAlign.center,
+                        style: AppTheme.of(context).bodySmall.override(
+                              font: GoogleFonts.inter(
+                                fontWeight: FontWeight.w500,
+                              ),
+                              color: AppTheme.of(context).secondaryText,
+                              fontSize: 12.0,
                             ),
-                            color: AppTheme.of(context).secondaryText,
-                            fontSize: 12.0,
+                      ),
+                      if (AppState().versaoSistema.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2.0),
+                          child: Text(
+                            'Versão do Sistema: ${AppState().versaoSistema}',
+                            textAlign: TextAlign.center,
+                            style: AppTheme.of(context).bodySmall.override(
+                                  font: GoogleFonts.inter(
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                  color: AppTheme.of(context).secondaryText,
+                                  fontSize: 10.5,
+                                ),
                           ),
-                    ),
+                        ),
+                    ],
                   ),
                 ),
               ),

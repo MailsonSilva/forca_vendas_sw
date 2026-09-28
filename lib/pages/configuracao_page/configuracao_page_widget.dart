@@ -382,9 +382,13 @@ class _ConfiguracaoPageWidgetState extends State<ConfiguracaoPageWidget> {
                 FutureBuilder<PackageInfo>(
                   future: PackageInfo.fromPlatform(),
                   builder: (context, snapshot) {
-                    final versionText = snapshot.hasData
-                        ? 'Versão: ${snapshot.data!.version}'
-                        : 'Versão: Carregando...';
+                    final appVersion = snapshot.hasData
+                        ? snapshot.data!.version
+                        : 'Carregando...';
+                    final sistemaVersion = AppState().versaoSistema.isNotEmpty
+                        ? ' | Carga/Sistema: ${AppState().versaoSistema}'
+                        : '';
+                    final versionText = 'Versão do App: $appVersion$sistemaVersion';
                     return Center(
                       child: Padding(
                         padding: const EdgeInsets.only(top: 8.0, bottom: 16.0),

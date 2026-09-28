@@ -213,6 +213,20 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => const GerarPacotePageWidget(),
         ),
         AppRoute(
+          name: EnvioPageWidget.routeName,
+          path: EnvioPageWidget.routePath,
+          builder: (context, params) => EnvioPageWidget(
+            nomePacote: params.getParam(
+              'nomePacote',
+              ParamType.String,
+            ),
+            sequencialPacote: params.getParam(
+              'sequencialPacote',
+              ParamType.int,
+            ),
+          ),
+        ),
+        AppRoute(
           name: ContaCorrentePageWidget.routeName,
           path: ContaCorrentePageWidget.routePath,
           builder: (context, params) => const ContaCorrentePageWidget(),
