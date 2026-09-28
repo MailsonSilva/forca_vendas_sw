@@ -4,6 +4,8 @@ import 'package:path_provider/path_provider.dart';
 import '../backend/ftp/ftp_client.dart';
 import '../backend/ftp/ftp_transport.dart';
 import '../backend/schema/structs/index.dart';
+import '../data/repositories/cliente_repository.dart';
+import 'cliente_ftp_sync_service.dart';
 import 'carga_registry_service.dart';
 import 'ftp_path_builder.dart';
 import 'status_envio_db.dart';
@@ -364,6 +366,118 @@ class FtpUploadService {
       return PollingRetornoResult(
         status: PollingRetornoStatus.erro,
         mensagem: 'Erro durante o aguardo de retorno: $e',
+      );
+    } finally {
+      try {
+        await ftp?.quit();
+      } catch (_) {}
+    }
+  }
+
+  /// Realiza o envio via FTP dos novos clientes locais (cadclipre00) gerando
+  /// arquivos XML puros no protocolo fcfPUTCAD = 10 para o diretório de cadastros.
+  Future<UploadPendenteResultStruct> enviarNovosClientesFtp({
+    required String codVendedor,
+    String? empresa,
+    int? codigoEquipe,
+    String? dirCAD,
+    ClienteRepository? repository,
+    void Function(String nome, int index, int total)? onProgress,
+  }) async {
+    final repo = repository ?? ClienteRepository();
+    final novosClientes = await repo.listarNovosClientesPendentes();
+
+    if (novosClientes.isEmpty) {
+      return UploadPendenteResultStruct(
+        success: true,
+        message: 'Nenhum novo cliente pendente de envio.',
+        enviados: [],
+      );
+    }
+
+    final List<ItemUploadStruct> itens = [];
+    final Directory tempDir = await _getTemporaryDirectoryFn();
+    final String emp = (empresa != null && empresa.trim().isNotEmpty) ? empresa.trim() : 'diniz';
+    final int eqp = codigoEquipe ?? (int.tryParse(codVendedor) ?? 71);
+    final String targetFolder = (dirCAD != null && dirCAD.trim().isNotEmpty)
+        ? dirCAD.trim()
+        : FtpPathBuilder.getRemotePath(
+            empresa: emp,
+            codReg: eqp,
+            tipo: TipoCarga.cliente,
+          );
+
+    FtpTransport? ftp;
+    try {
+      ftp = await _connectFtp();
+      await _navegarFtpPasta(ftp, targetFolder);
+
+      final int total = novosClientes.length;
+      int sucessoContagem = 0;
+
+      for (int i = 0; i < total; i++) {
+        final cliente = novosClientes[i];
+        final String xmlContent = ClienteFtpSyncService.gerarXmlNovoCliente(
+          cliente: cliente,
+          codVendedor: codVendedor,
+        );
+
+        final int ms = DateTime.now().millisecondsSinceEpoch % 1000000;
+        final String nomeArquivo = 'c$codVendedor-$ms.xml';
+        final File arquivoTemp = File(p.join(tempDir.path, nomeArquivo));
+        await arquivoTemp.writeAsString(xmlContent, flush: true);
+
+        onProgress?.call(nomeArquivo, i + 1, total);
+
+        try {
+          final bytes = await arquivoTemp.readAsBytes();
+          await ftp.stor(nomeArquivo, bytes);
+
+          final remoteSize = await ftp.size(nomeArquivo);
+          if (remoteSize != bytes.length) {
+            throw StateError('Tamanho remoto divergente: $remoteSize de ${bytes.length} bytes.');
+          }
+
+          if (cliente.codigo != null) {
+            await repo.marcarClienteSincronizado(cliente.codigo!);
+            await _statusDb.marcarClienteEnviado(cliente.codigo!);
+          }
+
+          itens.add(ItemUploadStruct(
+            nome: nomeArquivo,
+            sucesso: true,
+            mensagem: 'Cliente enviado com sucesso via FTP.',
+            bytesEnviados: bytes.length,
+            caminhoLocal: arquivoTemp.path,
+          ));
+          sucessoContagem++;
+
+          try {
+            if (await arquivoTemp.exists()) {
+              await arquivoTemp.delete();
+            }
+          } catch (_) {}
+        } catch (e) {
+          itens.add(ItemUploadStruct(
+            nome: nomeArquivo,
+            sucesso: false,
+            mensagem: 'Falha no envio do cliente: $e',
+            bytesEnviados: 0,
+            caminhoLocal: arquivoTemp.path,
+          ));
+        }
+      }
+
+      return UploadPendenteResultStruct(
+        success: sucessoContagem == total,
+        message: '$sucessoContagem de $total novos clientes enviados com sucesso.',
+        enviados: itens,
+      );
+    } catch (e) {
+      return UploadPendenteResultStruct(
+        success: false,
+        message: 'Falha geral no envio de clientes: $e',
+        enviados: itens,
       );
     } finally {
       try {

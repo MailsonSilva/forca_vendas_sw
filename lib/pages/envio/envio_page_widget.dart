@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '/core/app_theme.dart';
 import '/core/app_util.dart';
 import '/pages/home_page/home_page_widget.dart';
@@ -277,7 +276,7 @@ class _EnvioPageWidgetState extends State<EnvioPageWidget> {
           title: Text(
             'Comunicação FTP (ffrmcom00)',
             style: AppTheme.of(context).titleMedium.override(
-                  font: GoogleFonts.plusJakartaSans(
+                  font: const TextStyle(
                     fontWeight: FontWeight.w600,
                   ),
                   color: Colors.white,

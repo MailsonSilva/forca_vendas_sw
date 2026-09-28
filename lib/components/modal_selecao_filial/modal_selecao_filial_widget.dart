@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '/core/app_theme.dart';
 import '/action_code/contar_filiais.dart';
 import '/app_state.dart';
@@ -81,9 +80,7 @@ class _ModalSelecaoFilialWidgetState extends State<ModalSelecaoFilialWidget> {
                             child: Text(
                               'Selecione a Filial',
                               style: AppTheme.of(context).titleLarge.override(
-                                    font: GoogleFonts.outfit(
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                    fontWeight: FontWeight.w600,
                                     color: AppTheme.of(context).primaryText,
                                     fontSize: 20.0,
                                   ),
@@ -98,7 +95,8 @@ class _ModalSelecaoFilialWidgetState extends State<ModalSelecaoFilialWidget> {
               child: Text(
                 'Sua empresa possui múltiplas filiais. Selecione a filial ativa para isolar estoque, preços e sequenciais.',
                 style: AppTheme.of(context).bodyMedium.override(
-                      font: GoogleFonts.inter(color: AppTheme.of(context).secondaryText, fontSize: 13),
+                      color: AppTheme.of(context).secondaryText,
+                      fontSize: 13.0,
                     ),
               ),
             ),
@@ -155,13 +153,12 @@ class _ModalSelecaoFilialWidgetState extends State<ModalSelecaoFilialWidget> {
                         title: Text(
                           '${f.codigo} - ${f.descricao}',
                           style: AppTheme.of(context).bodyLarge.override(
-                                font: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                                fontWeight: FontWeight.w600,
                               ),
                         ),
                         subtitle: Text(
                           isFilialAtiva ? 'Filial ativa na sessão atual' : 'Código: ${f.codigo}',
                           style: AppTheme.of(context).bodyMedium.override(
-                                font: GoogleFonts.inter(),
                                 color: isFilialAtiva
                                     ? AppTheme.of(context).primary
                                     : AppTheme.of(context).secondaryText,

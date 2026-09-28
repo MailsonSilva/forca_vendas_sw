@@ -24,6 +24,18 @@ Future<DadosPedidoNovoResult> obterDadosPedidoNovo({int? clienteCodigo}) async {
 
     // 1. Clientes
     try {
+      final pragma = await db.rawQuery('PRAGMA table_info(cadcli00)');
+      final cols = pragma.map((e) => e['name']?.toString().toLowerCase() ?? '').toSet();
+      final String selCodage = cols.contains('cli00_codage')
+          ? "COALESCE(cli00_codage, 0) as cli00_codage"
+          : "0 as cli00_codage";
+      final String selTitven = cols.contains('cli00_titven')
+          ? "COALESCE(cli00_titven, 0) as cli00_titven"
+          : "0 as cli00_titven";
+      final String selCreatu = cols.contains('cli00_creatu')
+          ? "COALESCE(cli00_creatu, 0) as cli00_creatu"
+          : "0 as cli00_creatu";
+
       final List<Map<String, dynamic>> resClientes = await db.rawQuery('''
         SELECT 
           cli00_codigo, 
@@ -33,14 +45,47 @@ Future<DadosPedidoNovoResult> obterDadosPedidoNovo({int? clienteCodigo}) async {
           cli00_estsgl,
           cli00_cpfcnp, 
           cli00_crelim,
-          COALESCE(cli00_creatu, 0) as cli00_creatu,
-          COALESCE(cli00_titven, 0) as cli00_titven,
-          COALESCE(cli00_codage, 0) as cli00_codage
+          $selCreatu,
+          $selTitven,
+          $selCodage,
+          0 as is_novo_local
         FROM cadcli00 
         WHERE (cli00_active in (0,1) OR cli00_active IS NULL)
         ORDER BY cli00_descri
       ''');
-      clientes = resClientes.map((m) {
+      final List<Map<String, dynamic>> combined = List.from(resClientes);
+
+      try {
+        final preCheck = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='cadclipre00'",
+        );
+        if (preCheck.isNotEmpty) {
+          final resPre = await db.rawQuery('''
+            SELECT 
+              cli00_codigo, 
+              cli00_descri, 
+              cli00_fantas, 
+              cli00_ciddes, 
+              cli00_estsgl,
+              cli00_cpfcnp, 
+              cli00_crelim,
+              COALESCE(cli00_creatu, 0) as cli00_creatu,
+              COALESCE(cli00_titven, 0) as cli00_titven,
+              0 as cli00_codage,
+              1 as is_novo_local
+            FROM cadclipre00 
+            WHERE (cli00_active in (0,1) OR cli00_active IS NULL)
+            ORDER BY cli00_descri
+          ''');
+          combined.addAll(resPre);
+        }
+      } catch (_) {}
+
+      combined.sort((a, b) =>
+          (a['cli00_descri']?.toString() ?? '')
+              .compareTo(b['cli00_descri']?.toString() ?? ''));
+
+      clientes = combined.map((m) {
         return ClienteResultStruct(
           cli00Codigo: m['cli00_codigo'] as int?,
           cli00Descri: m['cli00_descri']?.toString() ?? '',
@@ -52,6 +97,7 @@ Future<DadosPedidoNovoResult> obterDadosPedidoNovo({int? clienteCodigo}) async {
           cli00Creatu: (m['cli00_creatu'] as num?)?.toDouble() ?? 0.0,
           cli00Titven: (m['cli00_titven'] as num?)?.toDouble() ?? 0.0,
           cli00Codage: (m['cli00_codage'] as num?)?.toInt() ?? 0,
+          isNovoCliente: (m['is_novo_local'] == 1),
           success: true,
         );
       }).toList();

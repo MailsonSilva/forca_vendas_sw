@@ -11,15 +11,68 @@ Future<ClienteResultStruct?> carregarClienteOffline(int codigo) async {
   try {
     final db = await LocalSalesDatabaseService.getDatabase();
 
-    final List<Map<String, dynamic>> results = await db.rawQuery(
-      '''
-      SELECT c.*, r.ram00_descri
-      FROM cadcli00 c
-      LEFT JOIN cadram00 r ON r.ram00_codigo = c.cli00_codram
-      WHERE c.cli00_codigo = ?      
-      ''',
-      [codigo],
-    );
+    // 1. Tenta carregar primeiro em cadclipre00 (novo cliente local pendente/sincronizado)
+    try {
+      final preCheck = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='cadclipre00'",
+      );
+      if (preCheck.isNotEmpty) {
+        final preRows = await db.rawQuery(
+          'SELECT * FROM cadclipre00 WHERE cli00_codigo = ?',
+          [codigo],
+        );
+        if (preRows.isNotEmpty) {
+          final m = preRows.first;
+          return ClienteResultStruct(
+            cli00Codigo: m['cli00_codigo'] as int?,
+            cli00Descri: m['cli00_descri']?.toString() ?? '',
+            cli00Fantas: m['cli00_fantas']?.toString() ?? '',
+            cli00Endere: m['cli00_endere']?.toString() ?? '',
+            cli00Endnum: m['cli00_endnum']?.toString() ?? '',
+            cli00Bairro: m['cli00_bairro']?.toString() ?? '',
+            cli00Ciddes: m['cli00_ciddes']?.toString() ?? '',
+            cli00Estsgl: m['cli00_estsgl']?.toString() ?? '',
+            cli00Endcep: m['cli00_endcep']?.toString() ?? '',
+            cli00Fonddd: m['cli00_fonddd']?.toString() ?? '',
+            cli00Fonnum: m['cli00_fonnum']?.toString() ?? '',
+            cli00Cpfcnp: m['cli00_cpfcnp']?.toString() ?? '',
+            cli00Insest: m['cli00_insest']?.toString() ?? '',
+            cli00Active: m['cli00_active'] as int?,
+            cli00Observ: m['cli00_observ']?.toString() ?? '',
+            cli00Crelim: (m['cli00_crelim'] as num?)?.toDouble() ?? 0.0,
+            cli00Creatu: (m['cli00_creatu'] as num?)?.toDouble() ?? 0.0,
+            cli00Pessoa: (m['cli00_typpes'] == 2) ? 'J' : 'F',
+            cli00Typpes: m['cli00_typpes'] as int? ?? 1,
+            isNovoCliente: true,
+            success: true,
+          );
+        }
+      }
+    } catch (_) {}
+
+    List<Map<String, dynamic>> results = [];
+    try {
+      results = await db.rawQuery(
+        '''
+        SELECT c.*, r.ram00_descri
+        FROM cadcli00 c
+        LEFT JOIN cadram00 r ON r.ram00_codigo = c.cli00_codram
+        WHERE c.cli00_codigo = ?      
+        ''',
+        [codigo],
+      );
+    } catch (_) {
+      try {
+        results = await db.rawQuery(
+          '''
+          SELECT c.*
+          FROM cadcli00 c
+          WHERE c.cli00_codigo = ?      
+          ''',
+          [codigo],
+        );
+      } catch (_) {}
+    }
 
     if (results.isEmpty) {
       print('Nenhum cliente encontrado');
@@ -106,8 +159,8 @@ Future<ClienteResultStruct?> carregarClienteOffline(int codigo) async {
       cli02OrgaoConjProp: m['cli02_orgaoConjProp']?.toString() ?? '',
       cli02CpfConjProp: m['cli02_cpfConjProp']?.toString() ?? '',
 
-      // Mapeamento da lista de bancos estruturada
-      //bancosList: listaBancos,
+      isNovoCliente: false,
+      success: true,
     );
   } catch (e) {
     print('Erro fatal ao carregar cliente offline: \$e');

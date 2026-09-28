@@ -1,5 +1,7 @@
 // ignore_for_file: overridden_fields, annotate_overrides
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -239,9 +241,38 @@ class ThemeTypography extends Typography {
 
   final AppTheme theme;
 
+  TextStyle _style({
+    required Color color,
+    FontWeight? fontWeight,
+    double? fontSize,
+    double? height,
+  }) {
+    bool isRunningInTest = false;
+    try {
+      isRunningInTest = Platform.environment.containsKey('FLUTTER_TEST');
+    } catch (_) {}
+
+    if (isRunningInTest) {
+      return TextStyle(
+        color: color,
+        fontWeight: fontWeight,
+        fontSize: fontSize,
+        height: height,
+        fontFamily: 'Inter',
+      );
+    }
+
+    return GoogleFonts.inter(
+      color: color,
+      fontWeight: fontWeight,
+      fontSize: fontSize,
+      height: height,
+    );
+  }
+
   String get displayLargeFamily => 'Inter';
   bool get displayLargeIsCustom => false;
-  TextStyle get displayLarge => GoogleFonts.inter(
+  TextStyle get displayLarge => _style(
         color: theme.primaryText,
         fontWeight: FontWeight.w800,
         fontSize: 32.0,
@@ -249,7 +280,7 @@ class ThemeTypography extends Typography {
       );
   String get displayMediumFamily => 'Inter';
   bool get displayMediumIsCustom => false;
-  TextStyle get displayMedium => GoogleFonts.inter(
+  TextStyle get displayMedium => _style(
         color: theme.primaryText,
         fontWeight: FontWeight.w800,
         fontSize: 28.0,
@@ -257,7 +288,7 @@ class ThemeTypography extends Typography {
       );
   String get displaySmallFamily => 'Inter';
   bool get displaySmallIsCustom => false;
-  TextStyle get displaySmall => GoogleFonts.inter(
+  TextStyle get displaySmall => _style(
         color: theme.primaryText,
         fontWeight: FontWeight.bold,
         fontSize: 24.0,
@@ -265,7 +296,7 @@ class ThemeTypography extends Typography {
       );
   String get headlineLargeFamily => 'Inter';
   bool get headlineLargeIsCustom => false;
-  TextStyle get headlineLarge => GoogleFonts.inter(
+  TextStyle get headlineLarge => _style(
         color: theme.primaryText,
         fontWeight: FontWeight.bold,
         fontSize: 32.0,
@@ -273,7 +304,7 @@ class ThemeTypography extends Typography {
       );
   String get headlineMediumFamily => 'Inter';
   bool get headlineMediumIsCustom => false;
-  TextStyle get headlineMedium => GoogleFonts.inter(
+  TextStyle get headlineMedium => _style(
         color: theme.primaryText,
         fontWeight: FontWeight.bold,
         fontSize: 26.0,
@@ -281,7 +312,7 @@ class ThemeTypography extends Typography {
       );
   String get headlineSmallFamily => 'Inter';
   bool get headlineSmallIsCustom => false;
-  TextStyle get headlineSmall => GoogleFonts.inter(
+  TextStyle get headlineSmall => _style(
         color: theme.primaryText,
         fontWeight: FontWeight.bold,
         fontSize: 24.0,
@@ -289,7 +320,7 @@ class ThemeTypography extends Typography {
       );
   String get titleLargeFamily => 'Inter';
   bool get titleLargeIsCustom => false;
-  TextStyle get titleLarge => GoogleFonts.inter(
+  TextStyle get titleLarge => _style(
         color: theme.primaryText,
         fontWeight: FontWeight.w600,
         fontSize: 22.0,
@@ -297,7 +328,7 @@ class ThemeTypography extends Typography {
       );
   String get titleMediumFamily => 'Inter';
   bool get titleMediumIsCustom => false;
-  TextStyle get titleMedium => GoogleFonts.inter(
+  TextStyle get titleMedium => _style(
         color: theme.primaryText,
         fontWeight: FontWeight.w600,
         fontSize: 20.0,
@@ -305,7 +336,7 @@ class ThemeTypography extends Typography {
       );
   String get titleSmallFamily => 'Inter';
   bool get titleSmallIsCustom => false;
-  TextStyle get titleSmall => GoogleFonts.inter(
+  TextStyle get titleSmall => _style(
         color: theme.primaryText,
         fontWeight: FontWeight.w600,
         fontSize: 18.0,
@@ -313,7 +344,7 @@ class ThemeTypography extends Typography {
       );
   String get labelLargeFamily => 'Inter';
   bool get labelLargeIsCustom => false;
-  TextStyle get labelLarge => GoogleFonts.inter(
+  TextStyle get labelLarge => _style(
         color: theme.secondaryText,
         fontWeight: FontWeight.normal,
         fontSize: 14.0,
@@ -321,7 +352,7 @@ class ThemeTypography extends Typography {
       );
   String get labelMediumFamily => 'Inter';
   bool get labelMediumIsCustom => false;
-  TextStyle get labelMedium => GoogleFonts.inter(
+  TextStyle get labelMedium => _style(
         color: theme.secondaryText,
         fontWeight: FontWeight.normal,
         fontSize: 12.0,
@@ -329,7 +360,7 @@ class ThemeTypography extends Typography {
       );
   String get labelSmallFamily => 'Inter';
   bool get labelSmallIsCustom => false;
-  TextStyle get labelSmall => GoogleFonts.inter(
+  TextStyle get labelSmall => _style(
         color: theme.secondaryText,
         fontWeight: FontWeight.normal,
         fontSize: 12.0,
@@ -337,7 +368,7 @@ class ThemeTypography extends Typography {
       );
   String get bodyLargeFamily => 'Inter';
   bool get bodyLargeIsCustom => false;
-  TextStyle get bodyLarge => GoogleFonts.inter(
+  TextStyle get bodyLarge => _style(
         color: theme.primaryText,
         fontWeight: FontWeight.normal,
         fontSize: 16.0,
@@ -345,7 +376,7 @@ class ThemeTypography extends Typography {
       );
   String get bodyMediumFamily => 'Inter';
   bool get bodyMediumIsCustom => false;
-  TextStyle get bodyMedium => GoogleFonts.inter(
+  TextStyle get bodyMedium => _style(
         color: theme.primaryText,
         fontWeight: FontWeight.normal,
         fontSize: 14.0,
@@ -353,7 +384,7 @@ class ThemeTypography extends Typography {
       );
   String get bodySmallFamily => 'Inter';
   bool get bodySmallIsCustom => false;
-  TextStyle get bodySmall => GoogleFonts.inter(
+  TextStyle get bodySmall => _style(
         color: theme.secondaryText,
         fontWeight: FontWeight.normal,
         fontSize: 12.0,
@@ -448,6 +479,26 @@ extension TextStyleHelper on TextStyle {
     List<Shadow>? shadows,
     String? package,
   }) {
+    bool isRunningInTest = false;
+    try {
+      isRunningInTest = Platform.environment.containsKey('FLUTTER_TEST');
+    } catch (_) {}
+
+    if (isRunningInTest) {
+      final base = font ?? this;
+      return base.copyWith(
+        color: color ?? base.color,
+        fontSize: fontSize ?? base.fontSize,
+        fontWeight: fontWeight ?? base.fontWeight,
+        letterSpacing: letterSpacing ?? base.letterSpacing,
+        fontStyle: fontStyle ?? base.fontStyle,
+        decoration: decoration ?? base.decoration,
+        height: lineHeight ?? base.height,
+        shadows: shadows ?? base.shadows,
+        fontFamily: fontFamily ?? 'Inter',
+      );
+    }
+
     // Force the use of Inter family and enable Google Fonts
     fontFamily = 'Inter';
     useGoogleFonts = true;

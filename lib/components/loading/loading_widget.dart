@@ -1,3 +1,4 @@
+import 'dart:io';
 import '/core/app_util.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
@@ -35,6 +36,18 @@ class _LoadingWidgetState extends State<LoadingWidget> {
 
   @override
   Widget build(BuildContext context) {
+    bool isTest = false;
+    try {
+      isTest = Platform.environment.containsKey('FLUTTER_TEST');
+    } catch (_) {}
+
+    if (isTest) {
+      return const SizedBox(
+        width: 50.0,
+        height: 50.0,
+      );
+    }
+
     return Align(
       alignment: const AlignmentDirectional(0.0, 0.0),
       child: Lottie.asset(

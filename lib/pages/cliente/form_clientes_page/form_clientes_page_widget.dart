@@ -14,7 +14,6 @@ import 'package:easy_debounce/easy_debounce.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'form_clientes_page_model.dart';
 export 'form_clientes_page_model.dart';
@@ -24,9 +23,11 @@ class FormClientesPageWidget extends StatefulWidget {
   const FormClientesPageWidget({
     super.key,
     this.clienteCodigo,
+    this.isNovoCliente,
   });
 
   final int? clienteCodigo;
+  final bool? isNovoCliente;
 
   static String routeName = 'FormClientesPage';
   static String routePath = '/clientes/form';
@@ -38,6 +39,8 @@ class FormClientesPageWidget extends StatefulWidget {
 class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
     with TickerProviderStateMixin {
   late FormClientesPageModel _model;
+
+  bool get isReadOnly => (widget.isNovoCliente == false) || (widget.clienteCodigo != null && widget.clienteCodigo! > 0);
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -347,7 +350,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
           title: Text(
             'Cliente',
             style: AppTheme.of(context).titleLarge.override(
-                  font: GoogleFonts.plusJakartaSans(
+                  font: TextStyle(
                     fontWeight:
                         AppTheme.of(context).titleLarge.fontWeight,
                     fontStyle:
@@ -373,6 +376,28 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
             child: Column(
               mainAxisSize: MainAxisSize.max,
               children: [
+                if (isReadOnly)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 8.0, horizontal: 16.0),
+                    color: const Color(0xFFFEF3C7),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.lock, size: 16.0, color: Color(0xFF92400E)),
+                        SizedBox(width: 8.0),
+                        Text(
+                          'Cliente sincronizado (Carga)',
+                          style: TextStyle(
+                            color: Color(0xFF92400E),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13.0,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 Expanded(
                   child: Builder(
                     builder: (context) {
@@ -390,7 +415,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                 labelStyle: AppTheme.of(context)
                                     .titleMedium
                                     .override(
-                                      font: GoogleFonts.plusJakartaSans(
+                                      font: TextStyle(
                                         fontWeight: AppTheme.of(context)
                                             .titleMedium
                                             .fontWeight,
@@ -411,7 +436,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                         context)
                                     .titleMedium
                                     .override(
-                                      font: GoogleFonts.plusJakartaSans(
+                                      font: TextStyle(
                                         fontWeight: AppTheme.of(context)
                                             .titleMedium
                                             .fontWeight,
@@ -470,6 +495,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
+                                              readOnly: isReadOnly,
                                             controller:
                                                 _model.nomeFieldTextController,
                                             focusNode:
@@ -480,7 +506,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             decoration: InputDecoration(
                                               isDense: true,
                                               labelText: 'Razão Social',
-                                              labelStyle: GoogleFonts.inter(
+                                              labelStyle: TextStyle(
                                                 color:
                                                     AppTheme.of(context)
                                                         .secondaryText,
@@ -543,7 +569,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                   AppTheme.of(context)
                                                       .secondaryBackground,
                                             ),
-                                            style: GoogleFonts.plusJakartaSans(
+                                            style: TextStyle(
                                               color:
                                                   AppTheme.of(context)
                                                       .primaryText,
@@ -560,6 +586,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
+                                              readOnly: isReadOnly,
                                             controller: _model
                                                 .fantasiaFieldTextController,
                                             focusNode:
@@ -570,7 +597,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             decoration: InputDecoration(
                                               isDense: true,
                                               labelText: 'Nome Fantasia',
-                                              labelStyle: GoogleFonts.inter(
+                                              labelStyle: TextStyle(
                                                 color:
                                                     AppTheme.of(context)
                                                         .secondaryText,
@@ -633,7 +660,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                   AppTheme.of(context)
                                                       .secondaryBackground,
                                             ),
-                                            style: GoogleFonts.plusJakartaSans(
+                                            style: TextStyle(
                                               color:
                                                   AppTheme.of(context)
                                                       .primaryText,
@@ -666,7 +693,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                           context)
                                                       .bodyMedium
                                                       .override(
-                                                        font: GoogleFonts.inter(
+                                                        font: TextStyle(
                                                           fontWeight:
                                                               FontWeight.w600,
                                                           fontStyle:
@@ -818,6 +845,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     .fromSTEB(
                                                         16.0, 0.0, 16.0, 0.0),
                                                 child: TextFormField(
+                                              readOnly: isReadOnly,
                                                   controller: _model
                                                       .cpfFieldTextController,
                                                   focusNode:
@@ -829,7 +857,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     isDense: true,
                                                     labelText: 'CPF',
                                                     labelStyle:
-                                                        GoogleFonts.inter(
+                                                        TextStyle(
                                                       color:
                                                           AppTheme.of(
                                                                   context)
@@ -916,8 +944,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                             .of(context)
                                                         .secondaryBackground,
                                                   ),
-                                                  style: GoogleFonts
-                                                      .plusJakartaSans(
+                                                  style: TextStyle(
                                                     color: AppTheme.of(
                                                             context)
                                                         .primaryText,
@@ -940,6 +967,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     .fromSTEB(
                                                         16.0, 0.0, 16.0, 0.0),
                                                 child: TextFormField(
+                                              readOnly: isReadOnly,
                                                   controller: _model
                                                       .cnpjFieldTextController,
                                                   focusNode:
@@ -960,7 +988,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     isDense: true,
                                                     labelText: ' CNPJ',
                                                     labelStyle:
-                                                        GoogleFonts.inter(
+                                                        TextStyle(
                                                       color:
                                                           AppTheme.of(
                                                                   context)
@@ -1048,8 +1076,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                             .of(context)
                                                         .secondaryBackground,
                                                   ),
-                                                  style: GoogleFonts
-                                                      .plusJakartaSans(
+                                                  style: TextStyle(
                                                     color: AppTheme.of(
                                                             context)
                                                         .primaryText,
@@ -1074,6 +1101,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
+                                              readOnly: isReadOnly,
                                             controller:
                                                 _model.ieFieldTextController,
                                             focusNode: _model.ieFieldFocusNode,
@@ -1091,7 +1119,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             decoration: InputDecoration(
                                               isDense: true,
                                               labelText: 'Inscrição Estadual',
-                                              labelStyle: GoogleFonts.inter(
+                                              labelStyle: TextStyle(
                                                 color:
                                                     AppTheme.of(context)
                                                         .secondaryText,
@@ -1153,7 +1181,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                   AppTheme.of(context)
                                                       .secondaryBackground,
                                             ),
-                                            style: GoogleFonts.plusJakartaSans(
+                                            style: TextStyle(
                                               color:
                                                   AppTheme.of(context)
                                                       .primaryText,
@@ -1171,6 +1199,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
+                                              readOnly: isReadOnly,
                                             controller:
                                                 _model.rgFieldTextController,
                                             focusNode: _model.rgFieldFocusNode,
@@ -1188,7 +1217,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             decoration: InputDecoration(
                                               isDense: true,
                                               labelText: 'RG',
-                                              labelStyle: GoogleFonts.inter(
+                                              labelStyle: TextStyle(
                                                 color:
                                                     AppTheme.of(context)
                                                         .secondaryText,
@@ -1250,7 +1279,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                   AppTheme.of(context)
                                                       .secondaryBackground,
                                             ),
-                                            style: GoogleFonts.plusJakartaSans(
+                                            style: TextStyle(
                                               color:
                                                   AppTheme.of(context)
                                                       .primaryText,
@@ -1275,6 +1304,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               Expanded(
                                                 flex: 2,
                                                 child: TextFormField(
+                                              readOnly: isReadOnly,
                                                   controller: _model.dddFieldTextController,
                                                   focusNode: _model.dddFieldFocusNode,
                                                   textInputAction: TextInputAction.next,
@@ -1285,7 +1315,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     isDense: true,
                                                     counterText: "",
                                                     labelText: "DDD",
-                                                    labelStyle: GoogleFonts.inter(color: AppTheme.of(context).secondaryText, fontWeight: FontWeight.w600, fontSize: 14.0),
+                                                    labelStyle: TextStyle(color: AppTheme.of(context).secondaryText, fontWeight: FontWeight.w600, fontSize: 14.0),
                                                     hintText: "00",
                                                     enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Color(0x00000000), width: 1.0), borderRadius: BorderRadius.only(topLeft: Radius.circular(4.0), topRight: Radius.circular(4.0))),
                                                     focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: Color(0x00000000), width: 1.0), borderRadius: BorderRadius.only(topLeft: Radius.circular(4.0), topRight: Radius.circular(4.0))),
@@ -1294,7 +1324,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     filled: true,
                                                     fillColor: AppTheme.of(context).secondaryBackground,
                                                   ),
-                                                  style: GoogleFonts.plusJakartaSans(color: AppTheme.of(context).primaryText, fontSize: 14.0),
+                                                  style: TextStyle(color: AppTheme.of(context).primaryText, fontSize: 14.0),
                                                   onChanged: (_) => safeSetState(() {}),
                                                 ),
                                               ),
@@ -1303,6 +1333,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               Expanded(
                                                 flex: 5,
                                                 child: TextFormField(
+                                              readOnly: isReadOnly,
                                                   controller: _model.telefoneFieldTextController,
                                                   focusNode: _model.telefoneFieldFocusNode,
                                                   onChanged: (_) => EasyDebounce.debounce("_model.telefoneFieldTextController", const Duration(milliseconds: 2000), () async { safeSetState(() {}); }),
@@ -1312,7 +1343,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                   decoration: InputDecoration(
                                                     isDense: true,
                                                     labelText: "N\u00famero",
-                                                    labelStyle: GoogleFonts.inter(color: AppTheme.of(context).secondaryText, fontWeight: FontWeight.w600, fontSize: 14.0),
+                                                    labelStyle: TextStyle(color: AppTheme.of(context).secondaryText, fontWeight: FontWeight.w600, fontSize: 14.0),
                                                     hintText: "00000-0000",
                                                     enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Color(0x00000000), width: 1.0), borderRadius: BorderRadius.only(topLeft: Radius.circular(4.0), topRight: Radius.circular(4.0))),
                                                     focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: Color(0x00000000), width: 1.0), borderRadius: BorderRadius.only(topLeft: Radius.circular(4.0), topRight: Radius.circular(4.0))),
@@ -1321,7 +1352,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     filled: true,
                                                     fillColor: AppTheme.of(context).secondaryBackground,
                                                   ),
-                                                  style: GoogleFonts.plusJakartaSans(color: AppTheme.of(context).primaryText, fontSize: 14.0),
+                                                  style: TextStyle(color: AppTheme.of(context).primaryText, fontSize: 14.0),
                                                   maxLines: null,
                                                   validator: _model.telefoneFieldTextControllerValidator.asValidator(context),
                                                   inputFormatters: [MaskTextInputFormatter(mask: "#####-####")],
@@ -1335,6 +1366,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
+                                              readOnly: isReadOnly,
                                             controller:
                                                 _model.emailFieldTextController,
                                             focusNode:
@@ -1353,7 +1385,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             decoration: InputDecoration(
                                               isDense: true,
                                               labelText: 'E-mail',
-                                              labelStyle: GoogleFonts.inter(
+                                              labelStyle: TextStyle(
                                                 color:
                                                     AppTheme.of(context)
                                                         .secondaryText,
@@ -1415,7 +1447,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                   AppTheme.of(context)
                                                       .secondaryBackground,
                                             ),
-                                            style: GoogleFonts.plusJakartaSans(
+                                            style: TextStyle(
                                               color:
                                                   AppTheme.of(context)
                                                       .primaryText,
@@ -1438,6 +1470,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             children: [
                                               Expanded(
                                                 child: TextFormField(
+                                              readOnly: isReadOnly,
                                                   controller: _model
                                                       .ramolFieldTextController,
                                                   focusNode: _model
@@ -1449,7 +1482,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     isDense: true,
                                                     labelText: 'Ramo',
                                                     labelStyle:
-                                                        GoogleFonts.inter(
+                                                        TextStyle(
                                                       color:
                                                           AppTheme.of(
                                                                   context)
@@ -1537,8 +1570,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                             .of(context)
                                                         .secondaryBackground,
                                                   ),
-                                                  style: GoogleFonts
-                                                      .plusJakartaSans(
+                                                  style: TextStyle(
                                                     color: AppTheme.of(
                                                             context)
                                                         .primaryText,
@@ -1552,6 +1584,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               ),
                                               Expanded(
                                                 child: TextFormField(
+                                              readOnly: isReadOnly,
                                                   controller: _model
                                                       .limiteFieldTextController,
                                                   focusNode: _model
@@ -1571,7 +1604,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     labelText:
                                                         'Limite de Crédito',
                                                     labelStyle:
-                                                        GoogleFonts.inter(
+                                                        TextStyle(
                                                       color:
                                                           AppTheme.of(
                                                                   context)
@@ -1658,8 +1691,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                             .of(context)
                                                         .secondaryBackground,
                                                   ),
-                                                  style: GoogleFonts
-                                                      .plusJakartaSans(
+                                                  style: TextStyle(
                                                     color: AppTheme.of(
                                                             context)
                                                         .primaryText,
@@ -1699,6 +1731,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             Expanded(
                                               flex: 2,
                                               child: TextFormField(
+                                              readOnly: isReadOnly,
                                                 controller: _model
                                                     .cepFieldTextController,
                                                 focusNode:
@@ -1734,7 +1767,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 decoration: InputDecoration(
                                                   isDense: true,
                                                   labelText: 'CEP',
-                                                  labelStyle: GoogleFonts.inter(
+                                                  labelStyle: TextStyle(
                                                     color: AppTheme.of(
                                                             context)
                                                         .secondaryText,
@@ -1805,7 +1838,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                           .secondaryBackground,
                                                 ),
                                                 style:
-                                                    GoogleFonts.plusJakartaSans(
+                                                    TextStyle(
                                                   color: AppTheme.of(
                                                           context)
                                                       .primaryText,
@@ -1825,6 +1858,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             Expanded(
                                               flex: 1,
                                               child: TextFormField(
+                                              readOnly: isReadOnly,
                                                 controller: _model
                                                     .numeroFieldTextController,
                                                 focusNode:
@@ -1843,7 +1877,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 decoration: InputDecoration(
                                                   isDense: true,
                                                   labelText: 'Número',
-                                                  labelStyle: GoogleFonts.inter(
+                                                  labelStyle: const TextStyle(
                                                     fontSize: 14.0,
                                                   ),
                                                   enabledBorder:
@@ -1909,7 +1943,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                           .secondaryBackground,
                                                 ),
                                                 style:
-                                                    GoogleFonts.plusJakartaSans(
+                                                    TextStyle(
                                                   color: AppTheme.of(
                                                           context)
                                                       .primaryText,
@@ -1928,6 +1962,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                         padding: const EdgeInsetsDirectional.fromSTEB(
                                             16.0, 0.0, 16.0, 0.0),
                                         child: TextFormField(
+                                              readOnly: isReadOnly,
                                           controller:
                                               _model.bairroFieldTextController,
                                           focusNode:
@@ -1945,7 +1980,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                           decoration: InputDecoration(
                                             isDense: true,
                                             labelText: 'Bairro',
-                                            labelStyle: GoogleFonts.inter(
+                                            labelStyle: TextStyle(
                                               color:
                                                   AppTheme.of(context)
                                                       .secondaryText,
@@ -2003,7 +2038,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 AppTheme.of(context)
                                                     .secondaryBackground,
                                           ),
-                                          style: GoogleFonts.plusJakartaSans(
+                                          style: TextStyle(
                                             color: AppTheme.of(context)
                                                 .primaryText,
                                             fontSize: 14.0,
@@ -2018,6 +2053,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                         padding: const EdgeInsetsDirectional.fromSTEB(
                                             16.0, 0.0, 16.0, 0.0),
                                         child: TextFormField(
+                                              readOnly: isReadOnly,
                                           controller: _model
                                               .enderecoFieldTextController,
                                           focusNode:
@@ -2035,7 +2071,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                           decoration: InputDecoration(
                                             isDense: true,
                                             labelText: 'Endereço',
-                                            labelStyle: GoogleFonts.inter(
+                                            labelStyle: TextStyle(
                                               color:
                                                   AppTheme.of(context)
                                                       .secondaryText,
@@ -2093,7 +2129,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 AppTheme.of(context)
                                                     .secondaryBackground,
                                           ),
-                                          style: GoogleFonts.plusJakartaSans(
+                                          style: TextStyle(
                                             color: AppTheme.of(context)
                                                 .primaryText,
                                             fontSize: 14.0,
@@ -2117,6 +2153,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             Expanded(
                                               flex: 3,
                                               child: TextFormField(
+                                              readOnly: isReadOnly,
                                                 controller: _model
                                                     .cidadeFieldTextController,
                                                 focusNode:
@@ -2135,7 +2172,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 decoration: InputDecoration(
                                                   isDense: true,
                                                   labelText: 'Cidade',
-                                                  labelStyle: GoogleFonts.inter(
+                                                  labelStyle: TextStyle(
                                                     color: AppTheme.of(
                                                             context)
                                                         .secondaryText,
@@ -2206,7 +2243,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                           .secondaryBackground,
                                                 ),
                                                 style:
-                                                    GoogleFonts.plusJakartaSans(
+                                                    TextStyle(
                                                   color: AppTheme.of(
                                                           context)
                                                       .primaryText,
@@ -2271,7 +2308,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                         .bodyMedium
                                                         .override(
                                                           font:
-                                                              GoogleFonts.inter(
+                                                              TextStyle(
                                                             fontWeight:
                                                                 AppTheme.of(
                                                                         context)
@@ -2341,6 +2378,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
+                                              readOnly: isReadOnly,
                                             controller: _model
                                                 .nomePropFieldTextController,
                                             focusNode:
@@ -2359,7 +2397,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             decoration: InputDecoration(
                                               isDense: true,
                                               labelText: 'Nome do Proprietário',
-                                              labelStyle: GoogleFonts.inter(
+                                              labelStyle: TextStyle(
                                                 color:
                                                     AppTheme.of(context)
                                                         .secondaryText,
@@ -2422,7 +2460,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                   AppTheme.of(context)
                                                       .secondaryBackground,
                                             ),
-                                            style: GoogleFonts.plusJakartaSans(
+                                            style: TextStyle(
                                               color:
                                                   AppTheme.of(context)
                                                       .primaryText,
@@ -2439,6 +2477,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
+                                              readOnly: isReadOnly,
                                             controller: _model
                                                 .enderecoPropFieldTextController,
                                             focusNode: _model
@@ -2457,7 +2496,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             decoration: InputDecoration(
                                               isDense: true,
                                               labelText: 'Endereço',
-                                              labelStyle: GoogleFonts.inter(
+                                              labelStyle: TextStyle(
                                                 color:
                                                     AppTheme.of(context)
                                                         .secondaryText,
@@ -2519,7 +2558,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                   AppTheme.of(context)
                                                       .secondaryBackground,
                                             ),
-                                            style: GoogleFonts.plusJakartaSans(
+                                            style: TextStyle(
                                               color:
                                                   AppTheme.of(context)
                                                       .primaryText,
@@ -2536,6 +2575,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
+                                              readOnly: isReadOnly,
                                             controller: _model
                                                 .bairroPropFieldTextController,
                                             focusNode:
@@ -2554,7 +2594,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             decoration: InputDecoration(
                                               isDense: true,
                                               labelText: 'Bairro',
-                                              labelStyle: GoogleFonts.inter(
+                                              labelStyle: TextStyle(
                                                 color:
                                                     AppTheme.of(context)
                                                         .secondaryText,
@@ -2616,7 +2656,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                   AppTheme.of(context)
                                                       .secondaryBackground,
                                             ),
-                                            style: GoogleFonts.plusJakartaSans(
+                                            style: TextStyle(
                                               color:
                                                   AppTheme.of(context)
                                                       .primaryText,
@@ -2642,6 +2682,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               Expanded(
                                                 flex: 3,
                                                 child: TextFormField(
+                                              readOnly: isReadOnly,
                                                   controller: _model
                                                       .cidadePropFieldTextController,
                                                   focusNode: _model
@@ -2662,7 +2703,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                     isDense: true,
                                                     labelText: 'Cidade',
                                                     labelStyle:
-                                                        GoogleFonts.inter(
+                                                        TextStyle(
                                                       color:
                                                           AppTheme.of(
                                                                   context)
@@ -2749,8 +2790,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                             .of(context)
                                                         .secondaryBackground,
                                                   ),
-                                                  style: GoogleFonts
-                                                      .plusJakartaSans(
+                                                  style: TextStyle(
                                                     color: AppTheme.of(
                                                             context)
                                                         .primaryText,
@@ -2766,6 +2806,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                 flex: 1,
                                                 child:
                                                     AppDropDown<String>(
+                                                  disabled: isReadOnly,
                                                   controller: _model
                                                           .ufPropDropdownValueController ??=
                                                       FormFieldController<
@@ -2810,7 +2851,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                           .of(context)
                                                       .bodyMedium
                                                       .override(
-                                                        font: GoogleFonts.inter(
+                                                        font: TextStyle(
                                                           fontWeight:
                                                               AppTheme.of(
                                                                       context)
@@ -2873,6 +2914,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
+                                              readOnly: isReadOnly,
                                             controller: _model
                                                 .rgPropFieldTextController,
                                             focusNode:
@@ -2891,7 +2933,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             decoration: InputDecoration(
                                               isDense: true,
                                               labelText: 'RG',
-                                              labelStyle: GoogleFonts.inter(
+                                              labelStyle: TextStyle(
                                                 color:
                                                     AppTheme.of(context)
                                                         .secondaryText,
@@ -2953,7 +2995,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                   AppTheme.of(context)
                                                       .secondaryBackground,
                                             ),
-                                            style: GoogleFonts.plusJakartaSans(
+                                            style: TextStyle(
                                               color:
                                                   AppTheme.of(context)
                                                       .primaryText,
@@ -2974,6 +3016,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
+                                              readOnly: isReadOnly,
                                             controller: _model
                                                 .cpfPropFieldTextController,
                                             focusNode:
@@ -2992,7 +3035,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             decoration: InputDecoration(
                                               isDense: true,
                                               labelText: 'CPF',
-                                              labelStyle: GoogleFonts.inter(
+                                              labelStyle: TextStyle(
                                                 color:
                                                     AppTheme.of(context)
                                                         .secondaryText,
@@ -3054,7 +3097,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                   AppTheme.of(context)
                                                       .secondaryBackground,
                                             ),
-                                            style: GoogleFonts.plusJakartaSans(
+                                            style: TextStyle(
                                               color:
                                                   AppTheme.of(context)
                                                       .primaryText,
@@ -3083,6 +3126,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
+                                              readOnly: isReadOnly,
                                             controller: _model
                                                 .nomePropConjFieldTextController,
                                             focusNode: _model
@@ -3101,7 +3145,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             decoration: InputDecoration(
                                               isDense: true,
                                               labelText: 'Nome do Proprietário',
-                                              labelStyle: GoogleFonts.inter(
+                                              labelStyle: TextStyle(
                                                 color:
                                                     AppTheme.of(context)
                                                         .secondaryText,
@@ -3164,7 +3208,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                   AppTheme.of(context)
                                                       .secondaryBackground,
                                             ),
-                                            style: GoogleFonts.plusJakartaSans(
+                                            style: TextStyle(
                                               color:
                                                   AppTheme.of(context)
                                                       .primaryText,
@@ -3181,6 +3225,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
+                                              readOnly: isReadOnly,
                                             controller: _model
                                                 .rgPropConjFieldTextController,
                                             focusNode:
@@ -3199,7 +3244,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             decoration: InputDecoration(
                                               isDense: true,
                                               labelText: 'RG',
-                                              labelStyle: GoogleFonts.inter(
+                                              labelStyle: TextStyle(
                                                 color:
                                                     AppTheme.of(context)
                                                         .secondaryText,
@@ -3261,7 +3306,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                   AppTheme.of(context)
                                                       .secondaryBackground,
                                             ),
-                                            style: GoogleFonts.plusJakartaSans(
+                                            style: TextStyle(
                                               color:
                                                   AppTheme.of(context)
                                                       .primaryText,
@@ -3282,6 +3327,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                               const EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 0.0, 16.0, 0.0),
                                           child: TextFormField(
+                                              readOnly: isReadOnly,
                                             controller: _model
                                                 .cpfPropConjFieldTextController,
                                             focusNode: _model
@@ -3300,7 +3346,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                             decoration: InputDecoration(
                                               isDense: true,
                                               labelText: 'CPF',
-                                              labelStyle: GoogleFonts.inter(
+                                              labelStyle: TextStyle(
                                                 color:
                                                     AppTheme.of(context)
                                                         .secondaryText,
@@ -3362,7 +3408,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                   AppTheme.of(context)
                                                       .secondaryBackground,
                                             ),
-                                            style: GoogleFonts.plusJakartaSans(
+                                            style: TextStyle(
                                               color:
                                                   AppTheme.of(context)
                                                       .primaryText,
@@ -3421,8 +3467,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                               .of(context)
                                                           .bodyMedium
                                                           .override(
-                                                            font: GoogleFonts
-                                                                .inter(
+                                                            font: TextStyle(
                                                               fontWeight:
                                                                   FontWeight
                                                                       .w600,
@@ -3525,8 +3570,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                                     context)
                                                                 .titleSmall
                                                                 .override(
-                                                                  font: GoogleFonts
-                                                                      .plusJakartaSans(
+                                                                  font: TextStyle(
                                                                     fontWeight: AppTheme.of(
                                                                             context)
                                                                         .titleSmall
@@ -3654,7 +3698,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                                           style: AppTheme.of(context)
                                                                               .bodyMedium
                                                                               .override(
-                                                                                font: GoogleFonts.plusJakartaSans(
+                                                                                font: TextStyle(
                                                                                   fontWeight: FontWeight.w600,
                                                                                   fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
                                                                                 ),
@@ -3669,7 +3713,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                                           style: AppTheme.of(context)
                                                                               .bodyMedium
                                                                               .override(
-                                                                                font: GoogleFonts.inter(
+                                                                                font: TextStyle(
                                                                                   fontWeight: AppTheme.of(context).bodyMedium.fontWeight,
                                                                                   fontStyle: AppTheme.of(context).bodyMedium.fontStyle,
                                                                                 ),
@@ -3747,7 +3791,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                           context)
                                                       .bodyMedium
                                                       .override(
-                                                        font: GoogleFonts.inter(
+                                                        font: TextStyle(
                                                           fontWeight:
                                                               FontWeight.w600,
                                                           fontStyle:
@@ -3771,6 +3815,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                   child: SizedBox(
                                                     width: double.infinity,
                                                     child: TextFormField(
+                                              readOnly: isReadOnly,
                                                       controller: _model
                                                           .obsFieldTextController,
                                                       focusNode: _model
@@ -3787,8 +3832,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                                 .labelMedium
                                                                 .override(
                                                                   font:
-                                                                      GoogleFonts
-                                                                          .inter(
+                                                                      TextStyle(
                                                                     fontWeight: AppTheme.of(
                                                                             context)
                                                                         .labelMedium
@@ -3822,8 +3866,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                                 .labelMedium
                                                                 .override(
                                                                   font:
-                                                                      GoogleFonts
-                                                                          .inter(
+                                                                      TextStyle(
                                                                     fontWeight: AppTheme.of(
                                                                             context)
                                                                         .labelMedium
@@ -3909,8 +3952,7 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                                                                   context)
                                                               .bodyMedium
                                                               .override(
-                                                                font: GoogleFonts
-                                                                    .plusJakartaSans(
+                                                                font: TextStyle(
                                                                   fontWeight: AppTheme.of(
                                                                           context)
                                                                       .bodyMedium
@@ -4022,8 +4064,9 @@ class _FormClientesPageWidgetState extends State<FormClientesPageWidget>
                           ),
                         ),
                       ),
-                      Expanded(
-                        child: AppButtonWidget(
+                      if (!isReadOnly)
+                        Expanded(
+                          child: AppButtonWidget(
                           onPressed: () async {
                             if (_model.nomeFieldTextController.text == '') {
                               ScaffoldMessenger.of(context).showSnackBar(
