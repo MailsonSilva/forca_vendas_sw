@@ -10,6 +10,7 @@ import 'dart:io';
 import '../app_state.dart';
 import '/data/repositories/produto_repository.dart';
 import '/data/services/local_sales_database_service.dart';
+import '/domain/models/produto_detalhe_dto.dart';
 
 /// Carrega os detalhes completos do produto sob demanda via Query 2 fiel ao Tcadpro00::cload de usysctr00.cpp (SPEC-052).
 Future<ProdutoResultStruct?> carregarProdutoDetalhe(
@@ -18,13 +19,27 @@ Future<ProdutoResultStruct?> carregarProdutoDetalhe(
   final String codigoBusca = (produtoRef ?? '').trim();
   if (codigoBusca.isEmpty) return null;
 
-  final int? codpro = int.tryParse(codigoBusca);
-  if (codpro == null) return null;
-
   try {
     final int filial = AppState().codFilialAtiva != 0 ? AppState().codFilialAtiva : 1;
     final repo = ProdutoRepository();
-    final detalhe = await repo.obterDetalhesProduto(codpro, filial);
+    final int? codpro = int.tryParse(codigoBusca);
+
+    ProdutoDetalheDTO? detalhe;
+    if (codpro != null) {
+      detalhe = await repo.obterDetalhesProduto(codpro, filial);
+    }
+
+    // Fallback de contingência caso o repositório não tenha localizado o produto (ex: código alfanumérico ou schema restrito)
+    if (detalhe == null) {
+      final db = await LocalSalesDatabaseService.getDatabase(readOnly: true);
+      final fallbackRows = await db.rawQuery(
+        'SELECT * FROM cadpro00 WHERE pro00_codigo = ? OR CAST(pro00_codigo AS TEXT) = ? LIMIT 1',
+        [codigoBusca, codigoBusca],
+      );
+      if (fallbackRows.isNotEmpty) {
+        detalhe = ProdutoDetalheDTO.fromMap(fallbackRows.first);
+      }
+    }
 
     if (detalhe != null) {
       // Código base limpo para encontrar os arquivos físicos (ex: 10586)
@@ -64,21 +79,45 @@ Future<ProdutoResultStruct?> carregarProdutoDetalhe(
       }
 
       // Consulta complementar segura de preço e descrições de marca/fabricante se existirem
-      double precoVenda = 0.0;
+      double precoVenda = detalhe.preco;
       String? marcaDescri;
       String? fabDescri;
 
       try {
-        final db = await LocalSalesDatabaseService.getDatabase();
-        final pcoRows = await db.rawQuery(
-          'SELECT pro00_pcosub FROM estpcopro00 WHERE pro00_codpro = ? LIMIT 1',
-          [codpro],
-        );
-        if (pcoRows.isNotEmpty) {
-          final p = pcoRows.first['pro00_pcosub'];
-          precoVenda = (p is num) ? p.toDouble() : (double.tryParse(p?.toString() ?? '') ?? 0.0);
+        final db = await LocalSalesDatabaseService.getDatabase(readOnly: true);
+        final tRows = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'");
+        final Set<String> tabelas = tRows.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+
+        if (precoVenda <= 0 && tabelas.contains('estpcopro00')) {
+          final pcoRows = await db.rawQuery(
+            '''
+            SELECT COALESCE(NULLIF(pro00_pcosub, 0), pro00_preco, pro00_pcosub, 0.0) AS preco_venda 
+            FROM estpcopro00 
+            WHERE pro00_codpro = ? OR CAST(pro00_codpro AS TEXT) = ? 
+            ORDER BY CASE WHEN pro00_codtab = 1 THEN 0 ELSE 1 END 
+            LIMIT 1
+            ''',
+            [codigoBusca, codigoBusca],
+          );
+          if (pcoRows.isNotEmpty) {
+            final p = pcoRows.first['preco_venda'];
+            precoVenda = (p is num) ? p.toDouble() : (double.tryParse(p?.toString() ?? '') ?? 0.0);
+          }
         }
-        if (detalhe.codmar != null) {
+
+        if (precoVenda <= 0 && tabelas.contains('cadpro00')) {
+          try {
+            final pcoCadRows = await db.rawQuery(
+              'SELECT COALESCE(pro00_preco, 0.0) AS preco_venda FROM cadpro00 WHERE pro00_codigo = ? OR CAST(pro00_codigo AS TEXT) = ? LIMIT 1',
+              [codigoBusca, codigoBusca],
+            );
+            if (pcoCadRows.isNotEmpty) {
+              final p = pcoCadRows.first['preco_venda'];
+              precoVenda = (p is num) ? p.toDouble() : (double.tryParse(p?.toString() ?? '') ?? 0.0);
+            }
+          } catch (_) {}
+        }
+        if (detalhe.codmar != null && tabelas.contains('cadmar00')) {
           final marRows = await db.rawQuery(
             'SELECT mar00_descri FROM cadmar00 WHERE mar00_codigo = ? LIMIT 1',
             [detalhe.codmar],
@@ -87,7 +126,7 @@ Future<ProdutoResultStruct?> carregarProdutoDetalhe(
             marcaDescri = marRows.first['mar00_descri']?.toString();
           }
         }
-        if (detalhe.codfab != null) {
+        if (detalhe.codfab != null && tabelas.contains('cadfor00')) {
           final fabRows = await db.rawQuery(
             'SELECT for00_descri FROM cadfor00 WHERE for00_codigo = ? LIMIT 1',
             [detalhe.codfab],

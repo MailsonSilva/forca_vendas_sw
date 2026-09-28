@@ -29,6 +29,7 @@ class ProdutoDetalheDTO {
   final double qtdest;
   final int mulemb;
   final double mulven;
+  final double preco;
 
   const ProdutoDetalheDTO({
     required this.codigo,
@@ -57,6 +58,7 @@ class ProdutoDetalheDTO {
     required this.qtdest,
     required this.mulemb,
     required this.mulven,
+    this.preco = 0.0,
   });
 
   factory ProdutoDetalheDTO.fromMap(Map<String, dynamic> map) {
@@ -113,6 +115,7 @@ class ProdutoDetalheDTO {
       qtdest: parseDouble(map['pro00_qtdest'] ?? map['qtdest'], 0.0),
       mulemb: parseInt(map['pro02_mulemb'] ?? map['mulemb'], 1),
       mulven: parseDouble(map['pro02_mulven'] ?? map['mulven'], 1.0),
+      preco: parseDouble(map['preco_venda'] ?? map['pro00_pcomax'] ?? map['preco'] ?? map['pro00_preco'], 0.0),
     );
   }
 
@@ -144,21 +147,23 @@ class ProdutoDetalheDTO {
       'pro00_qtdest': qtdest,
       'pro02_mulemb': mulemb,
       'pro02_mulven': mulven,
+      'preco_venda': preco,
     };
   }
 
   /// Converte para ProdutoResultStruct preservando compatibilidade com formulários de pedido e detalhes
   ProdutoResultStruct toProdutoResultStruct({
-    double precoVenda = 0.0,
+    double? precoVenda,
     List<String>? fotos,
     String? marcaDescri,
     String? fabricanteDescri,
   }) {
+    final double precoFinal = (precoVenda != null && precoVenda > 0) ? precoVenda : preco;
     return ProdutoResultStruct(
       codigo: codigo.toString(),
       descricao: descricao,
       unidade: unidade,
-      preco: precoVenda,
+      preco: precoFinal,
       saldoEstoque: qtdest,
       estoqueAtual: qtdest,
       estoquePendente: 0.0,

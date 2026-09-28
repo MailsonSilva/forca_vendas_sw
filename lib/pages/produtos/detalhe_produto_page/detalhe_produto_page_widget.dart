@@ -30,6 +30,7 @@ class DetalheProdutoPageWidget extends StatefulWidget {
 
 class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
   late DetalheProdutoPageModel _model;
+  bool _carregando = true;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -40,11 +41,17 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
 
     // On page load action.
     SchedulerBinding.instance.addPostFrameCallback((_) async {
-      _model.resultadoBanco = await actions.carregarProdutoDetalhe(
-        widget.produtoRef,
-      );
-      _model.produtoResult = _model.resultadoBanco;
-      safeSetState(() {});
+      try {
+        _model.resultadoBanco = await actions.carregarProdutoDetalhe(
+          widget.produtoRef,
+        );
+        _model.produtoResult = _model.resultadoBanco;
+      } catch (e) {
+        debugPrint('Erro ao carregar detalhes do produto: $e');
+      } finally {
+        _carregando = false;
+        if (mounted) safeSetState(() {});
+      }
     });
   }
 
@@ -104,14 +111,52 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
           centerTitle: true,
           elevation: 2.0,
         ),
-        body: Column(
-          mainAxisSize: MainAxisSize.max,
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+        body: _carregando
+            ? Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    AppTheme.of(context).primary,
+                  ),
+                ),
+              )
+            : (_model.produtoResult == null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.info_outline_rounded,
+                            size: 48.0,
+                            color: AppTheme.of(context).secondaryText,
+                          ),
+                          const SizedBox(height: 12.0),
+                          Text(
+                            'Produto não localizado',
+                            style: AppTheme.of(context).titleMedium,
+                          ),
+                          const SizedBox(height: 8.0),
+                          Text(
+                            'Não foi possível carregar as informações deste produto no banco de dados local.',
+                            textAlign: TextAlign.center,
+                            style: AppTheme.of(context).bodyMedium.override(
+                                  color: AppTheme.of(context).secondaryText,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.max,
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
             Expanded(
               flex: 1,
-              child: Container(
+              child: SafeArea(
+                top: false,
                 child: SingleChildScrollView(
                   primary: false,
                   child: Column(
@@ -120,7 +165,7 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.all(16.0),
+                        padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 24.0),
                         child: Container(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -972,7 +1017,7 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
               ),
             ),
           ],
-        ),
+        )),
       ),
     );
   }

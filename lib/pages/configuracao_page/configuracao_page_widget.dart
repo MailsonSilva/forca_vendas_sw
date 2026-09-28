@@ -43,19 +43,10 @@ class _ConfiguracaoPageWidgetState extends State<ConfiguracaoPageWidget> {
 
   void _voltarParaHome() {
     if (!mounted) return;
-    // 1. Notifica o NavBarService para trocar a tab para HomePage
+    // Troca a aba ativa do NavBarPage para Home via serviço global.
+    // Como ConfiguracaoPage é uma tab (não uma rota empilhada),
+    // não há necessidade de pop() ou goNamed() — basta mudar a tab.
     NavBarService().navegarParaHome();
-
-    // 2. Se a tela foi aberta via push no Navigator, desempilha
-    if (Navigator.of(context).canPop()) {
-      Navigator.of(context).pop();
-      return;
-    }
-
-    // 3. Se estiver em rota direta (/configuracaoPage), redireciona
-    try {
-      context.goNamed(HomePageWidget.routeName);
-    } catch (_) {}
   }
 
   Future<void> _abrirSuporteWhatsApp() async {
