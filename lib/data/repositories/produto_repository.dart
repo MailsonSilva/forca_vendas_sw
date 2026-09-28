@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import '/domain/models/produto_lookup_dto.dart';
 import '/domain/models/produto_card_dto.dart';
 import '/domain/models/produto_detalhe_dto.dart';
+import '/domain/services/produto_search_filter_builder.dart';
 import '/app_state.dart';
 
 /// Repositório de dados para consulta e seleção de produtos.
@@ -49,10 +50,29 @@ class ProdutoRepository {
     }
 
     if (temTermo) {
-      condicoes.add('(p.pro00_descri LIKE ? OR CAST(p.pro00_codigo AS TEXT) = ? OR p.pro00_codbar = ?)');
-      args.add('%$termoTrim%');
-      args.add(termoTrim);
-      args.add(termoTrim);
+      Set<String> colunas = {};
+      try {
+        final cp = await db.rawQuery('PRAGMA table_info(cadpro00)');
+        colunas = cp.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+      } catch (_) {}
+
+      final List<String> refs = [
+        if (colunas.isEmpty || colunas.contains('pro00_ref001')) 'p.pro00_ref001',
+        if (colunas.isEmpty || colunas.contains('pro00_ref002')) 'p.pro00_ref002',
+        if (colunas.contains('pro00_reffor')) 'p.pro00_reffor',
+      ];
+
+      final filtro = ProdutoSearchFilterBuilder.build(
+        input: termoTrim,
+        colDesc: 'p.pro00_descri',
+        colCod: 'p.pro00_codigo',
+        colCodbar: (colunas.isEmpty || colunas.contains('pro00_codbar')) ? 'p.pro00_codbar' : null,
+        colRefs: refs,
+      );
+      if (filtro.hasFilter) {
+        condicoes.add(filtro.sql);
+        args.addAll(filtro.binds);
+      }
     }
     if (temCursor) {
       condicoes.add('p.pro00_descri > ?');

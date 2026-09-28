@@ -135,5 +135,73 @@ void main() {
       expect(p.descricao, 'PASTILHA DE FREIO');
       expect(p.codbar, '7891000241502');
     });
+
+    test('busca por referência com prefixo @ encontra ref001, ref002 e reffor', () async {
+      // Teste ref001: REF-HONDA-100
+      final pRef1 = await buscaProduto(
+        '@REF-HONDA',
+        null,
+        '',
+        '',
+        '',
+        '',
+        false,
+        false,
+        1,
+        'Todas',
+      );
+      expect(pRef1.length, 1);
+      expect(pRef1.first.codigo, '2001');
+
+      // Teste ref002: FAB-200
+      final pRef2 = await buscaProduto(
+        '@FAB-200',
+        null,
+        '',
+        '',
+        '',
+        '',
+        false,
+        false,
+        1,
+        'Todas',
+      );
+      expect(pRef2.length, 1);
+      expect(pRef2.first.codigo, '2001');
+
+      // Teste reffor: FORN-PAST-77
+      final pRefFor = await buscaProduto(
+        '@FORN-PAST',
+        null,
+        '',
+        '',
+        '',
+        '',
+        false,
+        false,
+        1,
+        'Todas',
+      );
+      expect(pRefFor.length, 1);
+      expect(pRefFor.first.codigo, '2002');
+    });
+
+    test('busca com curinga % entre termos localiza produto', () async {
+      final pCuringa = await buscaProduto(
+        'CABO%EMBREAGEM',
+        null,
+        '',
+        '',
+        '',
+        '',
+        false,
+        false,
+        1,
+        'Todas',
+      );
+      expect(pCuringa.length, 1);
+      expect(pCuringa.first.codigo, '2001');
+      expect(pCuringa.first.descricao, 'CABO DE EMBREAGEM');
+    });
   });
 }

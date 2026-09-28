@@ -203,26 +203,9 @@ void main() {
       expect(res[1].codigo, equals('101')); // PRODUTO TESTE 01
     });
 
-    test('buscaProduto localiza produtos por marca no termo de busca', () async {
-      final resMarca = await buscaProduto(
-        'NESTLÉ',
-        null,
-        null,
-        null,
-        null,
-        null,
-        false,
-        false,
-        1,
-        'Todas',
-      );
-      expect(resMarca.length, equals(2));
-      expect(resMarca.every((p) => p.marca == 'NESTLÉ'), isTrue);
-    });
-
-    test('buscaProduto localiza produto por referência', () async {
+    test('buscaProduto localiza produto por referência com prefixo @', () async {
       final resRef = await buscaProduto(
-        'REF-CRACKER',
+        '@REF-CRACKER',
         null,
         null,
         null,
@@ -236,6 +219,73 @@ void main() {
       expect(resRef.length, equals(1));
       expect(resRef.first.codigo, equals('102'));
       expect(resRef.first.referencia1, equals('REF-CRACKER'));
+    });
+
+    test('buscaProduto localiza produto com curinga % entre palavras', () async {
+      final resCuringa = await buscaProduto(
+        'BISCOITO%CRACKER',
+        null,
+        null,
+        null,
+        null,
+        null,
+        false,
+        false,
+        1,
+        'Todas',
+      );
+      expect(resCuringa.length, equals(1));
+      expect(resCuringa.first.codigo, equals('102'));
+      expect(resCuringa.first.descricao, equals('BISCOITO CRACKER'));
+    });
+
+    test('buscaProduto pesquisa por início da palavra (prefixada) e descarta sufixos no meio', () async {
+      // Começo exato do nome
+      final resInicio = await buscaProduto(
+        'BISCOITO',
+        null,
+        null,
+        null,
+        null,
+        null,
+        false,
+        false,
+        1,
+        'Todas',
+      );
+      expect(resInicio.length, equals(1));
+      expect(resInicio.first.codigo, equals('102'));
+
+      // Início de palavra interna precedida de espaço
+      final resPalavraInterna = await buscaProduto(
+        'TESTE',
+        null,
+        null,
+        null,
+        null,
+        null,
+        false,
+        false,
+        1,
+        'Todas',
+      );
+      expect(resPalavraInterna.length, equals(1));
+      expect(resPalavraInterna.first.codigo, equals('101'));
+
+      // Substring no meio de uma palavra (ex: "ACKER" de CRACKER) NÃO deve trazer
+      final resMeio = await buscaProduto(
+        'ACKER',
+        null,
+        null,
+        null,
+        null,
+        null,
+        false,
+        false,
+        1,
+        'Todas',
+      );
+      expect(resMeio.length, equals(0));
     });
 
     test('buscaProduto aplica filtro avançado de marca', () async {

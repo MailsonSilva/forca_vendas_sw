@@ -3,6 +3,7 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import '/backend/schema/structs/index.dart';
 import '../app_state.dart';
+import '/domain/services/produto_search_filter_builder.dart';
 
 Database? _dbProdutoInstancia;
 
@@ -224,35 +225,29 @@ Future<List<ProdutoResultStruct>> buscaProduto(
     final List<String> condicoes = [];
 
     if (busca.isNotEmpty) {
-      final List<String> orClauses = [
-        'p.$colDesc LIKE ?',
-        'CAST(p.$colCod AS TEXT) = ?',
+      final String? colCodbarParam = (ProductDbMetadata.proCols.contains('pro00_codbar') ||
+              ProductDbMetadata.proCols.contains('codbar'))
+          ? colCodbar
+          : null;
+
+      final List<String> colRefsParam = [
+        if (ProductDbMetadata.proCols.contains('pro00_ref001')) colRef1,
+        if (ProductDbMetadata.proCols.contains('pro00_ref002')) colRef2,
+        if (ProductDbMetadata.proCols.contains('pro00_reffor')) colRefFor,
       ];
-      binds.add('%$busca%');
-      binds.add(busca);
 
-      if (ProductDbMetadata.proCols.contains('pro00_codbar') || ProductDbMetadata.proCols.contains('codbar')) {
-        orClauses.add('$colCodbar = ?');
-        binds.add(busca);
-      }
-      if (ProductDbMetadata.proCols.contains('pro00_ref001')) {
-        orClauses.add('$colRef1 LIKE ?');
-        binds.add('%$busca%');
-      }
-      if (ProductDbMetadata.proCols.contains('pro00_ref002')) {
-        orClauses.add('$colRef2 LIKE ?');
-        binds.add('%$busca%');
-      }
-      if (ProductDbMetadata.proCols.contains('pro00_reffor')) {
-        orClauses.add('$colRefFor LIKE ?');
-        binds.add('%$busca%');
-      }
-      if (joinMarca.isNotEmpty) {
-        orClauses.add('m.mar00_descri LIKE ?');
-        binds.add('%$busca%');
-      }
+      final buscaResult = ProdutoSearchFilterBuilder.build(
+        input: busca,
+        colDesc: 'p.$colDesc',
+        colCod: 'p.$colCod',
+        colCodbar: colCodbarParam,
+        colRefs: colRefsParam,
+      );
 
-      condicoes.add('(${orClauses.join(' OR ')})');
+      if (buscaResult.hasFilter) {
+        condicoes.add(buscaResult.sql);
+        binds.addAll(buscaResult.binds);
+      }
     }
 
     if (filtroLinha != null && filtroLinha.trim().isNotEmpty && filtroLinha != 'Todas' && ProductDbMetadata.proCols.contains('pro00_codlin')) {

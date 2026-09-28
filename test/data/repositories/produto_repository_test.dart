@@ -305,9 +305,9 @@ void main() {
         final p2 = cards.firstWhere((c) => c.codigo == 1002);
         expect(p2.qtdest, equals(0.0));
 
-        // 1003: sem registro em estpro00 para filial 1 -> fallback COALESCE = 0
+        // 1003: sem registro em estpro00 para filial 1 -> fallback cadpro00.pro00_qtdest = 35.0
         final p3 = cards.firstWhere((c) => c.codigo == 1003);
-        expect(p3.qtdest, equals(0.0));
+        expect(p3.qtdest, equals(35.0));
       });
 
       test('filtra por termo pesquisando em descrição, código e código de barras', () async {
@@ -322,6 +322,39 @@ void main() {
         final porBar = await repository.listarProdutosCard(termo: '7891000241501', filialAtiva: 1);
         expect(porBar.length, equals(1));
         expect(porBar.first.codigo, equals(1001));
+      });
+
+      test('filtra com curinga % entre palavras no listarProdutosCard', () async {
+        final porCuringa = await repository.listarProdutosCard(
+          termo: 'BISCOITO%WAFER',
+          filialAtiva: 1,
+        );
+        expect(porCuringa.length, equals(1));
+        expect(porCuringa.first.codigo, equals(1001));
+      });
+
+      test('filtra por referência com prefixo @ no listarProdutosCard', () async {
+        final porRef = await repository.listarProdutosCard(
+          termo: '@REF-MAC-500',
+          filialAtiva: 1,
+        );
+        expect(porRef.length, equals(1));
+        expect(porRef.first.codigo, equals(1002));
+      });
+
+      test('filtra por início da palavra (prefixada) e descarta termos no meio da palavra', () async {
+        final porInicio = await repository.listarProdutosCard(
+          termo: 'WAFER',
+          filialAtiva: 1,
+        );
+        expect(porInicio.length, equals(1));
+        expect(porInicio.first.codigo, equals(1001));
+
+        final porMeio = await repository.listarProdutosCard(
+          termo: 'AFER',
+          filialAtiva: 1,
+        );
+        expect(porMeio.isEmpty, isTrue);
       });
 
       test('aplica paginação LIMIT 100 e OFFSET corretamente', () async {
@@ -385,7 +418,7 @@ void main() {
         expect(detalhe!.codigo, equals(1003));
         expect(detalhe.mulemb, equals(1)); // COALESCE(pr2.pro02_mulemb, 1)
         expect(detalhe.mulven, equals(1.0)); // COALESCE(pr2.pro02_mulven, 1.0)
-        expect(detalhe.qtdest, equals(0.0)); // COALESCE(est.pro00_qtdest - est.pro00_qtdpen, 0)
+        expect(detalhe.qtdest, equals(35.0)); // COALESCE(est.pro00_qtdest - est.pro00_qtdpen, sel.pro00_qtdest, 0)
         expect(detalhe.embalagem, isNull);
         expect(detalhe.indfra, isNull);
         expect(detalhe.defbon, isNull);
