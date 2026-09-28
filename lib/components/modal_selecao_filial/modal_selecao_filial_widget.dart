@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/core/app_theme.dart';
 import '/action_code/contar_filiais.dart';
+import '/app_state.dart';
 
 /// PRD 1 §1.5 — Modal/Card obrigatório para seleção de filial quando count(cadfil00) > 1.
 /// Bloqueante: barrierDismissible false + WillPopScope canPop false.
@@ -137,6 +138,8 @@ class _ModalSelecaoFilialWidgetState extends State<ModalSelecaoFilialWidget> {
                   itemBuilder: (context, index) {
                     final f = filtrados[index];
                     final isSelected = _selecionado == f.codigo;
+                    final isFilialAtiva = (int.tryParse(f.codigo) == AppState().codFilialAtiva ||
+                        f.codigo == AppState().codFilialAtiva.toString());
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8.0),
                       decoration: BoxDecoration(
@@ -149,9 +152,25 @@ class _ModalSelecaoFilialWidgetState extends State<ModalSelecaoFilialWidget> {
                       ),
                       child: RadioListTile<String>(
                         value: f.codigo,
-                        title: Text(f.descricao, style: AppTheme.of(context).bodyLarge.override(font: GoogleFonts.inter(fontWeight: FontWeight.w600))),
-                        subtitle: Text('Código: ${f.codigo}', style: AppTheme.of(context).bodyMedium),
-                        secondary: Icon(Icons.business_outlined, color: isSelected ? AppTheme.of(context).primary : Colors.grey),
+                        title: Text(
+                          '${f.codigo} - ${f.descricao}',
+                          style: AppTheme.of(context).bodyLarge.override(
+                                font: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                              ),
+                        ),
+                        subtitle: Text(
+                          isFilialAtiva ? 'Filial ativa na sessão atual' : 'Código: ${f.codigo}',
+                          style: AppTheme.of(context).bodyMedium.override(
+                                font: GoogleFonts.inter(),
+                                color: isFilialAtiva
+                                    ? AppTheme.of(context).primary
+                                    : AppTheme.of(context).secondaryText,
+                              ),
+                        ),
+                        secondary: Icon(
+                          Icons.business_outlined,
+                          color: isSelected ? AppTheme.of(context).primary : Colors.grey,
+                        ),
                       ),
                     );
                   },

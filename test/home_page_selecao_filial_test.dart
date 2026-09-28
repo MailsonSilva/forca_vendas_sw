@@ -108,7 +108,7 @@ void main() {
       expect(find.byType(ModalSelecaoFilialWidget), findsOneWidget);
 
       // Fechar o modal para evitar futures soltas e falha no tearDown
-      await tester.tap(find.text('Filial 1'));
+      await tester.tap(find.textContaining('Filial 1'));
       await tester.pump();
       await tester.tap(find.text('Confirmar Filial'));
       await tester.pumpAndSettle();

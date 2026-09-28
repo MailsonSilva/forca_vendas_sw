@@ -268,6 +268,86 @@ class _ConfiguracaoPageWidgetState extends State<ConfiguracaoPageWidget> {
 
                 const SizedBox(height: 24.0),
 
+                // ── SEÇÃO: SOBRE O SISTEMA ──
+                Padding(
+                  padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),
+                  child: Text(
+                    'Sobre o Sistema',
+                    style: AppTheme.of(context).bodyMedium.override(
+                          font: GoogleFonts.inter(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          color: AppTheme.of(context).secondaryText,
+                          fontSize: 14.0,
+                          letterSpacing: 0.5,
+                        ),
+                  ),
+                ),
+                Card(
+                  elevation: 1.5,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                  color: AppTheme.of(context).secondaryBackground,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 14.0),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10.0),
+                          decoration: BoxDecoration(
+                            color: AppTheme.of(context)
+                                .primary
+                                .withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10.0),
+                          ),
+                          child: Icon(
+                            Icons.info_outline_rounded,
+                            color: AppTheme.of(context).primary,
+                            size: 24.0,
+                          ),
+                        ),
+                        const SizedBox(width: 14.0),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Versão do Sistema (Carga)',
+                                style: AppTheme.of(context).bodyLarge.override(
+                                      font: GoogleFonts.inter(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      fontSize: 15.0,
+                                    ),
+                              ),
+                              const SizedBox(height: 2.0),
+                              Text(
+                                _model.versaoCargaSistema.isNotEmpty
+                                    ? _model.versaoCargaSistema
+                                    : (AppState().versaoSistema.isNotEmpty
+                                        ? AppState().versaoSistema
+                                        : 'Não informada'),
+                                style: AppTheme.of(context)
+                                    .labelMedium
+                                    .override(
+                                      font: GoogleFonts.inter(),
+                                      color:
+                                          AppTheme.of(context).secondaryText,
+                                      fontSize: 13.0,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24.0),
+
                 // ── SEÇÃO: CONTA / SESSÃO ──
                 Padding(
                   padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),

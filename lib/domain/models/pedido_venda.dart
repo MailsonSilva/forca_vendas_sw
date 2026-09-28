@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 import '../../data/services/local_sales_database_service.dart';
+import '../../services/estoque_filial_service.dart';
 import 'status_envio.dart';
 
 /// Representa uma parcela de pagamento projetada com valor e vencimento em dia útil
@@ -320,30 +321,21 @@ class PedidoVenda {
         print('ERRO GRAVACAO PEDIDO: $e \n $stack');
       }
 
-      // 1. Atualizar Estoque (ESTPRO00) — não bloqueia venda se falhar
+      // 1. Atualizar Estoque (ESTPRO00 e CADPRO00) — não bloqueia venda se falhar
       try {
-        final List<Map<String, dynamic>> tablesEst = await db.rawQuery(
-          "SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='estpro00'"
-        );
-        if (tablesEst.isNotEmpty) {
-          final List<Map<String, dynamic>> columns = await db.rawQuery('PRAGMA table_info(estpro00)');
-          final colNames = columns.map((r) => r['name']?.toString().toLowerCase()).toSet();
+        final itensBaixa = items
+            .map((item) => ItemBaixaEstoque(
+                  codPro: item.digpro,
+                  quantidade: item.digqtd,
+                ))
+            .toList();
 
-          for (final item in items) {
-            if (colNames.contains('pro00_qtdpen')) {
-              await db.rawUpdate(
-                'UPDATE estpro00 SET pro00_qtdpen = COALESCE(pro00_qtdpen, 0) + ? WHERE pro00_codpro = ? AND pro00_codfil = ?',
-                [item.digqtd, item.digpro, codFil],
-              );
-            } else if (colNames.contains('pro00_qtdest')) {
-              await db.rawUpdate(
-                'UPDATE estpro00 SET pro00_qtdest = COALESCE(pro00_qtdest, 0) - ? WHERE pro00_codpro = ? AND pro00_codfil = ?',
-                [item.digqtd, item.digpro, codFil],
-              );
-            }
-          }
-          print('Estatísticas de estoque (estpro00) atualizadas.');
-        }
+        await EstoqueFilialService.baixarEstoquePedido(
+          db: db,
+          codFil: codFil,
+          itens: itensBaixa,
+        );
+        print('Estatísticas de estoque (estpro00/cadpro00) atualizadas.');
       } catch (e, stack) {
         print('ERRO GRAVACAO PEDIDO: $e \n $stack');
       }

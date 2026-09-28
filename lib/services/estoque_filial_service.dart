@@ -88,4 +88,117 @@ class EstoqueFilialService {
     }
     return quantidadeDigitada <= estoqueDisponivel;
   }
+
+  /// Executa baixa do estoque local em `estpro00` e `cadpro00` na criação/confirmação do pedido:
+  ///
+  /// ```sql
+  /// UPDATE estpro00 
+  /// SET pro00_qtdest = MAX(0.0, pro00_qtdest - ?) 
+  /// WHERE pro00_codpro = ? AND pro00_codfil = ?;
+  /// ```
+  /// E se a base mantiver saldo direto em `cadpro00.pro00_qtdest`, abater proporcionalmente
+  /// para refletir imediatamente na consulta de catálogo:
+  /// ```sql
+  /// UPDATE cadpro00 
+  /// SET pro00_qtdest = MAX(0.0, pro00_qtdest - ?) 
+  /// WHERE pro00_codigo = ?;
+  /// ```
+  static Future<void> baixarEstoquePedido({
+    required Database db,
+    required int codFil,
+    required List<ItemBaixaEstoque> itens,
+  }) async {
+    if (itens.isEmpty) return;
+
+    // 1. Inspeciona tabelas e colunas
+    final tables = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='table' AND lower(name) IN ('estpro00', 'cadpro00')",
+    );
+    final tableNames = tables.map((r) => r['name']?.toString().toLowerCase()).toSet();
+
+    final bool hasEstpro = tableNames.contains('estpro00');
+    final bool hasCadpro = tableNames.contains('cadpro00');
+
+    Set<String> estCols = {};
+    if (hasEstpro) {
+      final cols = await db.rawQuery('PRAGMA table_info(estpro00)');
+      estCols = cols.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+    }
+
+    Set<String> cadCols = {};
+    if (hasCadpro) {
+      final cols = await db.rawQuery('PRAGMA table_info(cadpro00)');
+      cadCols = cols.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+    }
+
+    final String colEstPro = estCols.contains('pro00_codpro')
+        ? 'pro00_codpro'
+        : (estCols.contains('pro00_codigo') ? 'pro00_codigo' : 'pro00_codpro');
+
+    final String colCadPro = cadCols.contains('pro00_codigo')
+        ? 'pro00_codigo'
+        : (cadCols.contains('pro00_codpro') ? 'pro00_codpro' : 'pro00_codigo');
+
+    final bool estTemQtdEst = estCols.contains('pro00_qtdest');
+    final bool estTemQtdPen = estCols.contains('pro00_qtdpen');
+    final bool cadTemQtdEst = cadCols.contains('pro00_qtdest');
+
+    for (final item in itens) {
+      final codStr = item.codPro.toString().trim();
+      final codInt = int.tryParse(codStr);
+      final qtd = item.quantidade;
+      if (qtd <= 0) continue;
+
+      // 2. Baixa em estpro00
+      if (hasEstpro && estTemQtdEst) {
+        try {
+          if (estTemQtdPen) {
+            await db.rawUpdate(
+              '''
+              UPDATE estpro00 
+              SET pro00_qtdest = MAX(0.0, COALESCE(pro00_qtdest, 0.0) - ?),
+                  pro00_qtdpen = COALESCE(pro00_qtdpen, 0.0) + ?
+              WHERE ($colEstPro = ? OR $colEstPro = ?) AND pro00_codfil = ?
+              ''',
+              [qtd, qtd, codStr, codInt?.toString() ?? codStr, codFil],
+            );
+          } else {
+            await db.rawUpdate(
+              '''
+              UPDATE estpro00 
+              SET pro00_qtdest = MAX(0.0, COALESCE(pro00_qtdest, 0.0) - ?) 
+              WHERE ($colEstPro = ? OR $colEstPro = ?) AND pro00_codfil = ?
+              ''',
+              [qtd, codStr, codInt?.toString() ?? codStr, codFil],
+            );
+          }
+        } catch (_) {}
+      }
+
+      // 3. Baixa em cadpro00 (refletir imediatamente na consulta de catálogo)
+      if (hasCadpro && cadTemQtdEst) {
+        try {
+          await db.rawUpdate(
+            '''
+            UPDATE cadpro00 
+            SET pro00_qtdest = MAX(0.0, COALESCE(pro00_qtdest, 0.0) - ?) 
+            WHERE $colCadPro = ? OR $colCadPro = ?
+            ''',
+            [qtd, codStr, codInt?.toString() ?? codStr],
+          );
+        } catch (_) {}
+      }
+    }
+  }
+}
+
+/// Item para execução de baixa de estoque na confirmação do pedido.
+class ItemBaixaEstoque {
+  const ItemBaixaEstoque({
+    required this.codPro,
+    required this.quantidade,
+  });
+
+  final dynamic codPro;
+  final double quantidade;
 }

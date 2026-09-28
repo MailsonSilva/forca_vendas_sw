@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import '../app_state.dart';
 import '../data/services/local_sales_database_service.dart';
@@ -199,6 +200,10 @@ class CargaDatabaseService {
         }
         if (versao.isNotEmpty) {
           AppState().versaoSistema = versao;
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('versao_carga_sistema', versao);
+          } catch (_) {}
         }
         if (codeqp > 0) {
           AppState().vendedor_equipe = codeqp;

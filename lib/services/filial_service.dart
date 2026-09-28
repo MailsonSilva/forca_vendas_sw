@@ -99,7 +99,20 @@ class FilialService {
     Database db,
     List<String> codigos,
   ) async {
+    return obterFiliaisComDescricaoQuery(db, codigos);
+  }
+
+  /// Recupera a lista de [FilialInfo] para exibição no modal buscando a descrição em cadfil00
+  /// conforme query estrita do legado:
+  /// `SELECT fil00_codigo, COALESCE(fil00_descri, 'Filial ' || fil00_codigo) AS fil00_descri FROM cadfil00`
+  /// com fallback para `cadace00` ou `cadrep00`.
+  static Future<List<FilialInfo>> obterFiliaisComDescricaoQuery(
+    Database db,
+    List<String> codigos,
+  ) async {
     final Map<String, String> descricoes = {};
+
+    // 1. Tenta buscar em cadfil00 com query exata
     try {
       final tFil = await db.rawQuery(
         "SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='cadfil00'",
@@ -107,16 +120,24 @@ class FilialService {
       if (tFil.isNotEmpty) {
         final cols = await db.rawQuery('PRAGMA table_info(cadfil00)');
         final colNames = cols.map((r) => r['name']?.toString().toLowerCase()).toSet();
-        String codCol = 'fil00_codigo';
-        String descCol = 'fil00_descri';
-        if (!colNames.contains('fil00_codigo') && colNames.contains('fil00_codfil')) codCol = 'fil00_codfil';
-        if (!colNames.contains('fil00_descri') && colNames.contains('fil00_descricao')) descCol = 'fil00_descricao';
 
-        final rows = await db.rawQuery('SELECT $codCol as cod, $descCol as des FROM cadfil00');
+        String codCol = 'fil00_codigo';
+        if (!colNames.contains('fil00_codigo') && colNames.contains('fil00_codfil')) {
+          codCol = 'fil00_codfil';
+        }
+
+        String descCol = 'fil00_descri';
+        if (!colNames.contains('fil00_descri') && colNames.contains('fil00_descricao')) {
+          descCol = 'fil00_descricao';
+        }
+
+        final rows = await db.rawQuery(
+          "SELECT $codCol AS fil00_codigo, COALESCE($descCol, 'Filial ' || $codCol) AS fil00_descri FROM cadfil00",
+        );
         for (final r in rows) {
-          final c = r['cod']?.toString().trim() ?? '';
-          final d = r['des']?.toString().trim() ?? '';
-          if (c.isNotEmpty) {
+          final c = r['fil00_codigo']?.toString().trim() ?? '';
+          final d = r['fil00_descri']?.toString().trim() ?? '';
+          if (c.isNotEmpty && d.isNotEmpty) {
             descricoes[c] = d;
             final intVal = int.tryParse(c);
             if (intVal != null) descricoes[intVal.toString()] = d;
@@ -125,9 +146,52 @@ class FilialService {
       }
     } catch (_) {}
 
+    // 2. Fallback de descrição para cadace00 (srv00_descri) ou cadrep00 (ven00_empresa / ven00_nomfil)
+    String fallbackDesc = '';
+    try {
+      final tAce = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='cadace00'",
+      );
+      if (tAce.isNotEmpty) {
+        final rowsAce = await db.rawQuery(
+          "SELECT srv00_descri FROM cadace00 WHERE srv00_descri IS NOT NULL AND TRIM(srv00_descri) != '' LIMIT 1",
+        );
+        if (rowsAce.isNotEmpty) {
+          fallbackDesc = rowsAce.first['srv00_descri']?.toString().trim() ?? '';
+        }
+      }
+    } catch (_) {}
+
+    if (fallbackDesc.isEmpty) {
+      try {
+        final tRep = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='cadrep00'",
+        );
+        if (tRep.isNotEmpty) {
+          final colsRep = await db.rawQuery('PRAGMA table_info(cadrep00)');
+          final cn = colsRep.map((r) => r['name']?.toString().toLowerCase()).toSet();
+          String? repCol;
+          if (cn.contains('ven00_empresa')) repCol = 'ven00_empresa';
+          else if (cn.contains('ven00_nomfil')) repCol = 'ven00_nomfil';
+          else if (cn.contains('rep00_empresa')) repCol = 'rep00_empresa';
+
+          if (repCol != null) {
+            final rowsRep = await db.rawQuery(
+              "SELECT $repCol AS d FROM cadrep00 WHERE $repCol IS NOT NULL AND TRIM($repCol) != '' LIMIT 1",
+            );
+            if (rowsRep.isNotEmpty) {
+              fallbackDesc = rowsRep.first['d']?.toString().trim() ?? '';
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
     return codigos.map((cod) {
       final intCod = int.tryParse(cod);
-      final desc = descricoes[cod] ?? (intCod != null ? descricoes[intCod.toString()] : null) ?? 'Filial $cod';
+      final desc = descricoes[cod] ??
+          (intCod != null ? descricoes[intCod.toString()] : null) ??
+          (fallbackDesc.isNotEmpty ? fallbackDesc : 'Filial $cod');
       return FilialInfo(codigo: cod, descricao: desc);
     }).toList();
   }
