@@ -150,6 +150,9 @@ class AuthService {
         if (row['ven00_passet'] != null) {
           appState.ven_passet = row['ven00_passet'].toString().trim();
         }
+        if (row['ven00_numver'] != null && row['ven00_numver'].toString().trim().isNotEmpty) {
+          appState.versaoApp = row['ven00_numver'].toString().trim();
+        }
       }
       return;
     }

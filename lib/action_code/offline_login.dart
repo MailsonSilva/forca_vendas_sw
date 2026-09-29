@@ -14,6 +14,7 @@ import '/backend/schema/structs/index.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 import '../app_state.dart';
+import '../services/versao_app_service.dart';
 
 Future<LoginResultStruct> offlineLogin(String vendedorCodigo, {String? dbPath}) async {
   try {
@@ -152,6 +153,20 @@ Future<LoginResultStruct> offlineLogin(String vendedorCodigo, {String? dbPath}) 
         if (cn.contains('ven00_txajur')) {
           final v = row['ven00_txajur'];
           if (v != null) AppState().ven00_txajur = (v as num).toDouble();
+        }
+        if (cn.contains('ven00_numver')) {
+          final v = row['ven00_numver'];
+          if (v != null && v.toString().trim().isNotEmpty) {
+            AppState().versaoApp = v.toString().trim();
+          }
+        }
+        if (AppState().versaoApp.isEmpty) {
+          try {
+            await VersaoAppService.instance.resolverVersaoApp(
+              db: db,
+              codVendedor: codigo,
+            );
+          } catch (_) {}
         }
 
         // fallback: cadven00

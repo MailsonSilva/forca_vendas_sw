@@ -456,11 +456,11 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                       child: Image.asset(
                                         'assets/images/logo-empresa.png',
                                         width: (MediaQuery.sizeOf(context).width *
-                                                0.48)
-                                            .clamp(160.0, 180.0),
+                                                0.6)
+                                            .clamp(200.0, 240.0),
                                         height: (MediaQuery.sizeOf(context).width *
-                                                0.48)
-                                            .clamp(160.0, 180.0),
+                                                0.6)
+                                            .clamp(200.0, 240.0),
                                         fit: BoxFit.contain,
                                       ),
                                     ),

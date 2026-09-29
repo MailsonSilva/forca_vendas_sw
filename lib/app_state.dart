@@ -17,6 +17,7 @@ class AppState extends ChangeNotifier {
   static const _sequencialCargaKey = 'app_sequencial_carga';
   static const _versaoCargaSistemaKey = 'versao_carga_sistema';
   static const _versaoSistemaKey = 'app_versao_sistema';
+  static const _versaoAppKey = 'app_versao_app';
   static const _vendedorEquipeKey = 'app_vendedor_equipe';
   static const _venEstnegKey = 'app_ven_estneg';
   static const _venSelfilKey = 'app_ven_selfil';
@@ -116,6 +117,9 @@ class AppState extends ChangeNotifier {
           _versaoSistema;
     });
     _safeInit(() {
+      _versaoApp = prefs.getString(_versaoAppKey) ?? _versaoApp;
+    });
+    _safeInit(() {
       _vendedor_equipe = prefs.getInt(_vendedorEquipeKey) ?? _vendedor_equipe;
     });
     _safeInit(() {
@@ -147,12 +151,13 @@ class AppState extends ChangeNotifier {
   double get vendedor_taxa_juros => _ven00_txajur;
   set vendedor_taxa_juros(double value) => ven00_txajur = value;
 
-  /// Representação do vendedor logado com acesso a ven00Txajur
+  /// Representação do vendedor logado com acesso a ven00Txajur e ven00Numver
   VendedorLogadoInfo get vendedorLogado => VendedorLogadoInfo(
         codigo: _vendedor_codigo > 0 ? _vendedor_codigo : _vendedor_logado_codigo,
         nome: _vendedor_nome.isNotEmpty ? _vendedor_nome : _vendedor_logado_nome,
         equipe: _vendedor_equipe,
         ven00Txajur: _ven00_txajur,
+        ven00Numver: _versaoApp,
       );
 
   /// Nome/Razão Social da empresa da sessão autenticada
@@ -213,6 +218,17 @@ class AppState extends ChangeNotifier {
     try {
       prefs.setString(_versaoCargaSistemaKey, value);
       prefs.setString(_versaoSistemaKey, value);
+    } catch (_) {}
+    notifyListeners();
+  }
+
+  /// Versão do aplicativo para exibição no campo de configurações (cadrep00.ven00_numver)
+  String _versaoApp = '';
+  String get versaoApp => _versaoApp;
+  set versaoApp(String value) {
+    _versaoApp = value;
+    try {
+      prefs.setString(_versaoAppKey, value);
     } catch (_) {}
     notifyListeners();
   }
@@ -554,11 +570,13 @@ class VendedorLogadoInfo {
   final String nome;
   final int equipe;
   final double ven00Txajur;
+  final String ven00Numver;
 
   const VendedorLogadoInfo({
     this.codigo = 0,
     this.nome = '',
     this.equipe = 0,
     this.ven00Txajur = 0.0,
+    this.ven00Numver = '',
   });
 }

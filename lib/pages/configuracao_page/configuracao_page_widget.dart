@@ -251,45 +251,7 @@ class _ConfiguracaoPageWidgetState extends State<ConfiguracaoPageWidget> {
                   ),
                 ),
 
-                // ── SEÇÃO: SOBRE O SISTEMA ──
-                Padding(
-                  padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),
-                  child: Text(
-                    'Sobre o Sistema',
-                    style: AppTheme.of(context).bodyMedium.override(
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.of(context).secondaryText,
-                          fontSize: 14.0,
-                          letterSpacing: 0.5,
-                        ),
-                  ),
-                ),
-                Card(
-                  elevation: 1.5,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12.0),
-                  ),
-                  color: AppTheme.of(context).secondaryBackground,
-                  child: ListenableBuilder(
-                    listenable: AppState(),
-                    builder: (context, _) {
-                      final versaoCargaSistema = AppState().versaoSistema.isNotEmpty
-                          ? AppState().versaoSistema
-                          : _model.versaoCargaSistema;
-                      return ListTile(
-                        leading: const Icon(Icons.info_outline),
-                        title: const Text('Versão do Sistema (Carga)'),
-                        subtitle: Text(
-                          versaoCargaSistema.isNotEmpty
-                              ? versaoCargaSistema
-                              : 'Não identificada',
-                        ),
-                      );
-                    },
-                  ),
-                ),
 
-                const SizedBox(height: 24.0),
 
                 // ── SEÇÃO: CONTA / SESSÃO ──
                 Padding(
@@ -397,28 +359,41 @@ class _ConfiguracaoPageWidgetState extends State<ConfiguracaoPageWidget> {
                   ),
                 ),
                 const SizedBox(height: 24.0),
-                FutureBuilder<PackageInfo>(
-                  future: PackageInfo.fromPlatform(),
-                  builder: (context, snapshot) {
-                    final appVersion = snapshot.hasData
-                        ? snapshot.data!.version
-                        : 'Carregando...';
-                    final sistemaVersion = AppState().versaoSistema.isNotEmpty
-                        ? ' | Carga/Sistema: ${AppState().versaoSistema}'
-                        : '';
-                    final versionText = 'Versão do App: $appVersion$sistemaVersion';
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 8.0, bottom: 16.0),
-                        child: Text(
-                          versionText,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 11.0,
-                            color: Colors.grey,
+                AnimatedBuilder(
+                  animation: AppState(),
+                  builder: (context, _) {
+                    return FutureBuilder<PackageInfo>(
+                      future: PackageInfo.fromPlatform(),
+                      builder: (context, snapshot) {
+                        final packageVersion = snapshot.hasData
+                            ? snapshot.data!.version
+                            : '';
+                        final versaoExibida = AppState().versaoApp.isNotEmpty
+                            ? AppState().versaoApp
+                            : (_model.versaoApp.isNotEmpty
+                                ? _model.versaoApp
+                                : (AppState().versaoSistema.isNotEmpty
+                                    ? AppState().versaoSistema
+                                    : (packageVersion.isNotEmpty
+                                        ? packageVersion
+                                        : (snapshot.connectionState == ConnectionState.waiting
+                                            ? 'Carregando...'
+                                            : ''))));
+                        final versionText = 'Versão do App: $versaoExibida';
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 8.0, bottom: 16.0),
+                            child: Text(
+                              versionText,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 11.0,
+                                color: Colors.grey,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     );
                   },
                 ),

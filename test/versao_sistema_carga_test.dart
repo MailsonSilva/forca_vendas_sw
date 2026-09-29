@@ -116,13 +116,13 @@ void main() {
     });
   });
 
-  group('Exibição da Versão da Carga na Tela de Configurações', () {
-    testWidgets('Exibe seção "Sobre o Sistema" com ListTile contendo a versão da carga', (tester) async {
+  group('Exibição da Versão na Tela de Configurações no Campo Existente', () {
+    testWidgets('Exibe versão no campo existente de rodapé e NÃO exibe seção Sobre o Sistema', (tester) async {
       SharedPreferences.setMockInitialValues({
-        'versao_carga_sistema': 'v4.1.5',
+        'app_versao_app': 'v4.1.5',
       });
       AppState.reset();
-      AppState().versaoSistema = 'v4.1.5';
+      AppState().versaoApp = 'v4.1.5';
       await AppState().initializePersistedState();
 
       await tester.pumpWidget(
@@ -132,13 +132,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Sobre o Sistema'), findsOneWidget);
-      expect(find.text('Versão do Sistema (Carga)'), findsOneWidget);
-      expect(find.text('v4.1.5'), findsOneWidget);
-      expect(find.byIcon(Icons.info_outline), findsOneWidget);
+      expect(find.text('Sobre o Sistema'), findsNothing);
+      expect(find.text('Versão do Sistema (Carga)'), findsNothing);
+      expect(find.text('Versão do App: v4.1.5'), findsOneWidget);
     });
 
-    testWidgets('Exibe "Não identificada" quando não houver versão lida da carga', (tester) async {
+    testWidgets('Reflete dinamicamente a versão ven00_numver mais recente se atualizada', (tester) async {
       SharedPreferences.setMockInitialValues({});
       AppState.reset();
       await AppState().initializePersistedState();
@@ -150,32 +149,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Sobre o Sistema'), findsOneWidget);
-      expect(find.text('Versão do Sistema (Carga)'), findsOneWidget);
-      expect(find.text('Não identificada'), findsOneWidget);
-      expect(find.byIcon(Icons.info_outline), findsOneWidget);
-    });
+      expect(find.text('Sobre o Sistema'), findsNothing);
 
-    testWidgets('Reflete dinamicamente a versão da carga mais recente se atualizada', (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      AppState.reset();
-      await AppState().initializePersistedState();
-
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: ConfiguracaoPageWidget(),
-        ),
-      );
+      // Simula chegada/atualização de versão ven00_numver do vendedor
+      AppState().versaoApp = 'v5.0.0';
       await tester.pumpAndSettle();
 
-      expect(find.text('Não identificada'), findsOneWidget);
-
-      // Simula chegada/atualização de carga em segundo plano
-      AppState().versaoSistema = 'v5.0.0';
-      await tester.pumpAndSettle();
-
-      expect(find.text('v5.0.0'), findsOneWidget);
-      expect(find.text('Não identificada'), findsNothing);
+      expect(find.text('Versão do App: v5.0.0'), findsOneWidget);
     });
   });
 }

@@ -299,12 +299,12 @@ void main() {
       expect(AppState().versaoSistema, 'v4.1.5');
     });
 
-    testWidgets('ConfiguracaoPageWidget exibe item Versão do Sistema (Carga) e Sobre o Sistema', (tester) async {
+    testWidgets('ConfiguracaoPageWidget não exibe item Versão do Sistema (Carga) nem Sobre o Sistema e exibe versão no campo existente', (tester) async {
       SharedPreferences.setMockInitialValues({
-        'versao_carga_sistema': 'v4.1.5',
+        'app_versao_app': 'v4.1.5',
       });
       AppState.reset();
-      AppState().versaoSistema = 'v4.1.5';
+      AppState().versaoApp = 'v4.1.5';
       await AppState().initializePersistedState();
 
       await tester.pumpWidget(
@@ -314,9 +314,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Sobre o Sistema'), findsOneWidget);
-      expect(find.text('Versão do Sistema (Carga)'), findsOneWidget);
-      expect(find.text('v4.1.5'), findsOneWidget);
+      expect(find.text('Sobre o Sistema'), findsNothing);
+      expect(find.text('Versão do Sistema (Carga)'), findsNothing);
+      expect(find.text('Versão do App: v4.1.5'), findsOneWidget);
     });
   });
 }

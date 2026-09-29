@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import '../app_state.dart';
 import '../data/services/local_sales_database_service.dart';
+import 'versao_app_service.dart';
 
 /// Resultado da extração e verificação dos parâmetros de carga da base SQLite.
 class CargaInfoResult {
@@ -10,6 +11,7 @@ class CargaInfoResult {
     this.sequencialCarga = 0,
     this.dataHoraCarga,
     this.versaoSistema = '',
+    this.versaoApp = '',
     this.equipeVendedor = 0,
     this.filialVendedor = 0,
     this.logCarga = '',
@@ -18,6 +20,7 @@ class CargaInfoResult {
   final int sequencialCarga;
   final DateTime? dataHoraCarga;
   final String versaoSistema;
+  final String versaoApp;
   final int equipeVendedor;
   final int filialVendedor;
   final String logCarga;
@@ -50,8 +53,12 @@ class CargaDatabaseService {
     int seqCarga = 0;
     DateTime? dtCarga;
     String versao = '';
+    String versaoApp = '';
     int codeqp = 0;
     int codfil = 0;
+    final int codVendedor = (vendedorCodigo != null && vendedorCodigo > 0)
+        ? vendedorCodigo
+        : AppState().vendedor_codigo;
     final StringBuffer logBuffer = StringBuffer();
 
     try {
@@ -110,10 +117,6 @@ class CargaDatabaseService {
               .map((r) => r['name']?.toString().toLowerCase())
               .whereType<String>()
               .toSet();
-
-          final int codVendedor = (vendedorCodigo != null && vendedorCodigo > 0)
-              ? vendedorCodigo
-              : AppState().vendedor_codigo;
 
           List<Map<String, dynamic>> rows = [];
           if (codVendedor > 0) {
@@ -177,6 +180,16 @@ class CargaDatabaseService {
             await prefs.setString('versao_carga_sistema', versao);
           } catch (_) {}
         }
+
+        // Resolução e armazenamento da versão do app do vendedor (ven00_numver -> cfg00_versis)
+        try {
+          versaoApp = await VersaoAppService.instance.resolverVersaoApp(
+            db: activeDb,
+            codVendedor: codVendedor,
+            versaoPacoteFallback: versao,
+          );
+        } catch (_) {}
+
         if (codeqp > 0) {
           AppState().vendedor_equipe = codeqp;
         }
@@ -197,6 +210,7 @@ class CargaDatabaseService {
         sequencialCarga: seqCarga,
         dataHoraCarga: dtCarga,
         versaoSistema: versao,
+        versaoApp: versaoApp,
         equipeVendedor: codeqp,
         filialVendedor: codfil,
         logCarga: logFinal,
@@ -258,6 +272,22 @@ class CargaDatabaseService {
     } catch (_) {}
 
     return '';
+  }
+
+  /// Extrai a versão da aplicação conforme a precedência:
+  /// 1. cadrep00.ven00_numver do vendedor logado
+  /// 2. cadcfg00.cfg00_versis
+  /// 3. Versão do pacote atual
+  Future<String> extrairVersaoAppVendedor(
+    Database db, {
+    int? vendedorCodigo,
+    String? versaoPacoteAtual,
+  }) async {
+    return VersaoAppService.instance.resolverVersaoApp(
+      db: db,
+      codVendedor: vendedorCodigo,
+      versaoPacoteFallback: versaoPacoteAtual,
+    );
   }
 }
 
