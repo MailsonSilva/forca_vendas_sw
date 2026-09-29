@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'domain/models/config_empresa_acesso.dart';
 
 class AppState extends ChangeNotifier {
   static const _vendedorCodigoKey = 'app_vendedor_codigo';
@@ -14,6 +15,7 @@ class AppState extends ChangeNotifier {
   static const _dataHoraUltimaCargaKey = 'app_data_hora_ultima_carga';
   static const _ultimaAtualizacaoCargaKey = 'ultima_atualizacao_carga';
   static const _sequencialCargaKey = 'app_sequencial_carga';
+  static const _versaoCargaSistemaKey = 'versao_carga_sistema';
   static const _versaoSistemaKey = 'app_versao_sistema';
   static const _vendedorEquipeKey = 'app_vendedor_equipe';
   static const _venEstnegKey = 'app_ven_estneg';
@@ -21,6 +23,7 @@ class AppState extends ChangeNotifier {
   static const _empresaNomeKey = 'app_empresa_nome';
   static const _empresaCodigoKey = 'app_empresa_codigo';
   static const _ven00TxajurKey = 'app_ven00_txajur';
+  static const _nomeArquivoDbKey = 'app_nome_arquivo_db';
 
   static AppState _instance = AppState._internal();
 
@@ -108,10 +111,15 @@ class AppState extends ChangeNotifier {
       _sequencialCarga = prefs.getInt(_sequencialCargaKey) ?? _sequencialCarga;
     });
     _safeInit(() {
-      _versaoSistema = prefs.getString(_versaoSistemaKey) ?? _versaoSistema;
+      _versaoSistema = prefs.getString(_versaoCargaSistemaKey) ??
+          prefs.getString(_versaoSistemaKey) ??
+          _versaoSistema;
     });
     _safeInit(() {
       _vendedor_equipe = prefs.getInt(_vendedorEquipeKey) ?? _vendedor_equipe;
+    });
+    _safeInit(() {
+      _nomeArquivoDb = prefs.getString(_nomeArquivoDbKey) ?? _nomeArquivoDb;
     });
   }
 
@@ -203,6 +211,7 @@ class AppState extends ChangeNotifier {
   set versaoSistema(String value) {
     _versaoSistema = value;
     try {
+      prefs.setString(_versaoCargaSistemaKey, value);
       prefs.setString(_versaoSistemaKey, value);
     } catch (_) {}
     notifyListeners();
@@ -363,6 +372,42 @@ class AppState extends ChangeNotifier {
   set pastaUpload0(String value) {
     _pastaUpload0 = value;
     prefs.setString(_pastaUploadKey, value);
+  }
+
+  String _nomeArquivoDb = 'ven';
+  String get nomeArquivoDb => _nomeArquivoDb;
+  set nomeArquivoDb(String value) {
+    _nomeArquivoDb = value;
+    try {
+      prefs.setString(_nomeArquivoDbKey, value);
+    } catch (_) {}
+    notifyListeners();
+  }
+
+  String get pasta_upload => pastaUpload0;
+  set pasta_upload(String value) => pastaUpload0 = value;
+
+  String get pasta_download => pastaDownload0;
+  set pasta_download(String value) => pastaDownload0 = value;
+
+  /// Salva as configurações obtidas do `acesso.json` no AppState e SharedPreferences.
+  Future<void> salvarConfigAcesso(
+    ConfigEmpresaAcesso config, {
+    int? codigoEquipe,
+  }) async {
+    empresa_codigo = config.codigoEmpresa;
+    empresaNome = config.nomeEmpresa;
+    pastaDownload0 = config.pastaDownload;
+    final equipe = (codigoEquipe != null && codigoEquipe > 0)
+        ? codigoEquipe
+        : vendedor_equipe;
+    if (equipe > 0) {
+      pastaUpload0 = config.resolverPastaUploadEquipe(equipe);
+    } else {
+      pastaUpload0 = config.pastaUpload;
+    }
+    nomeArquivoDb = config.nomeArquivoDb;
+    notifyListeners();
   }
 
   /// PRD B4 — ven00_chkest (controla validação de estoque)

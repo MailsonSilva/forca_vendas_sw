@@ -161,6 +161,23 @@
 - **Marca**: Extraída via `LEFT JOIN` indexado na tabela `cadmar00` (ou `mar00`) através do campo `pro00_codmar`, retornando `mar00_descri` com fallback para `'SEM MARCA'`.
 - **Estoque Particionado**: Extraído via `LEFT JOIN` indexado na tabela `estpro00` filtrando pela filial ativa (`pro00_codfil`), com fallback para `cadpro00.pro00_qtdest`.
 
+## Módulo: Clientes — Visualização Segura e Novos Cadastros
+
+### 1. Bloqueio Rígido de Edição de Clientes da Carga
+- **Imutabilidade de Cadastros Homologados**: Clientes originários da carga (`cadcli00` com `cli00_codigo > 0` e `isNovoCliente == false`) são exclusivamente para visualização.
+- **Experiência Visual e Sem Edição**: Todos os campos no formulário operam com `readOnly: true` (e `enabled: true`), permitindo alta nitidez e contraste de texto, seleção e rolagem, sem acionar o teclado ou cursor de edição.
+- **Ocultação de Ações de Escrita**: O botão "SALVAR CADASTRO", seletores de tipo de pessoa (Física/Jurídica) e dropdowns de UF são travados/ocultados.
+
+### 2. Cadastro de Novo Cliente e Subida FTP (`fcfPUTCAD = 10`)
+- **Novo Cliente Local**: Formulário editável acionado pelo botão de novo cadastro (`isNovoCliente == true`).
+- **Geração de XML e Fila de Envio**: Ao salvar, o app gera o arquivo `c<codRep>-<retornaMil(codCliente)>.xml`, grava em `cadcli00` com `cli00_sttenv = 0` e enfileira na Central de Transmissão para upload FTP na rotina de sincronização.
+
+## Módulo: Configurações do Aplicativo
+
+### 1. Interface Essencial e Desacoplada
+- **Funcionalidades Ativas**: Parâmetros de impressão do logotipo da distribuidora no PDF do espelho de vendas, atalho de suporte técnico via WhatsApp e ação de logout seguro.
+- **Eliminação de Cards Redundantes**: A seção "Sobre o Sistema" e o card duplicado "Versão do Sistema (Carga)" foram removidos da tela de configurações, mantendo o rodapé institucional enxuto com versão do aplicativo e carga.
+
 
 
 

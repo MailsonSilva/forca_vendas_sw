@@ -188,7 +188,17 @@ class SalesDatabaseRepository {
     String companyCode,
   ) async {
     await ftp.cwd('/config/');
-    final accessBytes = await ftp.retr('acesso');
+    List<int>? accessBytes;
+    try {
+      accessBytes = await ftp.retr('acesso.json');
+    } catch (_) {
+      try {
+        accessBytes = await ftp.retr('acesso');
+      } catch (_) {}
+    }
+    if (accessBytes == null || accessBytes.isEmpty) {
+      throw const FormatException('Arquivo de acesso nao encontrado no FTP.');
+    }
     final decoded = jsonDecode(utf8.decode(accessBytes));
     if (decoded is! Map<String, dynamic>) {
       throw const FormatException('Arquivo acesso invalido.');

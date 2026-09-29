@@ -54,6 +54,19 @@ class FtpPathBuilder {
     }
   }
 
+  /// Monta o caminho remoto de upload base concatenado com a equipe do vendedor.
+  /// Formato: `${pasta_upload}${codigoEquipe}/` (ex: `"/diniz/upload/01/"`).
+  static String buildUploadPath({
+    required String pastaUploadBase,
+    required int codigoEquipe,
+  }) {
+    var base = pastaUploadBase.trim();
+    if (base.isEmpty) base = '/diniz/upload/';
+    if (!base.endsWith('/')) base = '$base/';
+    final equipe = formatEquipe(codigoEquipe);
+    return '$base$equipe/';
+  }
+
   /// Gera o nome do arquivo de pedido conforme o protocolo legado do guia.
   /// Formato: p{codRep}-{codigoSequencialPacote}.pac  →  ex: p71-32504.pac
   ///

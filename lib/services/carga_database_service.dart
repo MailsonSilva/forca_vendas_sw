@@ -86,45 +86,17 @@ class CargaDatabaseService {
               dtCarga = DateTime.tryParse(rawDt) ??
                   DateTime.tryParse(rawDt.replaceAll(' ', 'T'));
             }
-
-            // Versão do Sistema (cfg00_versis / srv00_verapp)
-            if (colNames.contains('cfg00_versis') && row['cfg00_versis'] != null) {
-              versao = row['cfg00_versis'].toString().trim();
-            } else if (colNames.contains('srv00_verapp') && row['srv00_verapp'] != null) {
-              versao = row['srv00_verapp'].toString().trim();
-            }
           }
         }
       } catch (e) {
         logBuffer.writeln('[CargaDatabaseService] Erro ao ler cadcfg00: $e');
       }
 
-      // Fallback de Versão: cadace00 (srv00_verapp / srv00_versis)
-      if (versao.isEmpty) {
-        try {
-          final aceTables = await activeDb.rawQuery(
-            "SELECT name FROM sqlite_master WHERE type='table' AND lower(name) = 'cadace00'",
-          );
-          if (aceTables.isNotEmpty) {
-            final aceCols = await activeDb.rawQuery('PRAGMA table_info(cadace00)');
-            final aceColNames = aceCols
-                .map((r) => r['name']?.toString().toLowerCase())
-                .whereType<String>()
-                .toSet();
-
-            final rows = await activeDb.rawQuery('SELECT * FROM cadace00 LIMIT 1');
-            if (rows.isNotEmpty) {
-              final row = rows.first;
-              if (aceColNames.contains('srv00_verapp') && row['srv00_verapp'] != null) {
-                versao = row['srv00_verapp'].toString().trim();
-              } else if (aceColNames.contains('srv00_versis') && row['srv00_versis'] != null) {
-                versao = row['srv00_versis'].toString().trim();
-              }
-            }
-          }
-        } catch (e) {
-          logBuffer.writeln('[CargaDatabaseService] Erro ao ler cadace00: $e');
-        }
+      // Leitura da Versão do Sistema com query direta e fallbacks de segurança
+      try {
+        versao = await extrairVersaoSistema(activeDb);
+      } catch (e) {
+        logBuffer.writeln('[CargaDatabaseService] Erro ao extrair versao: $e');
       }
 
       // 2. Inspecionar cadrep00 (Equipe e Filial do Vendedor)
@@ -235,4 +207,57 @@ class CargaDatabaseService {
       }
     }
   }
+
+  /// Extrai a versão do sistema vinda da carga SQLite:
+  /// 1. SELECT cfg00_versis FROM cadcfg00 LIMIT 1;
+  /// 2. Fallback de segurança: SELECT srv00_verapp FROM cadace00 LIMIT 1;
+  /// 3. Fallback de segurança: SELECT srv00_versis FROM cadace00 LIMIT 1;
+  Future<String> extrairVersaoSistema(Database db) async {
+    // 1. Tentar ler cfg00_versis de cadcfg00
+    try {
+      final rows = await db.rawQuery('SELECT cfg00_versis FROM cadcfg00 LIMIT 1');
+      if (rows.isNotEmpty && rows.first['cfg00_versis'] != null) {
+        final val = rows.first['cfg00_versis'].toString().trim();
+        if (val.isNotEmpty) {
+          return val;
+        }
+      }
+    } catch (_) {}
+
+    // Fallback legado em cadcfg00 (caso o campo tenha outro alias srv00_verapp)
+    try {
+      final rows = await db.rawQuery('SELECT srv00_verapp FROM cadcfg00 LIMIT 1');
+      if (rows.isNotEmpty && rows.first['srv00_verapp'] != null) {
+        final val = rows.first['srv00_verapp'].toString().trim();
+        if (val.isNotEmpty) {
+          return val;
+        }
+      }
+    } catch (_) {}
+
+    // 2. Fallback de segurança em cadace00: srv00_verapp
+    try {
+      final rows = await db.rawQuery('SELECT srv00_verapp FROM cadace00 LIMIT 1');
+      if (rows.isNotEmpty && rows.first['srv00_verapp'] != null) {
+        final val = rows.first['srv00_verapp'].toString().trim();
+        if (val.isNotEmpty) {
+          return val;
+        }
+      }
+    } catch (_) {}
+
+    // 3. Fallback de segurança em cadace00: srv00_versis
+    try {
+      final rows = await db.rawQuery('SELECT srv00_versis FROM cadace00 LIMIT 1');
+      if (rows.isNotEmpty && rows.first['srv00_versis'] != null) {
+        final val = rows.first['srv00_versis'].toString().trim();
+        if (val.isNotEmpty) {
+          return val;
+        }
+      }
+    } catch (_) {}
+
+    return '';
+  }
 }
+

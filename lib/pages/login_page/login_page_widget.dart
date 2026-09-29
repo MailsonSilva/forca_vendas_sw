@@ -7,13 +7,12 @@ import '../../core/services/empresa_logo_service.dart';
 import '/index.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '/services/filial_service.dart';
 import '/data/services/local_sales_database_service.dart';
-import '/data/repositories/sales_database_repository.dart';
+import '/services/acesso_ftp_service.dart';
+import '/services/auth_service.dart';
 import 'dart:async';
 import 'login_page_model.dart';
 export 'login_page_model.dart';
@@ -48,7 +47,9 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
       safeSetState(() {});
     });
 
-    _model.empresaCodigoFieldTextController ??= TextEditingController();
+    _model.empresaCodigoFieldTextController ??= TextEditingController(
+      text: AppState().empresa_codigo,
+    );
     _model.empresaCodigoFieldFocusNode ??= FocusNode();
 
     _model.vendedorCodigoFieldTextController ??= TextEditingController();
@@ -140,175 +141,88 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
     } catch (_) {}
   }
 
+  Future<void> _exibirAlerta(String mensagem) async {
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (alertDialogContext) {
+        return AlertDialog(
+          title: const Text('Atenção'),
+          content: Text(mensagem),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(alertDialogContext),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _fazerLogin() async {
+    final codigoEmpresaDigitado =
+        _model.empresaCodigoFieldTextController?.text.trim() ?? '';
+    final codigoVendedorDigitado =
+        _model.vendedorCodigoFieldTextController?.text.trim() ?? '';
+
+    if (codigoEmpresaDigitado.isEmpty) {
+      await _exibirAlerta('Código de acesso da empresa não foi encontrado');
+      return;
+    }
+
+    if (codigoVendedorDigitado.isEmpty) {
+      await _exibirAlerta('Vendedor não encontrado');
+      return;
+    }
+
     AppState().is_loading = true;
     safeSetState(() {});
-    if (AppState().is_first_access) {
-      _model.firstAccessResult = await actions.firstAccessLogin(
-        _model.empresaCodigoFieldTextController.text,
-        _model.vendedorCodigoFieldTextController.text,
-      );
-      if (!mounted) return;
-      if (_model.firstAccessResult!.success) {
-        AppState().is_first_access = false;
-        safeSetState(() {});
-        _model.firstAccessLogin = await actions.offlineLogin(
-          _model.vendedorCodigoFieldTextController.text,
-        );
-        if (!mounted) return;
-        if (_model.firstAccessLogin!.success) {
-          AppState().vendedor_codigo = _model.firstAccessLogin!.vendedorCodigo;
-          safeSetState(() {});
-          AppState().vendedor_nome = _model.firstAccessLogin!.vendedorNome;
-          safeSetState(() {});
-          AppState().vendedor_equipe = _model.firstAccessLogin!.vendedorEquipe;
-          safeSetState(() {});
-          final empTxt = _model.empresaCodigoFieldTextController.text.trim();
-          if (empTxt.isNotEmpty) {
-            AppState().empresa_codigo = empTxt;
-            safeSetState(() {});
-          }
 
-          // SPEC-047 §1.1: Consulta filiais e processa seleção multi-filial antes de prosseguir
-          await _processarFilialAposLogin();
-          if (!mounted) return;
-
-          AppState().is_loading = false;
-          safeSetState(() {});
-
-          context.pushNamed(HomePageWidget.routeName);
-        } else {
-          AppState().is_loading = false;
-          safeSetState(() {});
-          await showDialog(
-            context: context,
-            builder: (alertDialogContext) {
-              return AlertDialog(
-                title: const Text('Login nao validado'),
-                content: const Text('Vendedor nao encontrado no banco local.'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(alertDialogContext),
-                    child: const Text('OK'),
-                  ),
-                ],
-              );
-            },
-          );
-        }
-      } else {
+    try {
+      // 1. Valida Empresa no JSON do FTP
+      final configEmpresa =
+          await AcessoFtpService().buscarConfigEmpresa(codigoEmpresaDigitado);
+      if (configEmpresa == null) {
         AppState().is_loading = false;
         safeSetState(() {});
-        await showDialog(
-          context: context,
-          builder: (alertDialogContext) {
-            return AlertDialog(
-              title: const Row(
-                children: [
-                  Icon(Icons.cloud_off_rounded, color: Colors.orange, size: 28),
-                  SizedBox(width: 8),
-                  Text('Carga Inicial'),
-                ],
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Não foi possível obter a carga inicial de dados. Verifique sua conexão com a internet ou entre em contato com a equipe de suporte técnico.',
-                    style: TextStyle(fontSize: 14.0),
-                  ),
-                  const SizedBox(height: 16.0),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF25D366),
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 44.0),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
-                    ),
-                    icon: const FaIcon(FontAwesomeIcons.whatsapp, size: 20.0),
-                    label: const Text(
-                      'Falar com o Suporte',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    onPressed: () async {
-                      final uri = Uri.parse(
-                        'https://wa.me/559881283380?text=Ol%C3%A1%2C%20ocorreu%20uma%20falha%20ao%20baixar%20a%20carga%20inicial%20no%20app',
-                      );
-                      try {
-                        await launchUrl(uri, mode: LaunchMode.externalApplication);
-                      } catch (_) {
-                        try {
-                          await launchUrl(uri);
-                        } catch (_) {}
-                      }
-                    },
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(alertDialogContext),
-                  child: const Text('OK'),
-                ),
-              ],
-            );
-          },
-        );
+        await _exibirAlerta('Código de acesso da empresa não foi encontrado');
+        return;
       }
 
-    } else {
-      _model.offlineLogin = await actions.offlineLogin(
-        _model.vendedorCodigoFieldTextController.text,
+      // 2. Valida Vendedor
+      final authService = AuthService();
+      final vendedorValido = await authService.validarVendedor(
+        codigoVendedorDigitado,
+        configEmpresa: configEmpresa,
       );
-      if (!mounted) return;
-      if (_model.offlineLogin!.success) {
-        AppState().vendedor_codigo = _model.offlineLogin!.vendedorCodigo;
-        safeSetState(() {});
-        AppState().vendedor_nome = _model.offlineLogin!.vendedorNome;
-        safeSetState(() {});
-        AppState().vendedor_equipe = _model.offlineLogin!.vendedorEquipe;
-        safeSetState(() {});
-        final empTxt = _model.empresaCodigoFieldTextController.text.trim();
-        if (empTxt.isNotEmpty) {
-          AppState().empresa_codigo = empTxt;
-          safeSetState(() {});
-        }
-
-        // Sincroniza o nome da empresa a partir do arquivo /config/acesso do FTP caso esteja vazio
-        if (AppState().empresaNome.trim().isEmpty && AppState().empresa_codigo.trim().isNotEmpty) {
-          unawaited(SalesDatabaseRepository().sincronizarNomeEmpresaDoAcessoFtp(AppState().empresa_codigo));
-        }
-
-        // SPEC-047 §1.1: Consulta filiais e processa seleção multi-filial antes de prosseguir
-        await _processarFilialAposLogin();
-        if (!mounted) return;
-
+      if (!vendedorValido) {
         AppState().is_loading = false;
         safeSetState(() {});
-
-        context.pushNamed(HomePageWidget.routeName);
-      } else {
-        AppState().is_loading = false;
-        safeSetState(() {});
-        await showDialog(
-          context: context,
-          builder: (alertDialogContext) {
-            return AlertDialog(
-              title: const Text('Login nao validado'),
-              content: const Text('Vendedor nao encontrado no banco local.'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(alertDialogContext),
-                  child: const Text('OK'),
-                ),
-              ],
-            );
-          },
-        );
+        await _exibirAlerta('Vendedor não encontrado');
+        return;
       }
+
+      // 3. Sucesso: Grava parâmetros e avança
+      await authService.iniciarSessao(codigoVendedorDigitado);
+      await AppState().salvarConfigAcesso(
+        configEmpresa,
+        codigoEquipe: AppState().vendedor_equipe,
+      );
+      AppState().is_first_access = false;
+
+      // SPEC-047 §1.1: Consulta filiais e processa seleção multi-filial antes de prosseguir
+      await _processarFilialAposLogin();
+      if (!mounted) return;
+
+      AppState().is_loading = false;
+      safeSetState(() {});
+
+      context.pushNamed(HomePageWidget.routeName);
+    } catch (e) {
+      AppState().is_loading = false;
+      safeSetState(() {});
+      await _exibirAlerta('Falha ao validar acesso: $e');
     }
   }
 
@@ -365,8 +279,12 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                               0.0, 0.0, 0.0, 18.0),
                                       child: EmpresaLogoService.instance
                                           .obterLogoLoginWidget(
-                                        width: 160.0,
-                                        height: 160.0,
+                                        width: (MediaQuery.sizeOf(context).width *
+                                                0.48)
+                                            .clamp(160.0, 180.0),
+                                        height: (MediaQuery.sizeOf(context).width *
+                                                0.48)
+                                            .clamp(160.0, 180.0),
                                         fit: BoxFit.contain,
                                         borderRadius:
                                             BorderRadius.circular(8.0),
@@ -381,38 +299,15 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                       children: [
                                         Text(
                                           'Login de Acesso',
-                                          style: AppTheme.of(context)
-                                              .bodyMedium
-                                              .override(
-                                                font: GoogleFonts.inter(
-                                                  fontWeight:
-                                                      AppTheme.of(context)
-                                                          .bodyMedium
-                                                          .fontWeight,
-                                                  fontStyle:
-                                                      AppTheme.of(context)
-                                                          .bodyMedium
-                                                          .fontStyle,
-                                                ),
-                                                color: AppTheme.of(context)
-                                                    .secondaryText,
-                                                letterSpacing: 0.0,
-                                                fontWeight: AppTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontWeight,
-                                                fontStyle: AppTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontStyle,
-                                              ),
+                                          style: AppTheme.of(context).bodyMedium.copyWith(color: AppTheme.of(context).secondaryText, letterSpacing: 0.0),
                                         ),
                                       ].divide(const SizedBox(height: 4.0)),
                                     ),
-                                    if (AppState().is_first_access)
-                                      TextFormField(
-                                        controller: _model
-                                            .empresaCodigoFieldTextController,
-                                        focusNode:
-                                            _model.empresaCodigoFieldFocusNode,
+                                    TextFormField(
+                                      controller: _model
+                                          .empresaCodigoFieldTextController,
+                                      focusNode:
+                                          _model.empresaCodigoFieldFocusNode,
                                         textInputAction: TextInputAction.next,
                                         onFieldSubmitted: (_) =>
                                             FocusScope.of(context).requestFocus(
@@ -560,8 +455,12 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
                                       borderRadius: BorderRadius.circular(8.0),
                                       child: Image.asset(
                                         'assets/images/logo-empresa.png',
-                                        width: 200.0,
-                                        height: 100.0,
+                                        width: (MediaQuery.sizeOf(context).width *
+                                                0.48)
+                                            .clamp(160.0, 180.0),
+                                        height: (MediaQuery.sizeOf(context).width *
+                                                0.48)
+                                            .clamp(160.0, 180.0),
                                         fit: BoxFit.contain,
                                       ),
                                     ),

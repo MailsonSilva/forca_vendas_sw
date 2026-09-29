@@ -1,6 +1,6 @@
 # MEMORY CONTEXT — FORÇA DE VENDAS (FLUTTER & SQLITE)
-> **Versão:** 2.5.0  
-> **Status:** 100% Homologado, Testado e Protegido (Alta Performance SQLite - SPEC-053/SPEC-054)  
+> **Versão:** 2.6.0  
+> **Status:** 100% Homologado, Testado, Protegido e Compilado em APK Release (SPEC-053/054/056, Bloqueio de Clientes da Carga e Configurações Otimizadas)  
 > **Escopo:** Aplicativo Mobile Força de Vendas Offline-First (Flutter / SQLite / XML-PAC / FTP)
 
 ---
@@ -97,16 +97,25 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
   - Cálculo de margem por item $\text{CCV} = (\text{Preço Praticado} - \text{Preço Máximo}) \times \text{Qtd}$.
   - Validação de margem flex no checkout: $\text{ccv01\_vlrsalatu} + \text{dig00\_ccvtot} \ge 0$.
 
-### 2.7 Cadastro e Edição Offline de Clientes (`cadcli00` / View `cli00`)
-- **Regras de Negócio e Higienização Fiscal:**
-  - Remoção rigorosa de máscaras (`removerMascara`) para CPF/CNPJ, CEP, Telefone e Fax.
-  - Conversão compulsória de campos textuais (Razão Social, Fantasia, Logradouro, Bairro, Cidade, Observações) para **MAIÚSCULO** (`UPPERCASE`).
+### 2.7 Cadastro e Visualização Offline de Clientes (`cadcli00` / View `cli00`)
+- **Bloqueio Estrito de Edição para Clientes da Carga:**
+  - Clientes originários da carga (`cadcli00` em `dbforcacad001.db` com `cli00_codigo > 0` e `isNovoCliente == false`) são **estritamente somente-leitura**.
+  - No formulário (`FormClientesPageWidget`):
+    - `isReadOnly => (isNovoCliente == false) || (clienteCodigo != null && clienteCodigo > 0)`.
+    - Todos os 25 campos de texto operam com `readOnly: isReadOnly` mantendo `enabled: true`. Isso assegura alta nitidez, seleção de texto, rolagem de campos longos e contraste nativo, impedindo digitação ou abertura de teclado.
+    - Seletores de Pessoa Física/Jurídica desativados em modo somente leitura (`onPressed: isReadOnly ? null : ...`).
+    - Dropdowns `AppDropDown` desativados com `disabled: isReadOnly`.
+    - Botão `"SALVAR CADASTRO"` completamente oculto ao visualizar clientes existentes (`if (!isReadOnly)`), exibindo apenas a ação `"Extrato"`.
+- **Cadastro de Novo Cliente Local (`isNovoCliente == true`):**
+  - Campos totalmente editáveis para digitação de novo cadastro.
+  - Higienização fiscal com remoção de máscaras (`removerMascara`) para CPF/CNPJ, CEP, Telefone e Fax.
+  - Conversão compulsória de campos textuais para **MAIÚSCULO** (`UPPERCASE`).
   - Regra estrita de tipo de pessoa: Para **Pessoa Física (PF)**, a Inscrição Estadual (`cli00_insest`) é gravada como `"-"` e o RG é persistido em `cli00_nrg`; para **Pessoa Jurídica (PJ)**, a Inscrição Estadual é higienizada e preservada.
   - Sequencial automático de código de cliente via `LocalSalesDatabaseService.obterProximoCodigoCliente()`.
 - **Persistência Relacional Atômica e Status de Envio:**
   - Gravação direta em `cadcli00` com `cli00_sttenv = 0` (Pendente de Envio) e `cli00_active = 1`.
   - Migração de schema defensiva com criação da View `cli00` apontando para `cadcli00`.
-- **Geração de XML de Cliente (`ClienteXmlGeneratorService`):**
+- **Geração de XML de Cliente (`ClienteXmlGeneratorService` - fcfPUTCAD = 10):**
   - Geração imediata do XML no formato legado Suportware (`c<codRep>-<retornaMil(codCliente)>.xml`).
   - Escrita dupla resiliente: no subdiretório de organização `cli/` (`CPathCLI()`) e no diretório raiz de documentos/temp para o pipeline do FTP.
   - Registro no manifesto de cargas pendentes via `CargaRegistryService`.
@@ -133,6 +142,13 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
 - **Visualizador Interativo de Imagens de Produtos (`ImagemPreviewDialog` / `share_plus`):**
   - Componente base `ImagemLocalWidget` com toque habilitado por padrão (`enablePreview: true`).
   - Diálogo em tela cheia com zoom/pan fluidos (`InteractiveViewer`), reset com duplo toque, cópia de dados (`Clipboard`) e compartilhamento direto de imagens locais para WhatsApp/outros apps (`Share.shareXFiles`).
+
+### 2.10 Menu de Configurações (`ConfiguracaoPageWidget`)
+- **Organização Limpa e Funcional:**
+  - Seção **Relatórios e Impressão**: Controle de exibição do logotipo da empresa no PDF do pedido.
+  - Seção **Ajuda & Atendimento**: Contato direto de suporte via WhatsApp oficial.
+  - Seção **Conta**: Ação segura de encerramento de sessão com diálogo de confirmação.
+  - **Remoção de Redundâncias:** A seção "Sobre o Sistema" e o card duplicado "Versão do Sistema (Carga)" foram removidos do corpo da tela de configurações, mantendo a informação da versão instalada no rodapé discreto do app (`Versão do App: x.x.x | Carga/Sistema: y.y.y`) e no rodapé do menu principal.
 
 ---
 
@@ -174,6 +190,12 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
 > **REGRA 7: Mapeamento em Memória via `ProductDbMetadata` e Extração Canônica (SPEC-054)**  
 > É **obrigatório** o uso de `ProductDbMetadata.ensureLoaded(db)` para descobrir tabelas e colunas físicas uma única vez por sessão, salvando-as em memória estática e eliminando consultas repetidas a `PRAGMA table_info` e `sqlite_master` durante a digitação.  
 > Na busca e catálogo de produtos, o preço unitário de venda deve ser extraído de `estpcopro00`/`pcopro00` (`pro00_preco` / `pro00_pcosub`) vinculado à tabela do pedido/cliente, e o estoque deve ser extraído de `estpro00` filtrando pela filial ativa, com fallback seguro para `cadpro00`.
+
+> [!CAUTION]
+> **REGRA 8: Integridade de Tipografia e Proibição de Assets Falsificados de Fontes**  
+> **É ESTRITAMENTE PROIBIDO** inserir arquivos `.ttf` de ícones (ex: `CupertinoIcons`) renomeados como fontes tipográficas (ex: `Inter-*.ttf`) na pasta `assets/fonts/`.  
+> O pacote `google_fonts` prioriza arquivos locais com mesmo nome e substitui caracteres do alfabeto por glifos/ícones ilegíveis caso detecte binários inválidos no bundle.  
+> Para suítes de testes automatizados (`flutter test`), o carregamento de fontes deve ser protegido usando o helper nativo em `lib/core/app_theme.dart` (`Platform.environment.containsKey('FLUTTER_TEST')`), e os widgets devem utilizar estilos providos pelo tema (`AppTheme.of(context)` / `TextStyle`) sem invocar `GoogleFonts` diretamente nos parâmetros dos componentes.
 
 ---
 
