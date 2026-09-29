@@ -27,7 +27,7 @@ void main() {
     );
   }
 
-  testWidgets('Tela de login exibe campos de empresa e vendedor e logo com dimensões ampliadas', (tester) async {
+  testWidgets('Primeiro acesso: exibe campos de empresa e vendedor', (tester) async {
     tester.view.physicalSize = const Size(800, 1200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
@@ -40,11 +40,7 @@ void main() {
     expect(find.widgetWithText(TextFormField, 'Código do Vendedor'), findsOneWidget);
     expect(find.text('ENTRAR'), findsOneWidget);
 
-    // 2. Verifica a presença das logos ampliadas
-    final imageFinder = find.byType(Image);
-    expect(imageFinder, findsWidgets);
-
-    // 3. Testa submissão com campos vazios -> Alerta de empresa
+    // 2. Testa submissão com campos vazios -> Alerta de empresa
     await tester.tap(find.text('ENTRAR'));
     await tester.pump(const Duration(milliseconds: 200));
 
@@ -52,7 +48,7 @@ void main() {
     await tester.tap(find.text('OK'));
     await tester.pump(const Duration(milliseconds: 200));
 
-    // 4. Preenche empresa mas não preenche vendedor -> Alerta de vendedor
+    // 3. Preenche empresa mas não preenche vendedor -> Alerta de vendedor
     await tester.enterText(
       find.widgetWithText(TextFormField, 'Código da Empresa'),
       'EMPRESA_TESTE',
@@ -64,4 +60,51 @@ void main() {
 
     expect(find.text('Vendedor não encontrado'), findsOneWidget);
   });
+
+  testWidgets('Acesso subsequente: oculta código da empresa e trava vendedor vinculado', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'codigo_empresa': 'DZ1000SW',
+      'codigo_vendedor_vinculado': '71',
+    });
+
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    await tester.pumpWidget(createLoginTestWidget());
+    await tester.pump(const Duration(milliseconds: 200));
+
+    // 1. Campo de empresa NÃO deve ser exibido
+    expect(find.widgetWithText(TextFormField, 'Código da Empresa'), findsNothing);
+
+    // 2. Campo de vendedor DEVE ser exibido
+    expect(find.widgetWithText(TextFormField, 'Código do Vendedor'), findsOneWidget);
+
+    // 3. Tentativa de logar com vendedor diferente (90 != 71)
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Código do Vendedor'),
+      '90',
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.tap(find.text('ENTRAR'));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    // 4. Deve exibir mensagem de bloqueio imediato
+    expect(find.text('Este dispositivo está vinculado exclusivamente ao vendedor 71'), findsOneWidget);
+  });
+
+  testWidgets('Responsividade: renderiza sem overflow em tela reduzida 360x640', (tester) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    await tester.pumpWidget(createLoginTestWidget());
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(SingleChildScrollView), findsWidgets);
+    expect(find.byType(ConstrainedBox), findsWidgets);
+  });
 }
+

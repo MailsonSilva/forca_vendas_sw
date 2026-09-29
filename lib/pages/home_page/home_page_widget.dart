@@ -171,7 +171,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                             ),
                       ),
                       Text(
-                        'Bem vindo, ${AppState().vendedor_nome}${AppState().vendedor_equipe > 0 ? " (Equipe ${AppState().vendedor_equipe})" : ""}',
+                        'Bem vindo, ${AppState().vendedor_nome}',
                         style: AppTheme.of(context).bodyMedium.override(
                               font: GoogleFonts.inter(
                                 fontWeight: FontWeight.w500,

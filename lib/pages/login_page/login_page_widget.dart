@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '/services/filial_service.dart';
 import '/data/services/local_sales_database_service.dart';
 import '/services/acesso_ftp_service.dart';
@@ -33,19 +34,14 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
+  bool _isDispositivoVinculado = false;
+  String? _codigoVendedorVinculado;
+  String? _codigoEmpresaVinculada;
+
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => LoginPageModel());
-
-    // On page load action.
-    SchedulerBinding.instance.addPostFrameCallback((_) async {
-      AppState().codFilialAtiva = 0;
-      AppState().filialAtivaDes = '';
-      _model.dbExists = await actions.checkDatabaseExists();
-      AppState().is_first_access = !_model.dbExists!;
-      safeSetState(() {});
-    });
 
     _model.empresaCodigoFieldTextController ??= TextEditingController(
       text: AppState().empresa_codigo,
@@ -54,6 +50,44 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
 
     _model.vendedorCodigoFieldTextController ??= TextEditingController();
     _model.vendedorCodigoFieldFocusNode ??= FocusNode();
+
+    // Carrega antecipadamente o vínculo persistido do dispositivo
+    _verificarVinculacaoDispositivo();
+
+    // On page load action.
+    SchedulerBinding.instance.addPostFrameCallback((_) async {
+      AppState().codFilialAtiva = 0;
+      AppState().filialAtivaDes = '';
+      _model.dbExists = await actions.checkDatabaseExists();
+      AppState().is_first_access = !_model.dbExists!;
+      await _verificarVinculacaoDispositivo();
+      safeSetState(() {});
+    });
+  }
+
+  Future<void> _verificarVinculacaoDispositivo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final emp = prefs.getString('codigo_empresa') ??
+          prefs.getString('app_empresa_codigo') ??
+          (AppState().empresa_codigo.isNotEmpty ? AppState().empresa_codigo : null);
+      final vend = prefs.getString('codigo_vendedor_vinculado');
+
+      if (emp != null && emp.trim().isNotEmpty && vend != null && vend.trim().isNotEmpty) {
+        _codigoEmpresaVinculada = emp.trim();
+        _codigoVendedorVinculado = vend.trim();
+        _isDispositivoVinculado = true;
+        _model.empresaCodigoFieldTextController?.text = _codigoEmpresaVinculada!;
+        AppState().empresa_codigo = _codigoEmpresaVinculada!;
+      } else {
+        _isDispositivoVinculado = false;
+        _codigoEmpresaVinculada = null;
+        _codigoVendedorVinculado = null;
+      }
+    } catch (_) {}
+    if (mounted) {
+      safeSetState(() {});
+    }
   }
 
   @override
@@ -161,12 +195,13 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
   }
 
   Future<void> _fazerLogin() async {
-    final codigoEmpresaDigitado =
-        _model.empresaCodigoFieldTextController?.text.trim() ?? '';
+    final codigoEmpresa = _isDispositivoVinculado && _codigoEmpresaVinculada != null && _codigoEmpresaVinculada!.isNotEmpty
+        ? _codigoEmpresaVinculada!
+        : (_model.empresaCodigoFieldTextController?.text.trim() ?? '');
     final codigoVendedorDigitado =
         _model.vendedorCodigoFieldTextController?.text.trim() ?? '';
 
-    if (codigoEmpresaDigitado.isEmpty) {
+    if (codigoEmpresa.isEmpty) {
       await _exibirAlerta('Código de acesso da empresa não foi encontrado');
       return;
     }
@@ -176,13 +211,27 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
       return;
     }
 
+    // TRAVA DE SEGURANÇA: O dispositivo só permite login do vendedor vinculado no primeiro acesso
+    if (_isDispositivoVinculado && _codigoVendedorVinculado != null && _codigoVendedorVinculado!.isNotEmpty) {
+      final vendDigitadoNum = int.tryParse(codigoVendedorDigitado);
+      final vendVinculadoNum = int.tryParse(_codigoVendedorVinculado!);
+      final ehMesmoVendedor = (vendDigitadoNum != null && vendVinculadoNum != null)
+          ? (vendDigitadoNum == vendVinculadoNum)
+          : (codigoVendedorDigitado.toUpperCase() == _codigoVendedorVinculado!.toUpperCase());
+
+      if (!ehMesmoVendedor) {
+        await _exibirAlerta('Este dispositivo está vinculado exclusivamente ao vendedor $_codigoVendedorVinculado');
+        return;
+      }
+    }
+
     AppState().is_loading = true;
     safeSetState(() {});
 
     try {
       // 1. Valida Empresa no JSON do FTP
       final configEmpresa =
-          await AcessoFtpService().buscarConfigEmpresa(codigoEmpresaDigitado);
+          await AcessoFtpService().buscarConfigEmpresa(codigoEmpresa);
       if (configEmpresa == null) {
         AppState().is_loading = false;
         safeSetState(() {});
@@ -211,6 +260,15 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
       );
       AppState().is_first_access = false;
 
+      // Persiste codigo_empresa e codigo_vendedor_vinculado no SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('codigo_empresa', codigoEmpresa);
+      await prefs.setString('app_empresa_codigo', codigoEmpresa);
+      await prefs.setString('codigo_vendedor_vinculado', codigoVendedorDigitado);
+      _codigoEmpresaVinculada = codigoEmpresa;
+      _codigoVendedorVinculado = codigoVendedorDigitado;
+      _isDispositivoVinculado = true;
+
       // SPEC-047 §1.1: Consulta filiais e processa seleção multi-filial antes de prosseguir
       await _processarFilialAposLogin();
       if (!mounted) return;
@@ -230,6 +288,20 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
   Widget build(BuildContext context) {
     context.watch<AppState>();
 
+    final mediaQuery = MediaQuery.of(context);
+    final screenWidth = mediaQuery.size.width;
+    final screenHeight = mediaQuery.size.height;
+
+    final horizontalPadding = (screenWidth * 0.05).clamp(16.0, 24.0);
+    final verticalPadding = (screenHeight * 0.02).clamp(12.0, 24.0);
+    final cardPadding = (screenWidth * 0.05).clamp(16.0, 24.0);
+
+    final logoLoginWidth = (screenWidth * 0.45).clamp(120.0, 160.0);
+    final logoLoginHeight = (screenHeight * 0.09).clamp(50.0, 80.0);
+
+    final logoEmpresaWidth = (screenWidth * 0.38).clamp(100.0, 140.0);
+    final logoEmpresaHeight = (screenHeight * 0.08).clamp(40.0, 70.0);
+
     return GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();
@@ -241,237 +313,193 @@ class _LoginPageWidgetState extends State<LoginPageWidget> {
         body: SafeArea(
           top: true,
           child: Stack(
-            alignment: const AlignmentDirectional(0.0, 0.0),
+            alignment: Alignment.center,
             children: [
-              Container(
-                width: double.infinity,
-                height: double.infinity,
-                decoration: BoxDecoration(
-                  color: AppTheme.of(context).primaryBackground,
-                ),
-                alignment: const AlignmentDirectional(0.0, 0.0),
+              Center(
                 child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.max,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 420.0),
-                          child: Container(
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: AppTheme.of(context).secondaryBackground,
-                              borderRadius: BorderRadius.circular(16.0),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: horizontalPadding,
+                    vertical: verticalPadding,
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420.0),
+                      child: Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: AppTheme.of(context).secondaryBackground,
+                          borderRadius: BorderRadius.circular(16.0),
+                          boxShadow: [
+                            BoxShadow(
+                              blurRadius: 10.0,
+                              color: Colors.black.withValues(alpha: 0.05),
+                              offset: const Offset(0, 4),
                             ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(24.0),
-                              child: SingleChildScrollView(
-                                primary: false,
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  mainAxisAlignment: MainAxisAlignment.start,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    Padding(
-                                      padding:
-                                          const EdgeInsetsDirectional.fromSTEB(
-                                              0.0, 0.0, 0.0, 18.0),
-                                      child: EmpresaLogoService.instance
-                                          .obterLogoLoginWidget(
-                                        width: (MediaQuery.sizeOf(context).width *
-                                                0.48)
-                                            .clamp(160.0, 180.0),
-                                        height: (MediaQuery.sizeOf(context).width *
-                                                0.48)
-                                            .clamp(160.0, 180.0),
-                                        fit: BoxFit.contain,
-                                        borderRadius:
-                                            BorderRadius.circular(8.0),
-                                      ),
-                                    ),
-                                    Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.start,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          'Login de Acesso',
-                                          style: AppTheme.of(context).bodyMedium.copyWith(color: AppTheme.of(context).secondaryText, letterSpacing: 0.0),
-                                        ),
-                                      ].divide(const SizedBox(height: 4.0)),
-                                    ),
-                                    TextFormField(
-                                      controller: _model
-                                          .empresaCodigoFieldTextController,
-                                      focusNode:
-                                          _model.empresaCodigoFieldFocusNode,
-                                        textInputAction: TextInputAction.next,
-                                        onFieldSubmitted: (_) =>
-                                            FocusScope.of(context).requestFocus(
-                                                _model
-                                                    .vendedorCodigoFieldFocusNode),
-                                        inputFormatters: [
-                                          UpperCaseTextFormatter(),
-                                        ],
-                                        obscureText: false,
-                                        decoration: const InputDecoration(
-                                          labelText: 'Código da Empresa',
-                                          hintText:
-                                              'Digite o código da empresa',
-                                          enabledBorder: OutlineInputBorder(
-                                            borderSide: BorderSide(
-                                              color: Color(0x00000000),
-                                              width: 1.0,
-                                            ),
-                                            borderRadius: BorderRadius.only(
-                                              topLeft: Radius.circular(4.0),
-                                              topRight: Radius.circular(4.0),
-                                            ),
-                                          ),
-                                          focusedBorder: OutlineInputBorder(
-                                            borderSide: BorderSide(
-                                              color: Color(0x00000000),
-                                              width: 1.0,
-                                            ),
-                                            borderRadius: BorderRadius.only(
-                                              topLeft: Radius.circular(4.0),
-                                              topRight: Radius.circular(4.0),
-                                            ),
-                                          ),
-                                          errorBorder: OutlineInputBorder(
-                                            borderSide: BorderSide(
-                                              color: Color(0x00000000),
-                                              width: 1.0,
-                                            ),
-                                            borderRadius: BorderRadius.only(
-                                              topLeft: Radius.circular(4.0),
-                                              topRight: Radius.circular(4.0),
-                                            ),
-                                          ),
-                                          focusedErrorBorder:
-                                              OutlineInputBorder(
-                                            borderSide: BorderSide(
-                                              color: Color(0x00000000),
-                                              width: 1.0,
-                                            ),
-                                            borderRadius: BorderRadius.only(
-                                              topLeft: Radius.circular(4.0),
-                                              topRight: Radius.circular(4.0),
-                                            ),
-                                          ),
-                                          filled: true,
-                                        ),
-                                        style: const TextStyle(),
-                                        maxLines: null,
-                                        validator: _model
-                                            .empresaCodigoFieldTextControllerValidator
-                                            .asValidator(context),
-                                      ),
-                                    TextFormField(
-                                      controller: _model
-                                          .vendedorCodigoFieldTextController,
-                                      focusNode:
-                                          _model.vendedorCodigoFieldFocusNode,
-                                      textInputAction: TextInputAction.go,
-                                      onFieldSubmitted: (_) => _fazerLogin(),
-                                      inputFormatters: [
-                                        UpperCaseTextFormatter(),
-                                      ],
-                                      obscureText: false,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Código do Vendedor',
-                                        hintText: 'Digite o código do vendedor',
-                                        enabledBorder: OutlineInputBorder(
-                                          borderSide: BorderSide(
-                                            color: Color(0x00000000),
-                                            width: 1.0,
-                                          ),
-                                          borderRadius: BorderRadius.only(
-                                            topLeft: Radius.circular(4.0),
-                                            topRight: Radius.circular(4.0),
-                                          ),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderSide: BorderSide(
-                                            color: Color(0x00000000),
-                                            width: 1.0,
-                                          ),
-                                          borderRadius: BorderRadius.only(
-                                            topLeft: Radius.circular(4.0),
-                                            topRight: Radius.circular(4.0),
-                                          ),
-                                        ),
-                                        errorBorder: OutlineInputBorder(
-                                          borderSide: BorderSide(
-                                            color: Color(0x00000000),
-                                            width: 1.0,
-                                          ),
-                                          borderRadius: BorderRadius.only(
-                                            topLeft: Radius.circular(4.0),
-                                            topRight: Radius.circular(4.0),
-                                          ),
-                                        ),
-                                        focusedErrorBorder: OutlineInputBorder(
-                                          borderSide: BorderSide(
-                                            color: Color(0x00000000),
-                                            width: 1.0,
-                                          ),
-                                          borderRadius: BorderRadius.only(
-                                            topLeft: Radius.circular(4.0),
-                                            topRight: Radius.circular(4.0),
-                                          ),
-                                        ),
-                                        filled: true,
-                                      ),
-                                      style: const TextStyle(),
-                                      maxLines: null,
-                                      validator: _model
-                                          .vendedorCodigoFieldTextControllerValidator
-                                          .asValidator(context),
-                                    ),
-                                    AppButtonWidget(
-                                      onPressed: _fazerLogin,
-                                      text: 'ENTRAR',
-                                      options: AppButtonOptions(
-                                        width: double.infinity,
-                                        height: 50.0,
-                                        padding: const EdgeInsetsDirectional
-                                            .fromSTEB(0.0, 0.0, 0.0, 0.0),
-                                        iconPadding: const EdgeInsetsDirectional
-                                            .fromSTEB(0.0, 0.0, 0.0, 0.0),
-                                        color: AppTheme.of(context).primary,
-                                        textStyle: TextStyle(
-                                          color: AppTheme.of(context)
-                                              .secondaryBackground,
-                                        ),
-                                        borderRadius:
-                                            BorderRadius.circular(8.0),
-                                      ),
-                                    ),
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(8.0),
-                                      child: Image.asset(
-                                        'assets/images/logo-empresa.png',
-                                        width: (MediaQuery.sizeOf(context).width *
-                                                0.6)
-                                            .clamp(200.0, 240.0),
-                                        height: (MediaQuery.sizeOf(context).width *
-                                                0.6)
-                                            .clamp(200.0, 240.0),
-                                        fit: BoxFit.contain,
-                                      ),
-                                    ),
-                                  ].divide(const SizedBox(height: 20.0)),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.all(cardPadding),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
+                                    0.0, 0.0, 0.0, 12.0),
+                                child: EmpresaLogoService.instance
+                                    .obterLogoLoginWidget(
+                                  width: logoLoginWidth,
+                                  height: logoLoginHeight,
+                                  fit: BoxFit.contain,
+                                  borderRadius: BorderRadius.circular(8.0),
                                 ),
                               ),
-                            ),
+                              Text(
+                                'Login de Acesso',
+                                style: AppTheme.of(context).bodyMedium.copyWith(
+                                      color: AppTheme.of(context).secondaryText,
+                                      letterSpacing: 0.0,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                              if (!_isDispositivoVinculado)
+                                TextFormField(
+                                  controller: _model
+                                      .empresaCodigoFieldTextController,
+                                  focusNode:
+                                      _model.empresaCodigoFieldFocusNode,
+                                  textInputAction: TextInputAction.next,
+                                  onFieldSubmitted: (_) =>
+                                      FocusScope.of(context).requestFocus(
+                                          _model.vendedorCodigoFieldFocusNode),
+                                  inputFormatters: [
+                                    UpperCaseTextFormatter(),
+                                  ],
+                                  obscureText: false,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Código da Empresa',
+                                    hintText: 'Digite o código da empresa',
+                                    enabledBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(
+                                        color: Color(0x00000000),
+                                        width: 1.0,
+                                      ),
+                                      borderRadius: BorderRadius.all(Radius.circular(4.0)),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(
+                                        color: Color(0x00000000),
+                                        width: 1.0,
+                                      ),
+                                      borderRadius: BorderRadius.all(Radius.circular(4.0)),
+                                    ),
+                                    errorBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(
+                                        color: Color(0x00000000),
+                                        width: 1.0,
+                                      ),
+                                      borderRadius: BorderRadius.all(Radius.circular(4.0)),
+                                    ),
+                                    focusedErrorBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(
+                                        color: Color(0x00000000),
+                                        width: 1.0,
+                                      ),
+                                      borderRadius: BorderRadius.all(Radius.circular(4.0)),
+                                    ),
+                                    filled: true,
+                                  ),
+                                  style: const TextStyle(),
+                                  maxLines: 1,
+                                  validator: _model
+                                      .empresaCodigoFieldTextControllerValidator
+                                      .asValidator(context),
+                                ),
+                              TextFormField(
+                                controller: _model
+                                    .vendedorCodigoFieldTextController,
+                                focusNode:
+                                    _model.vendedorCodigoFieldFocusNode,
+                                textInputAction: TextInputAction.go,
+                                onFieldSubmitted: (_) => _fazerLogin(),
+                                inputFormatters: [
+                                  UpperCaseTextFormatter(),
+                                ],
+                                obscureText: false,
+                                decoration: const InputDecoration(
+                                  labelText: 'Código do Vendedor',
+                                  hintText: 'Digite o código do vendedor',
+                                  enabledBorder: OutlineInputBorder(
+                                    borderSide: BorderSide(
+                                      color: Color(0x00000000),
+                                      width: 1.0,
+                                    ),
+                                    borderRadius: BorderRadius.all(Radius.circular(4.0)),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderSide: BorderSide(
+                                      color: Color(0x00000000),
+                                      width: 1.0,
+                                    ),
+                                    borderRadius: BorderRadius.all(Radius.circular(4.0)),
+                                  ),
+                                  errorBorder: OutlineInputBorder(
+                                    borderSide: BorderSide(
+                                      color: Color(0x00000000),
+                                      width: 1.0,
+                                    ),
+                                    borderRadius: BorderRadius.all(Radius.circular(4.0)),
+                                  ),
+                                  focusedErrorBorder: OutlineInputBorder(
+                                    borderSide: BorderSide(
+                                      color: Color(0x00000000),
+                                      width: 1.0,
+                                    ),
+                                    borderRadius: BorderRadius.all(Radius.circular(4.0)),
+                                  ),
+                                  filled: true,
+                                ),
+                                style: const TextStyle(),
+                                maxLines: 1,
+                                validator: _model
+                                    .vendedorCodigoFieldTextControllerValidator
+                                    .asValidator(context),
+                              ),
+                              AppButtonWidget(
+                                onPressed: _fazerLogin,
+                                text: 'ENTRAR',
+                                options: AppButtonOptions(
+                                  width: double.infinity,
+                                  height: 48.0,
+                                  padding: const EdgeInsetsDirectional
+                                      .fromSTEB(0.0, 0.0, 0.0, 0.0),
+                                  iconPadding: const EdgeInsetsDirectional
+                                      .fromSTEB(0.0, 0.0, 0.0, 0.0),
+                                  color: AppTheme.of(context).primary,
+                                  textStyle: TextStyle(
+                                    color: AppTheme.of(context)
+                                        .secondaryBackground,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  borderRadius:
+                                      BorderRadius.circular(8.0),
+                                ),
+                              ),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8.0),
+                                child: Image.asset(
+                                  'assets/images/logo-empresa.png',
+                                  width: logoEmpresaWidth,
+                                  height: logoEmpresaHeight,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ].divide(const SizedBox(height: 16.0)),
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
