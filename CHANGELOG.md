@@ -7,6 +7,21 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [Ajustes] - Interpolação de Código da Equipe no FTP (`acesso.json`) - 2026-09-29
+
+### 🌟 Adicionado & Aprimorado
+- **Interpolação Dinâmica de Rotas FTP (`ConfigEmpresaAcesso` / `SalesAccessConfig`)**:
+  - Implementação do método `resolverCaminho(String template, String? codigoEquipe)` suportando marcadores `{codigo_da_equipe}` e `{codigoEquipe}` com formatação automática de 2 dígitos (ex: '1' -> '01').
+  - Tratamento resiliente de contingência: fallback seguro para '01' quando o código da equipe do vendedor vier vazio, nulo ou não definido.
+- **Serviço de Download de Cargas (`FtpDownloadService` / `SincronizacaoService` / `SalesDatabaseRepository`)**:
+  - Resolução dinâmica da rota de download (`pasta_download`, ex: `/diniz/{codigo_da_equipe}/Upload/`) obtendo a equipe da sessão autenticada ou `cadrep00.ven00_codeqp`.
+  - Navegação precisa no servidor FTP para o diretório resolvido antes de inspecionar e baixar a carga `ven$salespersonCode.crg`.
+- **Serviço de Upload de Pacotes e Clientes (`FtpUploadService` / `FtpPathBuilder`)**:
+  - Resolução da rota `pasta_upload` (ex: `/diniz/{codigo_da_equipe}/Externo/`) para envio de pacotes (.pac) e cadastros (.xml).
+  - Atualização de `enviarArquivosPendentesFtp`, `aguardarRetornoPacote` e `enviarNovosClientesFtp` para respeitar o diretório resolvido da equipe.
+
+---
+
 ## [SPEC-056] - Verificação de Carga, Versionamento, Equipe e Handshake de Envio FTP - 2026-09-28
 
 ### 🌟 Adicionado & Aprimorado

@@ -54,14 +54,40 @@ class FtpPathBuilder {
     }
   }
 
-  /// Monta o caminho remoto de upload base concatenado com a equipe do vendedor.
-  /// Formato: `${pasta_upload}${codigoEquipe}/` (ex: `"/diniz/upload/01/"`).
+  /// Interpola o template remoto do acesso.json com o código da equipe do vendedor.
+  /// Suporta os marcadores `{codigo_da_equipe}` e `{codigoEquipe}`.
+  /// Formato de 2 dígitos garantido (ex: 2 -> '02'). Fallback seguro: '01'.
+  static String resolvePathFromTemplate({
+    required String template,
+    required dynamic codigoEquipe,
+    String fallback = '01',
+  }) {
+    final eqpStr = codigoEquipe?.toString().trim() ?? '';
+    final raw = (eqpStr.isEmpty || eqpStr == '0') ? fallback : eqpStr;
+    final equipeFormatada = raw.padLeft(2, '0');
+    return template
+        .replaceAll('{codigo_da_equipe}', equipeFormatada)
+        .replaceAll('{codigoEquipe}', equipeFormatada);
+  }
+
+  /// Monta o caminho remoto de upload base concatenado ou interpolado com a equipe do vendedor.
+  /// Se [pastaUploadBase] contiver template `{codigo_da_equipe}`, interpola dinamicamente.
+  /// Formato legado fallback: `${pasta_upload}${codigoEquipe}/` (ex: `"/diniz/upload/01/"`).
   static String buildUploadPath({
     required String pastaUploadBase,
     required int codigoEquipe,
   }) {
     var base = pastaUploadBase.trim();
     if (base.isEmpty) base = '/diniz/upload/';
+
+    if (base.contains('{codigo_da_equipe}') || base.contains('{codigoEquipe}')) {
+      final resolvido = resolvePathFromTemplate(
+        template: base,
+        codigoEquipe: codigoEquipe,
+      );
+      return resolvido.endsWith('/') ? resolvido : '$resolvido/';
+    }
+
     if (!base.endsWith('/')) base = '$base/';
     final equipe = formatEquipe(codigoEquipe);
     return '$base$equipe/';

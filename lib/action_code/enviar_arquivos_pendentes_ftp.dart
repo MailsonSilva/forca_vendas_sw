@@ -36,7 +36,15 @@ Future<UploadPendenteResultStruct> enviarArquivosPendentesFtp({
     final String empresa = AppState().empresa_codigo.trim().isEmpty
         ? 'diniz'
         : AppState().empresa_codigo.trim();
-    final int codigoEquipe = AppState().vendedor_equipe;
+    int codigoEquipe = AppState().vendedor_equipe;
+    if (codigoEquipe <= 0) {
+      final prefEquipe = AppState().prefs.getInt('app_vendedor_equipe') ?? 0;
+      if (prefEquipe > 0) {
+        codigoEquipe = prefEquipe;
+      } else {
+        codigoEquipe = 1; // Fallback seguro
+      }
+    }
 
     AppState().update(() {
       AppState().dbSyncStatus = 'baixando';
@@ -51,6 +59,7 @@ Future<UploadPendenteResultStruct> enviarArquivosPendentesFtp({
     final result = await FtpUploadService().enviarArquivosPendentes(
       empresa: empresa,
       codigoEquipe: codigoEquipe,
+      pastaUploadTemplate: AppState().pastaUpload0,
       enviarClientes: enviarClientes,
       enviarPedidos: enviarPedidos,
       arquivosSelecionados: arquivosSelecionados,

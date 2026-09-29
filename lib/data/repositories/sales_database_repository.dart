@@ -26,6 +26,7 @@ class SalesDatabaseRepository {
   Future<SalesDatabaseInstallResult> downloadAndInstall({
     required String companyCode,
     required String salespersonCode,
+    String? teamCode,
   }) async {
     FtpClient? ftp;
     try {
@@ -45,7 +46,15 @@ class SalesDatabaseRepository {
         );
       }
 
-      await _changeDirectory(ftp, config.downloadPath);
+      // Resolve código da equipe do vendedor para interpolação
+      final equipeVendedor = (teamCode != null && teamCode.trim().isNotEmpty && teamCode.trim() != '0')
+          ? teamCode.trim().padLeft(2, '0')
+          : (AppState().vendedor_equipe > 0
+              ? AppState().vendedor_equipe.toString().padLeft(2, '0')
+              : '01');
+
+      final dirDownload = config.resolverDownloadPath(equipeVendedor);
+      await _changeDirectory(ftp, dirDownload);
 
       final crgName = '${config.databaseFilePrefix}$salespersonCode.crg';
 

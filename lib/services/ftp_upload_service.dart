@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import '../app_state.dart';
 import '../backend/ftp/ftp_client.dart';
 import '../backend/ftp/ftp_transport.dart';
 import '../backend/schema/structs/index.dart';
@@ -72,6 +73,7 @@ class FtpUploadService {
   Future<UploadPendenteResultStruct> enviarArquivosPendentes({
     required String empresa,
     required int codigoEquipe,
+    String? pastaUploadTemplate,
     bool enviarClientes = true,
     bool enviarPedidos = true,
     List<String>? arquivosSelecionados,
@@ -80,6 +82,9 @@ class FtpUploadService {
         onProgress,
   }) async {
     final List<ItemUploadStruct> itens = [];
+
+    // Fallback seguro caso equipe venha nula, zero ou vazia
+    final int eqpSegura = codigoEquipe > 0 ? codigoEquipe : 1;
 
     try {
       final Directory tempDir = await _getTemporaryDirectoryFn();
@@ -132,17 +137,29 @@ class FtpUploadService {
         int sucessoContagem = 0;
 
         final String emp = empresa.trim().isEmpty ? 'diniz' : empresa.trim();
+        final String? template = (pastaUploadTemplate != null && pastaUploadTemplate.trim().isNotEmpty)
+            ? pastaUploadTemplate.trim()
+            : (AppState().pastaUpload0.isNotEmpty ? AppState().pastaUpload0.trim() : null);
 
         for (int i = 0; i < total; i++) {
           final File arquivo = arquivos[i];
           final String nome = p.basename(arquivo.path);
           final TipoCarga tipo = classificarTipoArquivo(nome);
 
-          final String targetFolder = FtpPathBuilder.getRemotePath(
-            empresa: emp,
-            codReg: codigoEquipe,
-            tipo: tipo,
-          );
+          final String targetFolder;
+          if (template != null &&
+              (template.contains('{codigo_da_equipe}') || template.contains('{codigoEquipe}'))) {
+            targetFolder = FtpPathBuilder.resolvePathFromTemplate(
+              template: template,
+              codigoEquipe: eqpSegura,
+            );
+          } else {
+            targetFolder = FtpPathBuilder.getRemotePath(
+              empresa: emp,
+              codReg: eqpSegura,
+              tipo: tipo,
+            );
+          }
 
           await _navegarFtpPasta(ftp, targetFolder);
 
@@ -283,6 +300,7 @@ class FtpUploadService {
     required int codRep,
     required int ipac,
     String? dirPac,
+    String? pastaUploadTemplate,
     Duration intervalo = const Duration(seconds: 5),
     Duration timeout = const Duration(seconds: 60),
     void Function(int tentativa, String mensagem)? onPoll,
@@ -292,13 +310,24 @@ class FtpUploadService {
     final String prefixoRet = 'r$codRep-$ipac';
 
     final String emp = empresa.trim().isEmpty ? 'diniz' : empresa.trim();
+    final int eqpSegura = codigoEquipe > 0 ? codigoEquipe : 1;
+    final String? template = (pastaUploadTemplate != null && pastaUploadTemplate.trim().isNotEmpty)
+        ? pastaUploadTemplate.trim()
+        : (AppState().pastaUpload0.isNotEmpty ? AppState().pastaUpload0.trim() : null);
+
     final String targetFolder = (dirPac != null && dirPac.trim().isNotEmpty)
         ? dirPac.trim()
-        : FtpPathBuilder.getRemotePath(
-            empresa: emp,
-            codReg: codigoEquipe,
-            tipo: TipoCarga.pedido,
-          );
+        : (template != null &&
+                (template.contains('{codigo_da_equipe}') || template.contains('{codigoEquipe}'))
+            ? FtpPathBuilder.resolvePathFromTemplate(
+                template: template,
+                codigoEquipe: eqpSegura,
+              )
+            : FtpPathBuilder.getRemotePath(
+                empresa: emp,
+                codReg: eqpSegura,
+                tipo: TipoCarga.pedido,
+              ));
 
     final DateTime start = DateTime.now();
     int tentativa = 0;
@@ -381,6 +410,7 @@ class FtpUploadService {
     String? empresa,
     int? codigoEquipe,
     String? dirCAD,
+    String? pastaUploadTemplate,
     ClienteRepository? repository,
     void Function(String nome, int index, int total)? onProgress,
   }) async {
@@ -398,14 +428,27 @@ class FtpUploadService {
     final List<ItemUploadStruct> itens = [];
     final Directory tempDir = await _getTemporaryDirectoryFn();
     final String emp = (empresa != null && empresa.trim().isNotEmpty) ? empresa.trim() : 'diniz';
-    final int eqp = codigoEquipe ?? (int.tryParse(codVendedor) ?? 71);
+    final int eqp = (codigoEquipe != null && codigoEquipe > 0)
+        ? codigoEquipe
+        : (int.tryParse(codVendedor) ?? 1);
+
+    final String? template = (pastaUploadTemplate != null && pastaUploadTemplate.trim().isNotEmpty)
+        ? pastaUploadTemplate.trim()
+        : (AppState().pastaUpload0.isNotEmpty ? AppState().pastaUpload0.trim() : null);
+
     final String targetFolder = (dirCAD != null && dirCAD.trim().isNotEmpty)
         ? dirCAD.trim()
-        : FtpPathBuilder.getRemotePath(
-            empresa: emp,
-            codReg: eqp,
-            tipo: TipoCarga.cliente,
-          );
+        : (template != null &&
+                (template.contains('{codigo_da_equipe}') || template.contains('{codigoEquipe}'))
+            ? FtpPathBuilder.resolvePathFromTemplate(
+                template: template,
+                codigoEquipe: eqp,
+              )
+            : FtpPathBuilder.getRemotePath(
+                empresa: emp,
+                codReg: eqp,
+                tipo: TipoCarga.cliente,
+              ));
 
     FtpTransport? ftp;
     try {
