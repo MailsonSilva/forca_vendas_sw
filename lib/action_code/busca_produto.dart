@@ -19,6 +19,7 @@ class ProductDbMetadata {
   static String? pcoCodCol;
   static String? pcoTabCol;
   static String? pcoPrecoCol;
+  static String? pcoClsCol;
   static String? tblMar;
   static String? tblFor;
 
@@ -33,6 +34,7 @@ class ProductDbMetadata {
     pcoCodCol = null;
     pcoTabCol = null;
     pcoPrecoCol = null;
+    pcoClsCol = null;
     tblMar = null;
     tblFor = null;
   }
@@ -80,6 +82,9 @@ class ProductDbMetadata {
         }
         for (final c in ['pro00_pcosub', 'pro00_preco', 'pcopro00_pcosub', 'preco']) {
           if (pCols.contains(c)) { pcoPrecoCol = c; break; }
+        }
+        for (final c in ['pro00_codcls', 'codcls']) {
+          if (pCols.contains(c)) { pcoClsCol = c; break; }
         }
       }
 
@@ -205,30 +210,52 @@ Future<List<ProdutoResultStruct>> buscaProduto(
       binds.add(filial);
     }
 
-    // 5. Junção de Preço por Tabela com fallback tolerante
+    // 5. Junção de Preço por Tabela com priorização de Preço Máximo
     String joinPco = '';
-    String selPco = "COALESCE($colPrecoBase, 0.0) AS preco_venda";
+    String selPco = "COALESCE($colPrecoBase, 0.0) AS preco_venda, COALESCE($colPrecoBase, 0.0) AS pro00_pcomax";
     if (ProductDbMetadata.tblPco != null &&
-        ProductDbMetadata.pcoCodCol != null &&
-        ProductDbMetadata.pcoPrecoCol != null) {
+        ProductDbMetadata.pcoCodCol != null) {
       final String tbl = ProductDbMetadata.tblPco!;
       final String pcoCod = ProductDbMetadata.pcoCodCol!;
-      final String pcoPco = ProductDbMetadata.pcoPrecoCol!;
-      if (ProductDbMetadata.pcoTabCol != null) {
-        joinPco = '''
-          LEFT JOIN $tbl t 
-                 ON (t.$pcoCod = p.$colCod OR CAST(t.$pcoCod AS INTEGER) = CAST(p.$colCod AS INTEGER))
-                AND (t.${ProductDbMetadata.pcoTabCol} = ? OR CAST(t.${ProductDbMetadata.pcoTabCol} AS INTEGER) = ?)
-        ''';
+      final String? pcoTab = ProductDbMetadata.pcoTabCol;
+      final String? pcoCls = ProductDbMetadata.pcoClsCol;
+
+      final List<String> joinCondicoes = [
+        '(t.$pcoCod = p.$colCod OR CAST(t.$pcoCod AS INTEGER) = CAST(p.$colCod AS INTEGER))'
+      ];
+
+      if (pcoTab != null) {
+        joinCondicoes.add('(t.$pcoTab = ? OR ? = 0)');
         binds.add(tab);
         binds.add(tab);
-      } else {
-        joinPco = '''
-          LEFT JOIN $tbl t 
-                 ON (t.$pcoCod = p.$colCod OR CAST(t.$pcoCod AS INTEGER) = CAST(p.$colCod AS INTEGER))
-        ''';
       }
-      selPco = "COALESCE(t.$pcoPco, $colPrecoBase, 0.0) AS preco_venda";
+
+      if (pcoCls != null) {
+        final int cls = (AppState().clienteSelecionado?.codTipoPreco ?? 0);
+        joinCondicoes.add('(t.$pcoCls = ? OR ? = 0)');
+        binds.add(cls);
+        binds.add(cls);
+      }
+
+      joinPco = 'LEFT JOIN $tbl t ON ${joinCondicoes.join(' AND ')}';
+
+      Set<String> pCols = {};
+      try {
+        final pc = await db.rawQuery('PRAGMA table_info($tbl)');
+        pCols = pc.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+      } catch (_) {}
+
+      final String colSub = pCols.contains('pro00_pcosub')
+          ? 't.pro00_pcosub'
+          : (pCols.contains('pcosub') ? 't.pcosub' : 'NULL');
+      final String colPco = pCols.contains('pro00_preco')
+          ? 't.pro00_preco'
+          : (pCols.contains('preco') ? 't.preco' : 'NULL');
+
+      final String expPrecoMax =
+          "COALESCE(NULLIF($colSub, 0.0), NULLIF($colPco, 0.0), $colPrecoBase, 0.0)";
+
+      selPco = "$expPrecoMax AS preco_venda, $expPrecoMax AS pro00_pcomax";
     }
 
     // 6. Montagem de filtros

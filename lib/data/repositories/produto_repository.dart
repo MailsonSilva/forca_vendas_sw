@@ -130,19 +130,19 @@ class ProdutoRepository {
         ''';
       }
 
-      final String colPcoFallback = pcoCols.contains('pro00_preco')
+      final String colSub = pcoCols.contains('pro00_pcosub')
+          ? 't.pro00_pcosub'
+          : (pcoCols.contains('pcosub') ? 't.pcosub' : 'NULL');
+      final String colPco = pcoCols.contains('pro00_preco')
           ? 't.pro00_preco'
-          : (pcoCols.contains('preco') ? 't.preco' : '0.0');
+          : (pcoCols.contains('preco') ? 't.preco' : 'NULL');
 
-      final String expPrecoVenda = 'COALESCE(t.$colPcosub, $colPcoFallback, 0.0)';
-
-      final String expMin = hasPcocus
-          ? 'COALESCE(NULLIF(t.$colPcocus, 0.0), $expPrecoVenda, 0.0)'
-          : expPrecoVenda;
+      final String expPrecoVenda =
+          'COALESCE(NULLIF($colSub, 0.0), NULLIF($colPco, 0.0), 0.0)';
 
       selPreco = '''
         $expPrecoVenda AS pro00_pcomax,
-        $expMin AS pro00_pcomin,
+        $expPrecoVenda AS pro00_pcomin,
         $expPrecoVenda AS preco_venda
       ''';
     }
@@ -360,7 +360,8 @@ class ProdutoRepository {
           ? 't.pro00_preco'
           : (pcoCols.contains('preco') ? 't.preco' : '0.0');
 
-      final String expPrecoVenda = 'COALESCE(t.$colPcosub, $colPcoFallback, 0.0)';
+      final String expPrecoVenda =
+          'COALESCE(NULLIF(t.$colPcosub, 0.0), NULLIF($colPcoFallback, 0.0), 0.0)';
 
       final String expMin = hasPcocus
           ? 'COALESCE(NULLIF(t.$colPcocus, 0.0), $expPrecoVenda, 0.0)'

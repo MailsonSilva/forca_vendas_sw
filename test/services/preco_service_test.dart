@@ -258,7 +258,7 @@ void main() {
       final c1001 = cardsFilial1.firstWhere((c) => c.codigo == 1001);
       expect(c1001.preco, equals(20.00));
       expect(c1001.pcomax, equals(20.00));
-      expect(c1001.pcomin, equals(12.00));
+      expect(c1001.pcomin, equals(20.00));
       expect(c1001.qtdest, equals(90.0)); // 100 - 10
 
       // Filial 2: saldo isolado de 40.0
