@@ -43,7 +43,6 @@ class ItemPedidoStruct extends BaseStruct {
     String? marca,
     String? referencia,
     String? codbar,
-    // SPEC-058: Faixas de preço canônicas
     double? pcomax,
     double? pcomin,
   })  : _codigoProduto = codigoProduto,
@@ -63,6 +62,18 @@ class ItemPedidoStruct extends BaseStruct {
         _codbar = codbar,
         _pcomax = pcomax,
         _pcomin = pcomin;
+
+  // "pcomax" field.
+  double? _pcomax;
+  double get pcomax => _pcomax ?? precoUnitario;
+  set pcomax(double? val) => _pcomax = val;
+  bool hasPcomax() => _pcomax != null;
+
+  // "pcomin" field.
+  double? _pcomin;
+  double get pcomin => _pcomin ?? precoUnitario;
+  set pcomin(double? val) => _pcomin = val;
+  bool hasPcomin() => _pcomin != null;
 
   // "codigo_produto" field.
   String? _codigoProduto;
@@ -169,18 +180,6 @@ class ItemPedidoStruct extends BaseStruct {
   String get codbar => _codbar ?? '';
   set codbar(String? val) => _codbar = val;
   bool hasCodbar() => _codbar != null;
-
-  // "pcomax" field.
-  double? _pcomax;
-  double get pcomax => _pcomax ?? precoUnitario;
-  set pcomax(double? val) => _pcomax = val;
-  bool hasPcomax() => _pcomax != null;
-
-  // "pcomin" field.
-  double? _pcomin;
-  double get pcomin => _pcomin ?? precoUnitario;
-  set pcomin(double? val) => _pcomin = val;
-  bool hasPcomin() => _pcomin != null;
 
   static ItemPedidoStruct fromMap(Map<String, dynamic> data) =>
       ItemPedidoStruct(

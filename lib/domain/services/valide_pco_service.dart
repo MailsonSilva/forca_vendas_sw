@@ -77,16 +77,15 @@ class ValidePcoService {
     return ValidationResultStruct(valido: true, mensagem: '');
   }
 
-  /// Obtém as faixas de preço conforme a resolução canônica da SPEC-058:
-  /// 1. estpcoreg00 (cruzamento produto + tabela + regiao -> classe)
-  /// 2. estpcopro00 (valor pcosub como pcomax, pcocus/pcosub como pcomin)
-  /// 3. Fallback estpcoregpco00 se existir (legado)
+  /// Obtém as faixas de preço conforme a hierarquia da Seção 1.2 da spec:
+  /// 1. estpcoregpco00 (faixas regionais/tabela)
+  /// 2. estpcopro00 (tabela de preço padrão)
+  /// 3. cadpro00 (cadastro base de produto)
   static Future<FaixaPrecoProduto> obterFaixasPreco(
     String codProduto, {
     int? codTabela,
     int? codRegiao,
     int? codFilial,
-    int? codClasse,
   }) async {
     try {
       final db = await LocalSalesDatabaseService.getDatabase();
@@ -97,54 +96,45 @@ class ValidePcoService {
       final int reg = codRegiao ?? 0;
       final int? intVal = int.tryParse(codProduto);
 
-      // 1. Resolução Canônica SPEC-058: estpcoreg00 -> estpcopro00
-      if (tables.contains('estpcopro00')) {
-        int? resolvedCls = codClasse;
-
-        // Se houver tabela de amarração regional estpcoreg00, consulta a classe de preço
-        if (tables.contains('estpcoreg00')) {
-          try {
-            final colsReg = await db.rawQuery('PRAGMA table_info(estpcoreg00)');
-            final colNamesReg = colsReg.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
-
-            String codCol = colNamesReg.contains('pro00_codpro') ? 'pro00_codpro' : 'codpro';
-            String tabCol = colNamesReg.contains('pro00_codtab') ? 'pro00_codtab' : 'codtab';
-            String regCol = colNamesReg.contains('pro00_codreg') ? 'pro00_codreg' : 'codreg';
-            String clsCol = colNamesReg.contains('pro00_codcls')
-                ? 'pro00_codcls'
-                : (colNamesReg.contains('pro00_codpco') ? 'pro00_codpco' : 'codcls');
-
-            String queryReg = 'SELECT $clsCol AS cls FROM estpcoreg00 WHERE ($codCol = ? OR $codCol = ?)';
-            List<dynamic> argsReg = [codProduto, intVal ?? -1];
-
-            if (tab > 0 && colNamesReg.contains(tabCol)) {
-              queryReg += ' AND $tabCol = ?';
-              argsReg.add(tab);
-            }
-            if (reg > 0 && colNamesReg.contains(regCol)) {
-              queryReg += ' AND $regCol = ?';
-              argsReg.add(reg);
-            }
-            queryReg += ' LIMIT 1';
-
-            final rowsReg = await db.rawQuery(queryReg, argsReg);
-            if (rowsReg.isNotEmpty && rowsReg.first['cls'] != null) {
-              resolvedCls = int.tryParse(rowsReg.first['cls'].toString());
-            }
-          } catch (_) {}
-        }
-
-        // Consulta estpcopro00
+      // 1. Hierarquia Canônica SPEC-058: estpcoreg00 -> estpcopro00
+      if (tables.contains('estpcopro00') || tables.contains('pcopro00')) {
+        final tblPco = tables.contains('estpcopro00') ? 'estpcopro00' : 'pcopro00';
         try {
-          final colsPco = await db.rawQuery('PRAGMA table_info(estpcopro00)');
-          final colNamesPco = colsPco.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+          int? resolvedCls;
+          if (tables.contains('estpcoreg00') && reg > 0) {
+            final regCols = (await db.rawQuery('PRAGMA table_info(estpcoreg00)')).map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+            final codColReg = regCols.contains('pro00_codpro') ? 'pro00_codpro' : 'codpro';
+            final tabColReg = regCols.contains('pro00_codtab') ? 'pro00_codtab' : 'codtab';
+            final regColReg = regCols.contains('pro00_codreg') ? 'pro00_codreg' : 'codreg';
+            final clsColReg = regCols.contains('pro00_codpco')
+                ? 'pro00_codpco'
+                : (regCols.contains('pro00_codcls') ? 'pro00_codcls' : 'codpco');
+
+            String regQuery = 'SELECT $clsColReg FROM estpcoreg00 WHERE ($codColReg = ? OR $codColReg = ?)';
+            List<dynamic> regBinds = [codProduto, intVal ?? -1];
+            if (tab > 0 && regCols.contains(tabColReg)) {
+              regQuery += ' AND $tabColReg = ?';
+              regBinds.add(tab);
+            }
+            if (regCols.contains(regColReg)) {
+              regQuery += ' AND $regColReg = ?';
+              regBinds.add(reg);
+            }
+            regQuery += ' LIMIT 1';
+
+            final rRows = await db.rawQuery(regQuery, regBinds);
+            if (rRows.isNotEmpty && rRows.first[clsColReg] != null) {
+              resolvedCls = int.tryParse(rRows.first[clsColReg].toString());
+            }
+          }
+
+          final pcoCols = await db.rawQuery('PRAGMA table_info($tblPco)');
+          final colNamesPco = pcoCols.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
 
           String codCol = colNamesPco.contains('pro00_codpro')
               ? 'pro00_codpro'
               : (colNamesPco.contains('pro00_codigo') ? 'pro00_codigo' : 'codpro');
-          String clsCol = colNamesPco.contains('pro00_codcls')
-              ? 'pro00_codcls'
-              : (colNamesPco.contains('pro00_codpco') ? 'pro00_codpco' : 'codcls');
+          String clsCol = colNamesPco.contains('pro00_codcls') ? 'pro00_codcls' : 'codcls';
           String tabCol = colNamesPco.contains('pro00_codtab') ? 'pro00_codtab' : 'codtab';
           String subCol = colNamesPco.contains('pro00_pcosub')
               ? 'pro00_pcosub'
@@ -154,7 +144,7 @@ class ValidePcoService {
           String maxCol = colNamesPco.contains('pro00_pcomax') ? 'pro00_pcomax' : 'pcomax';
           String comCol = colNamesPco.contains('pro00_commax') ? 'pro00_commax' : 'commax';
 
-          String queryPco = 'SELECT * FROM estpcopro00 WHERE ($codCol = ? OR $codCol = ?)';
+          String queryPco = 'SELECT * FROM $tblPco WHERE ($codCol = ? OR $codCol = ?)';
           List<dynamic> argsPco = [codProduto, intVal ?? -1];
 
           if (resolvedCls != null && resolvedCls > 0 && colNamesPco.contains(clsCol)) {
@@ -185,7 +175,7 @@ class ValidePcoService {
                 commax: cmax > 0 ? cmax : 100.0,
                 precoBase: sub > 0 ? sub : pmax,
                 freadpco: true,
-                tabelaOrigem: 'estpcopro00',
+                tabelaOrigem: tblPco,
               );
             }
           }
@@ -236,7 +226,54 @@ class ValidePcoService {
         } catch (_) {}
       }
 
-      // 3. Fallback Legado: cadpro00 (apenas se tiver colunas explícitas de faixa pcomin/pcomax)
+      // 2. Hierarquia 2: estpcopro00 (Preço por tabela)
+      if (tables.contains('estpcopro00') || tables.contains('pcopro00')) {
+        final tbl = tables.contains('estpcopro00') ? 'estpcopro00' : 'pcopro00';
+        try {
+          final cols = await db.rawQuery('PRAGMA table_info($tbl)');
+          final colNames = cols.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+
+          String codCol = colNames.contains('pro00_codpro')
+              ? 'pro00_codpro'
+              : (colNames.contains('pro00_codigo') ? 'pro00_codigo' : 'codpro');
+          String tabCol = colNames.contains('pro00_codtab') ? 'pro00_codtab' : 'codtab';
+          String pcoCol = colNames.contains('pro00_pcosub')
+              ? 'pro00_pcosub'
+              : (colNames.contains('pro00_preco') ? 'pro00_preco' : 'preco');
+          String minCol = colNames.contains('pro00_pcomin') ? 'pro00_pcomin' : 'pcomin';
+          String maxCol = colNames.contains('pro00_pcomax') ? 'pro00_pcomax' : 'pcomax';
+          String comCol = colNames.contains('pro00_commax') ? 'pro00_commax' : 'commax';
+
+          String query = 'SELECT * FROM $tbl WHERE ($codCol = ? OR $codCol = ?)';
+          List<dynamic> args = [codProduto, intVal ?? -1];
+
+          if (tab > 0 && colNames.contains(tabCol)) {
+            query += ' AND $tabCol = ?';
+            args.add(tab);
+          }
+          query += ' LIMIT 1';
+
+          final rows = await db.rawQuery(query, args);
+          if (rows.isNotEmpty) {
+            final r = rows.first;
+            final double base = _parseDouble(r[pcoCol]);
+            final double pmin = _parseDouble(r[minCol]);
+            final double pmax = _parseDouble(r[maxCol]);
+            final double cmax = _parseDouble(r[comCol]);
+
+            return FaixaPrecoProduto(
+              pcomin: pmin > 0 ? pmin : (base > 0 ? base : 0.0),
+              pcomax: pmax > 0 ? pmax : (base > 0 ? base : 999999.0),
+              commax: cmax > 0 ? cmax : 100.0,
+              precoBase: base,
+              freadpco: true,
+              tabelaOrigem: tbl,
+            );
+          }
+        } catch (_) {}
+      }
+
+      // 3. Hierarquia 3: cadpro00
       if (tables.contains('cadpro00') || tables.contains('pro00')) {
         final tbl = tables.contains('cadpro00') ? 'cadpro00' : 'pro00';
         try {
@@ -244,36 +281,34 @@ class ValidePcoService {
           final colNames = cols.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
 
           String codCol = colNames.contains('pro00_codigo') ? 'pro00_codigo' : 'codigo';
-          String subCol = colNames.contains('pro00_pcosub') ? 'pro00_pcosub' : 'pcosub';
+          String pcoCol = colNames.contains('pro00_pcosub')
+              ? 'pro00_pcosub'
+              : (colNames.contains('pro00_preco') ? 'pro00_preco' : 'preco');
           String minCol = colNames.contains('pro00_pcomin') ? 'pro00_pcomin' : 'pcomin';
           String maxCol = colNames.contains('pro00_pcomax') ? 'pro00_pcomax' : 'pcomax';
           String comCol = colNames.contains('pro00_commax') ? 'pro00_commax' : 'commax';
           String frdCol = colNames.contains('pro00_freadpco') ? 'pro00_freadpco' : 'freadpco';
 
-          if (colNames.contains(minCol) || colNames.contains(maxCol) || colNames.contains(subCol)) {
-            final rows = await db.rawQuery(
-              'SELECT * FROM $tbl WHERE ($codCol = ? OR $codCol = ?) LIMIT 1',
-              [codProduto, intVal ?? -1],
-            );
-            if (rows.isNotEmpty) {
-              final r = rows.first;
-              final double base = colNames.contains(subCol) ? _parseDouble(r[subCol]) : 0.0;
-              final double pmin = colNames.contains(minCol) ? _parseDouble(r[minCol]) : 0.0;
-              final double pmax = colNames.contains(maxCol) ? _parseDouble(r[maxCol]) : 0.0;
-              final double cmax = colNames.contains(comCol) ? _parseDouble(r[comCol]) : 100.0;
-              final bool frd = colNames.contains(frdCol) && r[frdCol] != null ? (_parseDouble(r[frdCol]) != 0.0) : true;
+          final rows = await db.rawQuery(
+            'SELECT * FROM $tbl WHERE ($codCol = ? OR $codCol = ?) LIMIT 1',
+            [codProduto, intVal ?? -1],
+          );
+          if (rows.isNotEmpty) {
+            final r = rows.first;
+            final double base = _parseDouble(r[pcoCol]);
+            final double pmin = _parseDouble(r[minCol]);
+            final double pmax = _parseDouble(r[maxCol]);
+            final double cmax = _parseDouble(r[comCol]);
+            final bool frd = r[frdCol] != null ? (_parseDouble(r[frdCol]) != 0.0) : true;
 
-              if (pmin > 0 || pmax > 0 || base > 0) {
-                return FaixaPrecoProduto(
-                  pcomin: pmin > 0 ? pmin : (base > 0 ? base : 0.0),
-                  pcomax: pmax > 0 ? pmax : (base > 0 ? base : 999999.0),
-                  commax: cmax > 0 ? cmax : 100.0,
-                  precoBase: base,
-                  freadpco: frd,
-                  tabelaOrigem: tbl,
-                );
-              }
-            }
+            return FaixaPrecoProduto(
+              pcomin: pmin > 0 ? pmin : (base > 0 ? base : 0.0),
+              pcomax: pmax > 0 ? pmax : (base > 0 ? base : 999999.0),
+              commax: cmax > 0 ? cmax : 100.0,
+              precoBase: base,
+              freadpco: frd,
+              tabelaOrigem: tbl,
+            );
           }
         } catch (_) {}
       }

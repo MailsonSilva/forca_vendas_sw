@@ -128,5 +128,5 @@ class ProdutoCardDTO {
 
   @override
   String toString() =>
-      'ProdutoCardDTO(codigo: $codigo, descricao: $descricao, unidade: $unidade, qtdest: $qtdest, preco: $preco)';
+      'ProdutoCardDTO(codigo: $codigo, descricao: $descricao, unidade: $unidade, qtdest: $qtdest, preco: $preco, pcomax: $pcomax, pcomin: $pcomin)';
 }

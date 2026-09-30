@@ -92,10 +92,6 @@ class ProdutoDetalheDTO {
       return int.tryParse(value.toString());
     }
 
-    final double precoVal = parseDouble(map['preco_venda'] ?? map['pro00_pcomax'] ?? map['preco'], 0.0);
-    final double pcomaxVal = parseDouble(map['pro00_pcomax'] ?? map['pcomax'] ?? precoVal, precoVal);
-    final double pcominVal = parseDouble(map['pro00_pcomin'] ?? map['pcomin'] ?? precoVal, precoVal);
-
     return ProdutoDetalheDTO(
       codigo: parseInt(map['pro00_codigo'] ?? map['codigo']),
       codbar: map['pro00_codbar']?.toString(),
@@ -123,9 +119,9 @@ class ProdutoDetalheDTO {
       qtdest: parseDouble(map['pro00_qtdest'] ?? map['qtdest'], 0.0),
       mulemb: parseInt(map['pro02_mulemb'] ?? map['mulemb'], 1),
       mulven: parseDouble(map['pro02_mulven'] ?? map['mulven'], 1.0),
-      preco: precoVal,
-      pcomax: pcomaxVal > 0 ? pcomaxVal : precoVal,
-      pcomin: pcominVal > 0 ? pcominVal : precoVal,
+      preco: parseDouble(map['preco_venda'] ?? map['pro00_pcomax'] ?? map['preco'] ?? map['pro00_preco'], 0.0),
+      pcomax: parseDouble(map['pro00_pcomax'] ?? map['pcomax'] ?? map['preco_venda'] ?? map['preco'], 0.0),
+      pcomin: parseDouble(map['pro00_pcomin'] ?? map['pcomin'] ?? map['preco_venda'] ?? map['preco'], 0.0),
     );
   }
 

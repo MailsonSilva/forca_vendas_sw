@@ -1,9 +1,9 @@
-import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import '/domain/models/produto_lookup_dto.dart';
 import '/domain/models/produto_card_dto.dart';
 import '/domain/models/produto_detalhe_dto.dart';
 import '/domain/services/produto_search_filter_builder.dart';
+import '/data/services/local_sales_database_service.dart';
 import '/app_state.dart';
 
 /// Repositório de dados para consulta e seleção de produtos.
@@ -15,15 +15,13 @@ class ProdutoRepository {
 
   Future<Database> _getDb() async {
     if (_db != null) return _db!;
-    final dbPath = join(await getDatabasesPath(), 'dbforcacad001.db');
-    return await openDatabase(dbPath, readOnly: true, singleInstance: false);
+    return await LocalSalesDatabaseService.getDatabase();
   }
 
   /// QUERY 1: LISTAGEM LEVE DO CARD (Pesquisa / Scroll Infinito)
   ///
-  /// Executa consulta ultra-rápida trazendo estritamente os campos visuais do card,
-  /// o saldo físico disponível da filial ativa (pro00_qtdest - pro00_qtdpen)
-  /// e preços apurados via cascata SPEC-058 (estpcoreg00 -> estpcopro00).
+  /// Executa consulta ultra-rápida trazendo estritamente os campos visuais do card
+  /// e o saldo físico disponível da filial ativa (pro00_qtdest - pro00_qtdpen).
   Future<List<ProdutoCardDTO>> listarProdutosCard({
     String? termo,
     String? cursorDescri,
@@ -50,22 +48,34 @@ class ProdutoRepository {
     final String termoTrim = temTermo ? termo.trim() : '';
     final bool temCursor = cursorDescri != null && cursorDescri.trim().isNotEmpty;
 
-    final tRows = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'");
-    final tabelas = tRows.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
-    final bool temEstpcoreg00 = tabelas.contains('estpcoreg00');
-    final bool temEstpcopro00 = tabelas.contains('estpcopro00');
-    final bool temPcopro00 = tabelas.contains('pcopro00');
-    final String? tblPco = temEstpcopro00 ? 'estpcopro00' : (temPcopro00 ? 'pcopro00' : null);
+    bool temEstpcopro00 = false;
+    bool temEstpcoreg00 = false;
+    bool temPcopro00 = false;
+    bool temEstpro00 = false;
+    Set<String> estColsCard = {};
+    try {
+      final t = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'");
+      final tableNames = t.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+      temEstpcopro00 = tableNames.contains('estpcopro00');
+      temEstpcoreg00 = tableNames.contains('estpcoreg00');
+      temPcopro00 = tableNames.contains('pcopro00');
+      temEstpro00 = tableNames.contains('estpro00');
+      if (temEstpro00) {
+        final ec = await db.rawQuery('PRAGMA table_info(estpro00)');
+        estColsCard = ec.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+      }
+    } catch (_) {}
 
-    final List<dynamic> precoBinds = [];
+    final String? tblPco = temEstpcopro00 ? 'estpcopro00' : (temPcopro00 ? 'pcopro00' : null);
     String joinPreco = '';
     String selPreco = '0.0 AS pro00_pcomax, 0.0 AS pro00_pcomin, 0.0 AS preco_venda';
+    final List<dynamic> precoBinds = [];
 
     if (tblPco != null) {
       Set<String> pcoCols = {};
       try {
-        final cp = await db.rawQuery('PRAGMA table_info($tblPco)');
-        pcoCols = cp.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+        final pRows = await db.rawQuery('PRAGMA table_info($tblPco)');
+        pcoCols = pRows.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
       } catch (_) {}
 
       final bool hasCls = pcoCols.contains('pro00_codcls') || pcoCols.contains('codcls');
@@ -79,8 +89,8 @@ class ProdutoRepository {
       if (temEstpcoreg00 && hasCls) {
         Set<String> regCols = {};
         try {
-          final cr = await db.rawQuery('PRAGMA table_info(estpcoreg00)');
-          regCols = cr.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+          final rCols = await db.rawQuery('PRAGMA table_info(estpcoreg00)');
+          regCols = rCols.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
         } catch (_) {}
         final String colRegCls = regCols.contains('pro00_codpco')
             ? 'pro00_codpco'
@@ -170,8 +180,30 @@ class ProdutoRepository {
       filtroBinds.add(cursorDescri.trim());
     }
 
+    String joinEstpro00 = '';
+    String selEstoque = 'COALESCE(p.pro00_qtdest, 0.0) AS pro00_qtdest';
+    final List<dynamic> filialBinds = [];
+
+    if (temEstpro00) {
+      joinEstpro00 = '''
+        LEFT JOIN estpro00 e 
+               ON e.pro00_codpro = p.pro00_codigo 
+              AND e.pro00_codfil = ?
+      ''';
+      filialBinds.add(filial);
+      final String penExp = estColsCard.contains('pro00_qtdpen') ? 'COALESCE(e.pro00_qtdpen, 0)' : '0';
+      final String qtdExp = estColsCard.contains('pro00_qtdest') ? 'e.pro00_qtdest' : '0';
+      selEstoque = 'COALESCE($qtdExp - $penExp, p.pro00_qtdest, 0.0) AS pro00_qtdest';
+    }
+
     if (apenasEstoque == true) {
-      condicoes.add('COALESCE(e.pro00_qtdest - COALESCE(e.pro00_qtdpen, 0), p.pro00_qtdest, 0.0) > 0');
+      if (temEstpro00) {
+        final String penExp = estColsCard.contains('pro00_qtdpen') ? 'COALESCE(e.pro00_qtdpen, 0)' : '0';
+        final String qtdExp = estColsCard.contains('pro00_qtdest') ? 'e.pro00_qtdest' : '0';
+        condicoes.add('COALESCE($qtdExp - $penExp, p.pro00_qtdest, 0.0) > 0');
+      } else {
+        condicoes.add('COALESCE(p.pro00_qtdest, 0.0) > 0');
+      }
     }
 
     final String whereClause = condicoes.isNotEmpty ? 'WHERE ${condicoes.join(' AND ')}' : '';
@@ -192,11 +224,9 @@ class ProdutoRepository {
         COALESCE(p.pro00_codbar, '') AS pro00_codbar,
         p.pro00_codimg,
         $selPreco,
-        COALESCE(e.pro00_qtdest - COALESCE(e.pro00_qtdpen, 0), p.pro00_qtdest, 0.0) AS pro00_qtdest
+        $selEstoque
       FROM cadpro00 p
-      LEFT JOIN estpro00 e 
-             ON e.pro00_codpro = p.pro00_codigo 
-            AND e.pro00_codfil = ?
+      $joinEstpro00
       $joinPreco
       $whereClause
       ORDER BY p.pro00_descri ASC
@@ -204,7 +234,7 @@ class ProdutoRepository {
     ''';
 
     final List<dynamic> allArgs = [
-      filial,
+      ...filialBinds,
       ...precoBinds,
       ...filtroBinds,
       ...limitBinds,
@@ -360,14 +390,24 @@ class ProdutoRepository {
         : '0 AS pro00_qtdest';
     String selPrifil = "'S' AS pro00_prifil";
     if (hasEstpro00) {
+      Set<String> estCols = {};
+      try {
+        final eRows = await db.rawQuery('PRAGMA table_info(estpro00)');
+        estCols = eRows.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+      } catch (_) {}
+
       joinEstpro00 = '''
         LEFT JOIN estpro00 est 
                ON est.pro00_codfil = ? 
               AND est.pro00_codpro = sel.pro00_codigo
       ''';
       final String fallbackQtd = proCols.contains('pro00_qtdest') ? 'sel.pro00_qtdest' : '0';
-      selEstoque = 'COALESCE(est.pro00_qtdest - COALESCE(est.pro00_qtdpen, 0), $fallbackQtd, 0) AS pro00_qtdest';
-      selPrifil = 'est.pro00_prifil';
+      final String penCol = estCols.contains('pro00_qtdpen') ? 'COALESCE(est.pro00_qtdpen, 0)' : '0';
+      final String qtdCol = estCols.contains('pro00_qtdest') ? 'est.pro00_qtdest' : fallbackQtd;
+      selEstoque = 'COALESCE($qtdCol - $penCol, $fallbackQtd, 0) AS pro00_qtdest';
+      selPrifil = estCols.contains('pro00_prifil')
+          ? "COALESCE(est.pro00_prifil, 'S') AS pro00_prifil"
+          : "'S' AS pro00_prifil";
     }
 
     final String joinCadprofra00 = hasCadprofra00

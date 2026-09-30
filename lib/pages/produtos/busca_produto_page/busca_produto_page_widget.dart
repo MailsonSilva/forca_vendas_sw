@@ -60,8 +60,9 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
           _model.filtroMarca,
           _model.filtroEstoque,
           _model.filtroPromocao,
-          functions.resolverCodFilial(AppState().empresa_codigo),
+          (AppState().codFilialAtiva > 0 ? AppState().codFilialAtiva : 1),
           _model.filtroDataEntrada,
+          (AppState().tabelaPrecoAtiva > 0 ? AppState().tabelaPrecoAtiva : 1),
         );
         _model.listaProdutos =
             _model.resultadoOnLoad?.toList().cast<ProdutoResultStruct>() ?? [];
@@ -613,9 +614,13 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                   _model.filtroMarca,
                                   _model.filtroEstoque,
                                   _model.filtroPromocao,
-                                  functions.resolverCodFilial(
-                                      AppState().empresa_codigo),
+                                  (AppState().codFilialAtiva > 0
+                                      ? AppState().codFilialAtiva
+                                      : 1),
                                   _model.filtroDataEntrada,
+                                  (AppState().tabelaPrecoAtiva > 0
+                                      ? AppState().tabelaPrecoAtiva
+                                      : 1),
                                 );
                                 _model.listaProdutos = _model.resultadoBusca!
                                     .toList()
@@ -686,9 +691,13 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                           _model.filtroMarca,
                                           _model.filtroEstoque,
                                           _model.filtroPromocao,
-                                          functions.resolverCodFilial(
-                                              AppState().empresa_codigo),
+                                          (AppState().codFilialAtiva > 0
+                                              ? AppState().codFilialAtiva
+                                              : 1),
                                           _model.filtroDataEntrada,
+                                          (AppState().tabelaPrecoAtiva > 0
+                                              ? AppState().tabelaPrecoAtiva
+                                              : 1),
                                         );
                                         _model.listaProdutos = _model
                                             .resultadoBusca!
@@ -1539,10 +1548,13 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                   _model.filtroMarca,
                                                   _model.filtroEstoque,
                                                   _model.filtroPromocao,
-                                                  functions.resolverCodFilial(
-                                                      AppState()
-                                                          .empresa_codigo),
+                                                  (AppState().codFilialAtiva > 0
+                                                      ? AppState().codFilialAtiva
+                                                      : 1),
                                                   _model.filtroDataEntrada,
+                                                  (AppState().tabelaPrecoAtiva > 0
+                                                      ? AppState().tabelaPrecoAtiva
+                                                      : 1),
                                                 );
                                                 _model.listaProdutos = _model
                                                     .resultadoOnLoadFiltro!
