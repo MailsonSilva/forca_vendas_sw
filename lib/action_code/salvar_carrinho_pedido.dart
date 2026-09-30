@@ -67,7 +67,13 @@ Future<bool> salvarCarrinhoPedido({
           ped10_totprd REAL DEFAULT 0,
           ped10_qtdbon REAL DEFAULT 0,
           ped10_sttbon INTEGER DEFAULT 0,
-          ped10_codcmb TEXT
+          ped10_codcmb TEXT,
+          dig01_pcomax REAL DEFAULT 0,
+          dig01_pcomin REAL DEFAULT 0,
+          dig01_digpco REAL DEFAULT 0,
+          ped10_pcomax REAL DEFAULT 0,
+          ped10_pcomin REAL DEFAULT 0,
+          ped10_digpco REAL DEFAULT 0
         )
       ''');
       try { await db.execute('CREATE VIEW IF NOT EXISTS dig01 AS SELECT * FROM pckvendig010'); } catch (_) {}
@@ -136,6 +142,13 @@ Future<bool> salvarCarrinhoPedido({
         'ped10_digfil': 'INTEGER',
         'ped10_codfil': 'INTEGER',
         'ped10_filcod': 'INTEGER',
+        // SPEC-058: Persistência de margens de preço
+        'dig01_pcomax': 'REAL',
+        'dig01_pcomin': 'REAL',
+        'dig01_digpco': 'REAL',
+        'ped10_pcomax': 'REAL',
+        'ped10_pcomin': 'REAL',
+        'ped10_digpco': 'REAL',
       };
       for (final e in ensureItemCols.entries) {
         try {
@@ -458,6 +471,30 @@ Future<bool> salvarCarrinhoPedido({
           addItemIf('ped10_digfil', finalCodFil);
           addItemIf('ped10_codfil', finalCodFil);
           addItemIf('ped10_filcod', finalCodFil);
+
+          // SPEC-058: Persistência de margens de preço e validação
+          final double pmax = item.pcomax > 0 ? item.pcomax : item.precoUnitario;
+          final double pmin = item.pcomin > 0 ? item.pcomin : item.precoUnitario;
+          final double digpco = item.precoUnitario;
+
+          if (!item.isBonificacao) {
+            if (digpco <= 0) {
+              throw Exception('Produto ${item.codigoProduto} com preço zerado não pode ser adicionado ao pedido.');
+            }
+            if (pmin > 0 && digpco < (pmin - 0.001)) {
+              throw Exception('Preço digitado ($digpco) abaixo do preço mínimo permitido ($pmin) para o produto ${item.codigoProduto}.');
+            }
+            if (pmax > 0 && digpco > (pmax + 0.001)) {
+              throw Exception('Preço digitado ($digpco) acima do preço máximo de tabela ($pmax) para o produto ${item.codigoProduto}.');
+            }
+          }
+
+          addItemIf('dig01_pcomax', pmax);
+          addItemIf('ped10_pcomax', pmax);
+          addItemIf('dig01_pcomin', pmin);
+          addItemIf('ped10_pcomin', pmin);
+          addItemIf('dig01_digpco', digpco);
+          addItemIf('ped10_digpco', digpco);
 
           if (insertItemCols.isNotEmpty) {
             final queryItem =

@@ -1,5 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:forca_de_vendas/app_state.dart';
+import 'package:forca_de_vendas/backend/schema/structs/index.dart';
 import 'package:forca_de_vendas/data/repositories/produto_repository.dart';
+import 'package:forca_de_vendas/action_code/salvar_carrinho_pedido.dart';
+import 'package:forca_de_vendas/data/services/local_sales_database_service.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -427,6 +431,273 @@ void main() {
       test('retorna null se o produto não existir', () async {
         final detalhe = await repository.obterDetalhesProduto(99999, 1);
         expect(detalhe, isNull);
+      });
+    });
+
+    // =========================================================================
+    // SPEC-058: PRECIFICAÇÃO CANÔNICA, MARGENS E ISOLAMENTO DE FILIAL
+    // =========================================================================
+    group('SPEC-058: Precificação Canônica (estpcoreg00 / estpcopro00) e Isolamento de Filial', () {
+      setUp(() async {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS estpcoreg00 (
+            pro00_codpro INTEGER,
+            pro00_codtab INTEGER,
+            pro00_codreg INTEGER,
+            pro00_codpco INTEGER
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS estpcopro00 (
+            pro00_codcls INTEGER,
+            pro00_codpro INTEGER,
+            pro00_pcocus REAL,
+            pro00_pcosub REAL
+          )
+        ''');
+
+        // Produto 1001: Mapeado na região 10 e tabela 1 para classe 5
+        await db.insert('estpcoreg00', {
+          'pro00_codpro': 1001,
+          'pro00_codtab': 1,
+          'pro00_codreg': 10,
+          'pro00_codpco': 5,
+        });
+
+        // Valores de classe 5: pcosub = 15.50, pcocus = 10.00
+        await db.insert('estpcopro00', {
+          'pro00_codpro': 1001,
+          'pro00_codcls': 5,
+          'pro00_pcocus': 10.00,
+          'pro00_pcosub': 15.50,
+        });
+
+        // Produto 1002: Não tem estpcoreg00, mas tem classe 3 em estpcopro00
+        await db.insert('estpcopro00', {
+          'pro00_codpro': 1002,
+          'pro00_codcls': 3,
+          'pro00_pcocus': null,
+          'pro00_pcosub': 8.00,
+        });
+
+        // Estoque na filial 2 para produto 1001: 50 - 5 = 45.0
+        await db.insert('estpro00', {
+          'pro00_codfil': 2,
+          'pro00_codpro': 1001,
+          'pro00_qtdest': 50.0,
+          'pro00_qtdpen': 5.0,
+          'pro00_prifil': 'S',
+        });
+      });
+
+      test('apura preco, pcomax e pcomin via estpcoreg00 + estpcopro00', () async {
+        AppState().tabelaPrecoAtiva = 1;
+        AppState().clienteSelecionado = ClienteResultStruct(cli00Codreg: 10, cli00Typpco: 1);
+
+        final cards = await repository.listarProdutosCard(
+          filialAtiva: 1,
+          codTabela: 1,
+          codRegiao: 10,
+        );
+        final p1 = cards.firstWhere((c) => c.codigo == 1001);
+        expect(p1.preco, equals(15.50));
+        expect(p1.pcomax, equals(15.50));
+        expect(p1.pcomin, equals(10.00));
+
+        final detalhe = await repository.obterDetalhesProduto(1001, 1, 1, 10);
+        expect(detalhe, isNotNull);
+        expect(detalhe!.preco, equals(15.50));
+        expect(detalhe.pcomax, equals(15.50));
+        expect(detalhe.pcomin, equals(10.00));
+      });
+
+      test('fallback de classe de preço padrão do cliente quando não há registro em estpcoreg00', () async {
+        AppState().tabelaPrecoAtiva = 1;
+        AppState().clienteSelecionado = ClienteResultStruct(cli00Codreg: 10, cli00Typpco: 3);
+
+        final cards = await repository.listarProdutosCard(
+          filialAtiva: 1,
+          codTabela: 1,
+          codRegiao: 10,
+          codClasseCliente: 3,
+        );
+        final p2 = cards.firstWhere((c) => c.codigo == 1002);
+        expect(p2.preco, equals(8.00));
+        expect(p2.pcomax, equals(8.00));
+        expect(p2.pcomin, equals(8.00)); // pcocus nulo -> fallback pcosub
+      });
+
+      test('produto sem tabela em estpcopro00 retorna estritamente preco/pcomax/pcomin = 0.0 sem ler cadpro00.pro00_preco', () async {
+        final cards = await repository.listarProdutosCard(filialAtiva: 1, codTabela: 1);
+        final p3 = cards.firstWhere((c) => c.codigo == 1003);
+        expect(p3.preco, equals(0.0));
+        expect(p3.pcomax, equals(0.0));
+        expect(p3.pcomin, equals(0.0));
+
+        final detalhe = await repository.obterDetalhesProduto(1003, 1, 1);
+        expect(detalhe, isNotNull);
+        expect(detalhe!.preco, equals(0.0));
+        expect(detalhe.pcomax, equals(0.0));
+        expect(detalhe.pcomin, equals(0.0));
+      });
+
+      test('isolamento de filial calcula saldo estritamente pela filial ativa', () async {
+        final cardsFilial1 = await repository.listarProdutosCard(filialAtiva: 1);
+        final p1Filial1 = cardsFilial1.firstWhere((c) => c.codigo == 1001);
+        expect(p1Filial1.qtdest, equals(130.0)); // 150 - 20 na filial 1
+
+        final cardsFilial2 = await repository.listarProdutosCard(filialAtiva: 2);
+        final p1Filial2 = cardsFilial2.firstWhere((c) => c.codigo == 1001);
+        expect(p1Filial2.qtdest, equals(45.0)); // 50 - 5 na filial 2
+      });
+
+      test('filtro apenasEstoque oculta itens com saldo <= 0', () async {
+        // Produto 1002 na filial 1 tem saldo líquido = 0.0
+        final comFiltro = await repository.listarProdutosCard(
+          filialAtiva: 1,
+          apenasEstoque: true,
+        );
+        expect(comFiltro.any((c) => c.codigo == 1002), isFalse);
+
+        final semFiltro = await repository.listarProdutosCard(
+          filialAtiva: 1,
+          apenasEstoque: false,
+        );
+        expect(semFiltro.any((c) => c.codigo == 1002), isTrue);
+      });
+
+      test('salvarCarrinhoPedido persiste dig01_pcomax, dig01_pcomin e dig01_digpco no pckvendig010', () async {
+        LocalSalesDatabaseService.setDatabaseForTesting(db);
+
+        final itemValido = ItemPedidoStruct(
+          codigoProduto: '1001',
+          descricao: 'BISCOITO WAFER',
+          unidade: 'UN',
+          precoUnitario: 12.00,
+          pcomax: 15.50,
+          pcomin: 10.00,
+          quantidade: 2.0,
+          totalItem: 24.00,
+        );
+
+        final sucesso = await salvarCarrinhoPedido(
+          pedidoId: 991,
+          clienteCodigo: 1,
+          linhaCodigo: '1',
+          planoCodigo: '1',
+          carrinhoItens: [itemValido],
+          codFilial: 1,
+        );
+        expect(sucesso, isTrue);
+
+        final itensSalvos = await db.rawQuery('SELECT * FROM pckvendig010 WHERE ped10_numped = 991');
+        expect(itensSalvos.length, equals(1));
+        final row = itensSalvos.first;
+        expect(row['dig01_pcomax'], equals(15.50));
+        expect(row['dig01_pcomin'], equals(10.00));
+        expect(row['dig01_digpco'], equals(12.00));
+      });
+
+      test('salvarCarrinhoPedido bloqueia inclusão com preco <= 0 quando não bonificado', () async {
+        LocalSalesDatabaseService.setDatabaseForTesting(db);
+
+        final itemZero = ItemPedidoStruct(
+          codigoProduto: '1003',
+          descricao: 'ITEM PRECO ZERO',
+          unidade: 'UN',
+          precoUnitario: 0.0,
+          pcomax: 0.0,
+          pcomin: 0.0,
+          quantidade: 1.0,
+          totalItem: 0.0,
+          isBonificacao: false,
+        );
+
+        final sucesso = await salvarCarrinhoPedido(
+          pedidoId: 992,
+          clienteCodigo: 1,
+          linhaCodigo: '1',
+          planoCodigo: '1',
+          carrinhoItens: [itemZero],
+          codFilial: 1,
+        );
+        expect(sucesso, isFalse);
+      });
+
+      test('salvarCarrinhoPedido permite inclusão com preco = 0 para item bonificado', () async {
+        LocalSalesDatabaseService.setDatabaseForTesting(db);
+
+        final itemBonificado = ItemPedidoStruct(
+          codigoProduto: '1001',
+          descricao: 'BISCOITO BONIFICADO',
+          unidade: 'UN',
+          precoUnitario: 0.0,
+          pcomax: 15.50,
+          pcomin: 10.00,
+          quantidade: 0.0,
+          quantidadeBonificada: 1.0,
+          totalItem: 0.0,
+          isBonificacao: true,
+        );
+
+        final sucesso = await salvarCarrinhoPedido(
+          pedidoId: 993,
+          clienteCodigo: 1,
+          linhaCodigo: '1',
+          planoCodigo: '1',
+          carrinhoItens: [itemBonificado],
+          codFilial: 1,
+        );
+        expect(sucesso, isTrue);
+      });
+
+      test('salvarCarrinhoPedido bloqueia digpco fora da faixa pcomin e pcomax', () async {
+        LocalSalesDatabaseService.setDatabaseForTesting(db);
+
+        // Abaixo do mínimo (9.00 < 10.00)
+        final itemAbaixo = ItemPedidoStruct(
+          codigoProduto: '1001',
+          descricao: 'ITEM ABAIXO DO PISO',
+          unidade: 'UN',
+          precoUnitario: 9.00,
+          pcomax: 15.50,
+          pcomin: 10.00,
+          quantidade: 1.0,
+          totalItem: 9.00,
+        );
+
+        final sucessoAbaixo = await salvarCarrinhoPedido(
+          pedidoId: 994,
+          clienteCodigo: 1,
+          linhaCodigo: '1',
+          planoCodigo: '1',
+          carrinhoItens: [itemAbaixo],
+          codFilial: 1,
+        );
+        expect(sucessoAbaixo, isFalse);
+
+        // Acima do máximo (16.00 > 15.50)
+        final itemAcima = ItemPedidoStruct(
+          codigoProduto: '1001',
+          descricao: 'ITEM ACIMA DO TETO',
+          unidade: 'UN',
+          precoUnitario: 16.00,
+          pcomax: 15.50,
+          pcomin: 10.00,
+          quantidade: 1.0,
+          totalItem: 16.00,
+        );
+
+        final sucessoAcima = await salvarCarrinhoPedido(
+          pedidoId: 995,
+          clienteCodigo: 1,
+          linhaCodigo: '1',
+          planoCodigo: '1',
+          carrinhoItens: [itemAcima],
+          codFilial: 1,
+        );
+        expect(sucessoAcima, isFalse);
       });
     });
   });

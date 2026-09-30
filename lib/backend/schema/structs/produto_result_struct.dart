@@ -46,6 +46,8 @@ class ProdutoResultStruct extends BaseStruct {
     String? referencia2,
     String? embalagem,
     int? imagemId,
+    String? defbon,
+    String? defbonven,
   })  : _codigo = codigo,
         _descricao = descricao,
         _unidade = unidade,
@@ -70,7 +72,21 @@ class ProdutoResultStruct extends BaseStruct {
         _referencia1 = referencia1,
         _referencia2 = referencia2,
         _embalagem = embalagem,
-        _imagemId = imagemId;
+        _imagemId = imagemId,
+        _defbon = defbon,
+        _defbonven = defbonven;
+
+  // "defbon" / "defbonven" fields.
+  String? _defbon;
+  String get defbon => _defbon ?? '';
+  set defbon(String? val) => _defbon = val;
+
+  String? _defbonven;
+  String get defbonven => _defbonven ?? '';
+  set defbonven(String? val) => _defbonven = val;
+
+  bool get isBonificacaoAutorizada =>
+      _defbon == '1' || _defbon == 'S' || _defbonven == '1' || _defbonven == 'S';
 
   // "codigo" field.
   String? _codigo;
@@ -293,6 +309,8 @@ class ProdutoResultStruct extends BaseStruct {
         referencia2: data['referencia2'] as String?,
         embalagem: data['embalagem'] as String?,
         imagemId: castToType<int>(data['imagemId']),
+        defbon: (data['defbon'] ?? data['bon00_defbon']) as String?,
+        defbonven: (data['defbonven'] ?? data['bon00_defbonven']) as String?,
       );
 
   static ProdutoResultStruct? maybeFromMap(dynamic data) => data is Map
@@ -325,6 +343,8 @@ class ProdutoResultStruct extends BaseStruct {
         'reffor': _reffor,
         'embalagem': _embalagem,
         'imagemId': _imagemId,
+        'defbon': _defbon,
+        'defbonven': _defbonven,
       }.withoutNulls;
 
   @override
@@ -409,6 +429,14 @@ class ProdutoResultStruct extends BaseStruct {
         'freadpco': serializeParam(
           _freadpco,
           ParamType.bool,
+        ),
+        'defbon': serializeParam(
+          _defbon,
+          ParamType.String,
+        ),
+        'defbonven': serializeParam(
+          _defbonven,
+          ParamType.String,
         ),
       }.withoutNulls;
 
@@ -514,6 +542,16 @@ class ProdutoResultStruct extends BaseStruct {
           ParamType.bool,
           false,
         ),
+        defbon: deserializeParam(
+          data['defbon'],
+          ParamType.String,
+          false,
+        ),
+        defbonven: deserializeParam(
+          data['defbonven'],
+          ParamType.String,
+          false,
+        ),
       );
 
   @override
@@ -542,7 +580,9 @@ class ProdutoResultStruct extends BaseStruct {
         pcomax == other.pcomax &&
         commax == other.commax &&
         codtrb == other.codtrb &&
-        freadpco == other.freadpco;
+        freadpco == other.freadpco &&
+        defbon == other.defbon &&
+        defbonven == other.defbonven;
   }
 
   @override
@@ -566,7 +606,9 @@ class ProdutoResultStruct extends BaseStruct {
         pcomax,
         commax,
         codtrb,
-        freadpco
+        freadpco,
+        defbon,
+        defbonven,
       ]);
 }
 
@@ -594,6 +636,8 @@ ProdutoResultStruct createProdutoResultStruct({
   String? referencia2,
   String? embalagem,
   int? imagemId,
+  String? defbon,
+  String? defbonven,
 }) =>
     ProdutoResultStruct(
       codigo: codigo,
@@ -619,4 +663,6 @@ ProdutoResultStruct createProdutoResultStruct({
       referencia2: referencia2,
       embalagem: embalagem,
       imagemId: imagemId,
+      defbon: defbon,
+      defbonven: defbonven,
     );

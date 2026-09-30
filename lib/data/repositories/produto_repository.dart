@@ -21,33 +21,124 @@ class ProdutoRepository {
 
   /// QUERY 1: LISTAGEM LEVE DO CARD (Pesquisa / Scroll Infinito)
   ///
-  /// Executa consulta ultra-rápida trazendo estritamente os campos visuais do card
-  /// e o saldo físico disponível da filial ativa (pro00_qtdest - pro00_qtdpen).
+  /// Executa consulta ultra-rápida trazendo estritamente os campos visuais do card,
+  /// o saldo físico disponível da filial ativa (pro00_qtdest - pro00_qtdpen)
+  /// e preços apurados via cascata SPEC-058 (estpcoreg00 -> estpcopro00).
   Future<List<ProdutoCardDTO>> listarProdutosCard({
     String? termo,
     String? cursorDescri,
     required int filialAtiva,
-    int codTabela = 1,
+    int? codTabela,
+    int? codRegiao,
+    int? codClasseCliente,
+    bool? apenasEstoque,
     int limit = 100,
     int offset = 0,
   }) async {
     final db = await _getDb();
 
+    final int filial = filialAtiva > 0
+        ? filialAtiva
+        : (AppState().codFilialAtiva > 0 ? AppState().codFilialAtiva : 1);
+    final int tabela = (codTabela != null && codTabela > 0)
+        ? codTabela
+        : (AppState().tabelaPrecoAtiva > 0 ? AppState().tabelaPrecoAtiva : 1);
+    final int regiao = codRegiao ?? (AppState().clienteSelecionado?.codRegiao ?? 0);
+    final int classe = codClasseCliente ?? (AppState().clienteSelecionado?.codTipoPreco ?? 0);
+
     final bool temTermo = termo != null && termo.trim().isNotEmpty;
     final String termoTrim = temTermo ? termo.trim() : '';
     final bool temCursor = cursorDescri != null && cursorDescri.trim().isNotEmpty;
 
-    bool temEstpcopro00 = false;
-    try {
-      final r = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='estpcopro00'");
-      temEstpcopro00 = r.isNotEmpty;
-    } catch (_) {}
+    final tRows = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'");
+    final tabelas = tRows.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+    final bool temEstpcoreg00 = tabelas.contains('estpcoreg00');
+    final bool temEstpcopro00 = tabelas.contains('estpcopro00');
+    final bool temPcopro00 = tabelas.contains('pcopro00');
+    final String? tblPco = temEstpcopro00 ? 'estpcopro00' : (temPcopro00 ? 'pcopro00' : null);
+
+    final List<dynamic> precoBinds = [];
+    String joinPreco = '';
+    String selPreco = '0.0 AS pro00_pcomax, 0.0 AS pro00_pcomin, 0.0 AS preco_venda';
+
+    if (tblPco != null) {
+      Set<String> pcoCols = {};
+      try {
+        final cp = await db.rawQuery('PRAGMA table_info($tblPco)');
+        pcoCols = cp.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+      } catch (_) {}
+
+      final bool hasCls = pcoCols.contains('pro00_codcls') || pcoCols.contains('codcls');
+      final bool hasTab = pcoCols.contains('pro00_codtab') || pcoCols.contains('codtab');
+      final String colPcosub = pcoCols.contains('pro00_pcosub')
+          ? 'pro00_pcosub'
+          : (pcoCols.contains('pro00_preco') ? 'pro00_preco' : 'preco');
+      final bool hasPcocus = pcoCols.contains('pro00_pcocus') || pcoCols.contains('pcocus');
+      final String colPcocus = pcoCols.contains('pro00_pcocus') ? 'pro00_pcocus' : 'pcocus';
+
+      if (temEstpcoreg00 && hasCls) {
+        Set<String> regCols = {};
+        try {
+          final cr = await db.rawQuery('PRAGMA table_info(estpcoreg00)');
+          regCols = cr.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+        } catch (_) {}
+        final String colRegCls = regCols.contains('pro00_codpco')
+            ? 'pro00_codpco'
+            : (regCols.contains('pro00_codcls') ? 'pro00_codcls' : 'pro00_codpco');
+
+        joinPreco = '''
+          LEFT JOIN estpcoreg00 reg 
+                 ON reg.pro00_codpro = p.pro00_codigo 
+                AND reg.pro00_codtab = ? 
+                AND reg.pro00_codreg = ?
+          LEFT JOIN $tblPco t 
+                 ON t.pro00_codpro = p.pro00_codigo 
+                AND (
+                  (reg.$colRegCls IS NOT NULL AND t.pro00_codcls = reg.$colRegCls)
+                  OR (reg.$colRegCls IS NULL AND (t.pro00_codcls = ? OR ? = 0))
+                )
+        ''';
+        precoBinds.addAll([tabela, regiao, classe, classe]);
+      } else if (hasCls) {
+        joinPreco = '''
+          LEFT JOIN $tblPco t 
+                 ON t.pro00_codpro = p.pro00_codigo 
+                AND (t.pro00_codcls = ? OR ? = 0)
+        ''';
+        precoBinds.addAll([classe, classe]);
+      } else if (hasTab) {
+        joinPreco = '''
+          LEFT JOIN $tblPco t 
+                 ON t.pro00_codpro = p.pro00_codigo 
+                AND t.pro00_codtab = ?
+        ''';
+        precoBinds.add(tabela);
+      } else {
+        joinPreco = '''
+          LEFT JOIN $tblPco t 
+                 ON t.pro00_codpro = p.pro00_codigo
+        ''';
+      }
+
+      final String colPcoFallback = pcoCols.contains('pro00_preco')
+          ? 't.pro00_preco'
+          : (pcoCols.contains('preco') ? 't.preco' : '0.0');
+
+      final String expPrecoVenda = 'COALESCE(t.$colPcosub, $colPcoFallback, 0.0)';
+
+      final String expMin = hasPcocus
+          ? 'COALESCE(NULLIF(t.$colPcocus, 0.0), $expPrecoVenda, 0.0)'
+          : expPrecoVenda;
+
+      selPreco = '''
+        $expPrecoVenda AS pro00_pcomax,
+        $expMin AS pro00_pcomin,
+        $expPrecoVenda AS preco_venda
+      ''';
+    }
 
     final List<String> condicoes = [];
-    final List<dynamic> args = [filialAtiva];
-    if (temEstpcopro00) {
-      args.add(codTabela);
-    }
+    final List<dynamic> filtroBinds = [];
 
     if (temTermo) {
       Set<String> colunas = {};
@@ -71,31 +162,27 @@ class ProdutoRepository {
       );
       if (filtro.hasFilter) {
         condicoes.add(filtro.sql);
-        args.addAll(filtro.binds);
+        filtroBinds.addAll(filtro.binds);
       }
     }
     if (temCursor) {
       condicoes.add('p.pro00_descri > ?');
-      args.add(cursorDescri.trim());
+      filtroBinds.add(cursorDescri.trim());
+    }
+
+    if (apenasEstoque == true) {
+      condicoes.add('COALESCE(e.pro00_qtdest - COALESCE(e.pro00_qtdpen, 0), p.pro00_qtdest, 0.0) > 0');
     }
 
     final String whereClause = condicoes.isNotEmpty ? 'WHERE ${condicoes.join(' AND ')}' : '';
 
     String limitClause = '';
+    final List<dynamic> limitBinds = [];
     if (limit > 0) {
       limitClause = 'LIMIT ? OFFSET ?';
-      args.add(limit);
-      args.add(offset);
+      limitBinds.add(limit);
+      limitBinds.add(offset);
     }
-
-    final joinPreco = temEstpcopro00
-        ? '''LEFT JOIN estpcopro00 t 
-                   ON t.pro00_codpro = p.pro00_codigo 
-                  AND t.pro00_codtab = ?'''
-        : '';
-    final selPreco = temEstpcopro00
-        ? 'COALESCE(t.pro00_pcosub, t.pro00_preco, 0.0) AS pro00_pcomax'
-        : '0.0 AS pro00_pcomax';
 
     final sql = '''
       SELECT 
@@ -105,7 +192,7 @@ class ProdutoRepository {
         COALESCE(p.pro00_codbar, '') AS pro00_codbar,
         p.pro00_codimg,
         $selPreco,
-        COALESCE(e.pro00_qtdest - COALESCE(e.pro00_qtdpen, 0), p.pro00_qtdest, 0) AS pro00_qtdest
+        COALESCE(e.pro00_qtdest - COALESCE(e.pro00_qtdpen, 0), p.pro00_qtdest, 0.0) AS pro00_qtdest
       FROM cadpro00 p
       LEFT JOIN estpro00 e 
              ON e.pro00_codpro = p.pro00_codigo 
@@ -116,7 +203,14 @@ class ProdutoRepository {
       $limitClause;
     ''';
 
-    final rows = await db.rawQuery(sql, args);
+    final List<dynamic> allArgs = [
+      filial,
+      ...precoBinds,
+      ...filtroBinds,
+      ...limitBinds,
+    ];
+
+    final rows = await db.rawQuery(sql, allArgs);
     return rows.map((r) => ProdutoCardDTO.fromMap(r)).toList();
   }
 
@@ -125,12 +219,24 @@ class ProdutoRepository {
   /// Executada estritamente sob demanda ao clicar no card de um produto.
   /// Carrega todas as 26 colunas canônicas e amarrações relacionais do legado:
   /// cadpro02, estpro00, cadprofra00, cadprobon00, cadproemb00 e estprodat00.
+  /// Preços calculados em cascata SPEC-058 (estpcoreg00 -> estpcopro00).
   Future<ProdutoDetalheDTO?> obterDetalhesProduto(
     int codpro,
     int filialAtiva, [
-    int codTabela = 1,
+    int? codTabela,
+    int? codRegiao,
+    int? codClasseCliente,
   ]) async {
     final db = await _getDb();
+
+    final int filial = filialAtiva > 0
+        ? filialAtiva
+        : (AppState().codFilialAtiva > 0 ? AppState().codFilialAtiva : 1);
+    final int tabela = (codTabela != null && codTabela > 0)
+        ? codTabela
+        : (AppState().tabelaPrecoAtiva > 0 ? AppState().tabelaPrecoAtiva : 1);
+    final int regiao = codRegiao ?? (AppState().clienteSelecionado?.codRegiao ?? 0);
+    final int classe = codClasseCliente ?? (AppState().clienteSelecionado?.codTipoPreco ?? 0);
 
     // 1. Inspeciona tabelas disponíveis no banco SQLite
     Set<String> tabelas = {};
@@ -152,18 +258,14 @@ class ProdutoRepository {
     final bool hasCadprobon00 = tabelas.contains('cadprobon00');
     final bool hasCadproemb00 = tabelas.contains('cadproemb00') && proCols.contains('pro00_codemb');
     final bool hasEstprodat00 = tabelas.contains('estprodat00');
+    final bool hasEstpcoreg00 = tabelas.contains('estpcoreg00');
     final bool hasEstpcopro00 = tabelas.contains('estpcopro00');
     final bool hasPcopro00 = tabelas.contains('pcopro00');
     final String? tblPco = hasEstpcopro00 ? 'estpcopro00' : (hasPcopro00 ? 'pcopro00' : null);
 
-    final List<dynamic> args = [];
-
-    // Preço de venda com COALESCE(t.pro00_pcosub, t.pro00_preco, 0.0) AS preco_venda
+    final List<dynamic> precoArgs = [];
     String joinPreco = '';
-    final String fallbackPrecoCad = proCols.contains('pro00_preco')
-        ? 'sel.pro00_preco'
-        : (proCols.contains('pro00_pcomax') ? 'sel.pro00_pcomax' : '0.0');
-    String selPreco = 'COALESCE($fallbackPrecoCad, 0.0) AS preco_venda';
+    String selPreco = '0.0 AS pro00_pcomax, 0.0 AS pro00_pcomin, 0.0 AS preco_venda';
 
     if (tblPco != null) {
       Set<String> pcoCols = {};
@@ -172,47 +274,73 @@ class ProdutoRepository {
         pcoCols = pRows.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
       } catch (_) {}
 
-      final bool hasTab = pcoCols.contains('pro00_codtab') || pcoCols.contains('pcopro00_codtab') || pcoCols.contains('codtab');
-      final String colCodpro = pcoCols.contains('pro00_codpro')
-          ? 'pro00_codpro'
-          : (pcoCols.contains('codpro') ? 'codpro' : 'pro00_codigo');
-      final String colTab = pcoCols.contains('pro00_codtab')
-          ? 'pro00_codtab'
-          : (pcoCols.contains('pcopro00_codtab') ? 'pcopro00_codtab' : 'codtab');
-
-      // Detecta nomes reais das colunas de preço na tabela de preço
-      final String? colPcosub = pcoCols.contains('pro00_pcosub')
+      final bool hasCls = pcoCols.contains('pro00_codcls') || pcoCols.contains('codcls');
+      final bool hasTab = pcoCols.contains('pro00_codtab') || pcoCols.contains('codtab');
+      final String colPcosub = pcoCols.contains('pro00_pcosub')
           ? 'pro00_pcosub'
-          : (pcoCols.contains('pcopro00_pcosub') ? 'pcopro00_pcosub' : null);
-      final String? colPreco = pcoCols.contains('pro00_preco')
-          ? 'pro00_preco'
-          : (pcoCols.contains('pcopro00_preco') ? 'pcopro00_preco' : null);
+          : (pcoCols.contains('pro00_preco') ? 'pro00_preco' : 'preco');
+      final bool hasPcocus = pcoCols.contains('pro00_pcocus') || pcoCols.contains('pcocus');
+      final String colPcocus = pcoCols.contains('pro00_pcocus') ? 'pro00_pcocus' : 'pcocus';
 
-      if (hasTab) {
+      if (hasEstpcoreg00 && hasCls) {
+        Set<String> regCols = {};
+        try {
+          final rCols = await db.rawQuery('PRAGMA table_info(estpcoreg00)');
+          regCols = rCols.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+        } catch (_) {}
+        final String colRegCls = regCols.contains('pro00_codpco')
+            ? 'pro00_codpco'
+            : (regCols.contains('pro00_codcls') ? 'pro00_codcls' : 'pro00_codpco');
+
+        joinPreco = '''
+          LEFT JOIN estpcoreg00 reg 
+                 ON reg.pro00_codpro = sel.pro00_codigo 
+                AND reg.pro00_codtab = ? 
+                AND reg.pro00_codreg = ?
+          LEFT JOIN $tblPco t 
+                 ON t.pro00_codpro = sel.pro00_codigo 
+                AND (
+                  (reg.$colRegCls IS NOT NULL AND t.pro00_codcls = reg.$colRegCls)
+                  OR (reg.$colRegCls IS NULL AND (t.pro00_codcls = ? OR ? = 0))
+                )
+        ''';
+        precoArgs.addAll([tabela, regiao, classe, classe]);
+      } else if (hasCls) {
         joinPreco = '''
           LEFT JOIN $tblPco t 
-                 ON t.$colCodpro = sel.pro00_codigo
-                AND CAST(t.$colTab AS INTEGER) = ?
+                 ON t.pro00_codpro = sel.pro00_codigo 
+                AND (t.pro00_codcls = ? OR ? = 0)
         ''';
-        args.add(codTabela);
+        precoArgs.addAll([classe, classe]);
+      } else if (hasTab) {
+        joinPreco = '''
+          LEFT JOIN $tblPco t 
+                 ON t.pro00_codpro = sel.pro00_codigo 
+                AND t.pro00_codtab = ?
+        ''';
+        precoArgs.add(tabela);
       } else {
         joinPreco = '''
           LEFT JOIN $tblPco t 
-                 ON t.$colCodpro = sel.pro00_codigo
+                 ON t.pro00_codpro = sel.pro00_codigo
         ''';
       }
 
-      // Monta a expressão COALESCE usando apenas colunas que realmente existem
-      if (colPcosub != null && colPreco != null) {
-        selPreco = 'COALESCE(NULLIF(t.$colPcosub, 0), t.$colPreco, $fallbackPrecoCad, 0.0) AS preco_venda';
-      } else if (colPreco != null) {
-        selPreco = 'COALESCE(t.$colPreco, $fallbackPrecoCad, 0.0) AS preco_venda';
-      } else if (colPcosub != null) {
-        selPreco = 'COALESCE(NULLIF(t.$colPcosub, 0), $fallbackPrecoCad, 0.0) AS preco_venda';
-      } else {
-        // Tabela de preço existe mas não tem colunas de valor reconhecidas — usa fallback de cadpro00
-        selPreco = 'COALESCE($fallbackPrecoCad, 0.0) AS preco_venda';
-      }
+      final String colPcoFallback = pcoCols.contains('pro00_preco')
+          ? 't.pro00_preco'
+          : (pcoCols.contains('preco') ? 't.preco' : '0.0');
+
+      final String expPrecoVenda = 'COALESCE(t.$colPcosub, $colPcoFallback, 0.0)';
+
+      final String expMin = hasPcocus
+          ? 'COALESCE(NULLIF(t.$colPcocus, 0.0), $expPrecoVenda, 0.0)'
+          : expPrecoVenda;
+
+      selPreco = '''
+        $expPrecoVenda AS pro00_pcomax,
+        $expMin AS pro00_pcomin,
+        $expPrecoVenda AS preco_venda
+      ''';
     }
 
     // Junções e projeções condicionais
@@ -237,7 +365,6 @@ class ProdutoRepository {
                ON est.pro00_codfil = ? 
               AND est.pro00_codpro = sel.pro00_codigo
       ''';
-      args.add(filialAtiva);
       final String fallbackQtd = proCols.contains('pro00_qtdest') ? 'sel.pro00_qtdest' : '0';
       selEstoque = 'COALESCE(est.pro00_qtdest - COALESCE(est.pro00_qtdpen, 0), $fallbackQtd, 0) AS pro00_qtdest';
       selPrifil = 'est.pro00_prifil';
@@ -272,7 +399,6 @@ class ProdutoRepository {
                ON ed0.pro00_codfil = ? 
               AND ed0.pro00_codpro = sel.pro00_codigo
       ''';
-      args.add(filialAtiva);
       selEntdat = 'ed0.pro00_entdat';
     }
 
@@ -336,8 +462,13 @@ class ProdutoRepository {
       WHERE (sel.pro00_codigo = ? OR CAST(sel.pro00_codigo AS TEXT) = ?);
     ''';
 
-    args.add(codpro);
-    args.add(codpro.toString());
+    final List<dynamic> args = [
+      ...precoArgs,
+      if (hasEstpro00) filial,
+      if (hasEstprodat00) filial,
+      codpro,
+      codpro.toString(),
+    ];
 
     final rows = await db.rawQuery(sql, args);
     if (rows.isEmpty) return null;
@@ -349,6 +480,7 @@ class ProdutoRepository {
     String? query, {
     int limit = 100,
     int offset = 0,
+    int? codFilial,
   }) async {
     final db = await _getDb();
     final termo = (query ?? '').trim();
@@ -370,7 +502,9 @@ class ProdutoRepository {
       binds.addAll([likeTermo, likeTermo, likeTermo, likeTermo, likeTermo]);
     }
 
-    final int filialAtiva = AppState().codFilialAtiva > 0 ? AppState().codFilialAtiva : 1;
+    final int filialAtiva = (codFilial != null && codFilial > 0)
+        ? codFilial
+        : (AppState().codFilialAtiva > 0 ? AppState().codFilialAtiva : 1);
 
     bool temEstpro00 = false;
     try {
@@ -382,7 +516,7 @@ class ProdutoRepository {
         ? 'LEFT JOIN estpro00 e ON e.pro00_codpro = p.pro00_codigo AND e.pro00_codfil = ?'
         : '';
     final selEst = temEstpro00
-        ? 'COALESCE(e.pro00_qtdest, p.pro00_qtdest, 0.0) AS estoque_saldo'
+        ? 'COALESCE(e.pro00_qtdest - COALESCE(e.pro00_qtdpen, 0.0), p.pro00_qtdest, 0.0) AS estoque_saldo'
         : 'COALESCE(p.pro00_qtdest, 0.0) AS estoque_saldo';
 
     final sql = '''

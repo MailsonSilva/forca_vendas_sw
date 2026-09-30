@@ -30,6 +30,8 @@ class ProdutoDetalheDTO {
   final int mulemb;
   final double mulven;
   final double preco;
+  final double pcomax;
+  final double pcomin;
 
   const ProdutoDetalheDTO({
     required this.codigo,
@@ -59,6 +61,8 @@ class ProdutoDetalheDTO {
     required this.mulemb,
     required this.mulven,
     this.preco = 0.0,
+    this.pcomax = 0.0,
+    this.pcomin = 0.0,
   });
 
   factory ProdutoDetalheDTO.fromMap(Map<String, dynamic> map) {
@@ -88,6 +92,10 @@ class ProdutoDetalheDTO {
       return int.tryParse(value.toString());
     }
 
+    final double precoVal = parseDouble(map['preco_venda'] ?? map['pro00_pcomax'] ?? map['preco'], 0.0);
+    final double pcomaxVal = parseDouble(map['pro00_pcomax'] ?? map['pcomax'] ?? precoVal, precoVal);
+    final double pcominVal = parseDouble(map['pro00_pcomin'] ?? map['pcomin'] ?? precoVal, precoVal);
+
     return ProdutoDetalheDTO(
       codigo: parseInt(map['pro00_codigo'] ?? map['codigo']),
       codbar: map['pro00_codbar']?.toString(),
@@ -115,7 +123,9 @@ class ProdutoDetalheDTO {
       qtdest: parseDouble(map['pro00_qtdest'] ?? map['qtdest'], 0.0),
       mulemb: parseInt(map['pro02_mulemb'] ?? map['mulemb'], 1),
       mulven: parseDouble(map['pro02_mulven'] ?? map['mulven'], 1.0),
-      preco: parseDouble(map['preco_venda'] ?? map['pro00_pcomax'] ?? map['preco'] ?? map['pro00_preco'], 0.0),
+      preco: precoVal,
+      pcomax: pcomaxVal > 0 ? pcomaxVal : precoVal,
+      pcomin: pcominVal > 0 ? pcominVal : precoVal,
     );
   }
 
@@ -148,6 +158,8 @@ class ProdutoDetalheDTO {
       'pro02_mulemb': mulemb,
       'pro02_mulven': mulven,
       'preco_venda': preco,
+      'pro00_pcomax': pcomax > 0 ? pcomax : preco,
+      'pro00_pcomin': pcomin > 0 ? pcomin : preco,
     };
   }
 
@@ -159,11 +171,15 @@ class ProdutoDetalheDTO {
     String? fabricanteDescri,
   }) {
     final double precoFinal = (precoVenda != null && precoVenda > 0) ? precoVenda : preco;
+    final double pmax = (pcomax > 0) ? pcomax : precoFinal;
+    final double pmin = (pcomin > 0) ? pcomin : precoFinal;
     return ProdutoResultStruct(
       codigo: codigo.toString(),
       descricao: descricao,
       unidade: unidade,
       preco: precoFinal,
+      pcomax: pmax,
+      pcomin: pmin,
       saldoEstoque: qtdest,
       estoqueAtual: qtdest,
       estoquePendente: 0.0,
@@ -177,6 +193,8 @@ class ProdutoDetalheDTO {
       codtrb: codtrb ?? 0,
       embalagem: (embalagem != null && embalagem!.trim().isNotEmpty) ? embalagem! : unidade,
       imagemId: codimg ?? 0,
+      defbon: defbon,
+      defbonven: defbonven,
     );
   }
 

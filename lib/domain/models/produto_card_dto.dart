@@ -10,6 +10,8 @@ class ProdutoCardDTO {
   final int? codimg;
   final double qtdest;
   final double preco;
+  final double pcomax;
+  final double pcomin;
 
   const ProdutoCardDTO({
     required this.codigo,
@@ -19,6 +21,8 @@ class ProdutoCardDTO {
     this.codimg,
     required this.qtdest,
     this.preco = 0.0,
+    this.pcomax = 0.0,
+    this.pcomin = 0.0,
   });
 
   factory ProdutoCardDTO.fromMap(Map<String, dynamic> map) {
@@ -46,6 +50,10 @@ class ProdutoCardDTO {
       return int.tryParse(val.toString());
     }
 
+    final double precoVal = parsePreco(map['preco_venda'] ?? map['pro00_pcomax'] ?? map['preco']);
+    final double pcomaxVal = parsePreco(map['pro00_pcomax'] ?? map['pcomax'] ?? precoVal);
+    final double pcominVal = parsePreco(map['pro00_pcomin'] ?? map['pcomin'] ?? precoVal);
+
     return ProdutoCardDTO(
       codigo: parseCod(map['pro00_codigo'] ?? map['codigo']),
       descricao: map['pro00_descri']?.toString() ?? map['descricao']?.toString() ?? '',
@@ -53,7 +61,9 @@ class ProdutoCardDTO {
       codbar: map['pro00_codbar']?.toString() ?? map['codbar']?.toString(),
       codimg: parseImg(map['pro00_codimg'] ?? map['codimg']),
       qtdest: parseQtd(map['pro00_qtdest'] ?? map['qtdest']),
-      preco: parsePreco(map['pro00_pcomax'] ?? map['preco'] ?? map['pro00_preco']),
+      preco: precoVal,
+      pcomax: pcomaxVal > 0 ? pcomaxVal : precoVal,
+      pcomin: pcominVal > 0 ? pcominVal : precoVal,
     );
   }
 
@@ -65,7 +75,9 @@ class ProdutoCardDTO {
       'pro00_codbar': codbar,
       'pro00_codimg': codimg,
       'pro00_qtdest': qtdest,
-      'pro00_pcomax': preco,
+      'pro00_pcomax': pcomax > 0 ? pcomax : preco,
+      'pro00_pcomin': pcomin > 0 ? pcomin : preco,
+      'preco': preco,
     };
   }
 
@@ -77,7 +89,8 @@ class ProdutoCardDTO {
       unidade: unidade,
       codbar: codbar ?? '',
       preco: preco,
-      pcomax: preco,
+      pcomax: pcomax > 0 ? pcomax : preco,
+      pcomin: pcomin > 0 ? pcomin : preco,
       saldoEstoque: qtdest,
       estoqueAtual: qtdest,
       estoquePendente: 0.0,
@@ -97,7 +110,9 @@ class ProdutoCardDTO {
           codbar == other.codbar &&
           codimg == other.codimg &&
           qtdest == other.qtdest &&
-          preco == other.preco;
+          preco == other.preco &&
+          pcomax == other.pcomax &&
+          pcomin == other.pcomin;
 
   @override
   int get hashCode =>
@@ -107,7 +122,9 @@ class ProdutoCardDTO {
       codbar.hashCode ^
       codimg.hashCode ^
       qtdest.hashCode ^
-      preco.hashCode;
+      preco.hashCode ^
+      pcomax.hashCode ^
+      pcomin.hashCode;
 
   @override
   String toString() =>

@@ -21,12 +21,16 @@ Future<ProdutoResultStruct?> carregarProdutoDetalhe(
 
   try {
     final int filial = AppState().codFilialAtiva != 0 ? AppState().codFilialAtiva : 1;
+    final int tabela = AppState().tabelaPrecoAtiva > 0 ? AppState().tabelaPrecoAtiva : 1;
+    final int regiao = AppState().clienteSelecionado?.codRegiao ?? 0;
+    final int classe = AppState().clienteSelecionado?.codTipoPreco ?? 0;
+
     final repo = ProdutoRepository();
     final int? codpro = int.tryParse(codigoBusca);
 
     ProdutoDetalheDTO? detalhe;
     if (codpro != null) {
-      detalhe = await repo.obterDetalhesProduto(codpro, filial);
+      detalhe = await repo.obterDetalhesProduto(codpro, filial, tabela, regiao, classe);
     }
 
     // Fallback de contingência caso o repositório não tenha localizado o produto (ex: código alfanumérico ou schema restrito)
@@ -78,8 +82,8 @@ Future<ProdutoResultStruct?> carregarProdutoDetalhe(
         fotosEncontradas.add("images/catalogo_imagens/$baseImgCode.jpg");
       }
 
-      // Consulta complementar segura de preço e descrições de marca/fabricante se existirem
-      double precoVenda = detalhe.preco;
+      // Consulta complementar segura de descrições de marca/fabricante se existirem
+      final double precoVenda = detalhe.preco;
       String? marcaDescri;
       String? fabDescri;
 
@@ -87,36 +91,6 @@ Future<ProdutoResultStruct?> carregarProdutoDetalhe(
         final db = await LocalSalesDatabaseService.getDatabase(readOnly: true);
         final tRows = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'");
         final Set<String> tabelas = tRows.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
-
-        if (precoVenda <= 0 && tabelas.contains('estpcopro00')) {
-          final pcoRows = await db.rawQuery(
-            '''
-            SELECT COALESCE(NULLIF(pro00_pcosub, 0), pro00_preco, pro00_pcosub, 0.0) AS preco_venda 
-            FROM estpcopro00 
-            WHERE pro00_codpro = ? OR CAST(pro00_codpro AS TEXT) = ? 
-            ORDER BY CASE WHEN pro00_codtab = 1 THEN 0 ELSE 1 END 
-            LIMIT 1
-            ''',
-            [codigoBusca, codigoBusca],
-          );
-          if (pcoRows.isNotEmpty) {
-            final p = pcoRows.first['preco_venda'];
-            precoVenda = (p is num) ? p.toDouble() : (double.tryParse(p?.toString() ?? '') ?? 0.0);
-          }
-        }
-
-        if (precoVenda <= 0 && tabelas.contains('cadpro00')) {
-          try {
-            final pcoCadRows = await db.rawQuery(
-              'SELECT COALESCE(pro00_preco, 0.0) AS preco_venda FROM cadpro00 WHERE pro00_codigo = ? OR CAST(pro00_codigo AS TEXT) = ? LIMIT 1',
-              [codigoBusca, codigoBusca],
-            );
-            if (pcoCadRows.isNotEmpty) {
-              final p = pcoCadRows.first['preco_venda'];
-              precoVenda = (p is num) ? p.toDouble() : (double.tryParse(p?.toString() ?? '') ?? 0.0);
-            }
-          } catch (_) {}
-        }
         if (detalhe.codmar != null && tabelas.contains('cadmar00')) {
           final marRows = await db.rawQuery(
             'SELECT mar00_descri FROM cadmar00 WHERE mar00_codigo = ? LIMIT 1',

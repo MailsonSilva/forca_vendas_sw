@@ -21,6 +21,8 @@ Future<bool> salvarItemPedido(
   String? quantidadeStr,
   double? precoUnitario, [
   int? pedidoId,
+  double? pcomax,
+  double? pcomin,
 ]) async {
   // Compat: se chamado sem pedidoId, log deprecado e aborta (não faz DELETE sem WHERE)
   if (pedidoId == null) {
@@ -33,6 +35,15 @@ Future<bool> salvarItemPedido(
     final unidadeNormalizada = unidade ?? '';
     final preco = precoUnitario ?? 0.0;
     if (codigo.isEmpty || preco <= 0) {
+      return false;
+    }
+
+    final double maxVal = (pcomax != null && pcomax > 0) ? pcomax : preco;
+    final double minVal = (pcomin != null && pcomin > 0) ? pcomin : preco;
+    if (minVal > 0 && preco < (minVal - 0.001)) {
+      return false;
+    }
+    if (maxVal > 0 && preco > (maxVal + 0.001)) {
       return false;
     }
 
@@ -61,6 +72,13 @@ Future<bool> salvarItemPedido(
     add('ped10_qtdped', quantidade);
     add('ped10_pcosub', preco);
     add('ped10_totprd', totalItem);
+    // SPEC-058
+    add('dig01_pcomax', maxVal);
+    add('ped10_pcomax', maxVal);
+    add('dig01_pcomin', minVal);
+    add('ped10_pcomin', minVal);
+    add('dig01_digpco', preco);
+    add('ped10_digpco', preco);
     if (insertCols.isEmpty) {
       await db.close();
       return false;

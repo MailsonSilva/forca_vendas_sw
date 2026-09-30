@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'domain/models/config_empresa_acesso.dart';
+import '/backend/schema/structs/index.dart';
 
 class AppState extends ChangeNotifier {
   static const _vendedorCodigoKey = 'app_vendedor_codigo';
@@ -555,6 +556,22 @@ class AppState extends ChangeNotifier {
       return 'Última Carga: nº $_sequencialCarga em $d/$m/$y $h:$min';
     }
     return 'Última Carga: $d/$m/$y $h:$min';
+  }
+
+  /// SPEC-058: Cliente atualmente selecionado para a sessão de venda
+  ClienteResultStruct? _clienteSelecionado;
+  ClienteResultStruct? get clienteSelecionado => _clienteSelecionado;
+  set clienteSelecionado(ClienteResultStruct? value) {
+    _clienteSelecionado = value;
+    notifyListeners();
+  }
+
+  /// SPEC-058: Tabela de preço ativa (oriunda de cadpla00.pla00_codtab ou padrão 1)
+  int _tabelaPrecoAtiva = 1;
+  int get tabelaPrecoAtiva => _tabelaPrecoAtiva;
+  set tabelaPrecoAtiva(int value) {
+    _tabelaPrecoAtiva = value > 0 ? value : 1;
+    notifyListeners();
   }
 }
 

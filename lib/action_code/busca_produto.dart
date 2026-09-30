@@ -15,10 +15,14 @@ class ProductDbMetadata {
   static Set<String> proCols = {};
   static bool hasEst = false;
   static bool hasQtdpen = false;
+  static bool hasReg = false;
+  static String? regClsCol;
   static String? tblPco;
   static String? pcoCodCol;
   static String? pcoTabCol;
   static String? pcoPrecoCol;
+  static String? pcoClsCol;
+  static String? pcoCusCol;
   static String? tblMar;
   static String? tblFor;
 
@@ -28,10 +32,14 @@ class ProductDbMetadata {
     proCols = {};
     hasEst = false;
     hasQtdpen = false;
+    hasReg = false;
+    regClsCol = null;
     tblPco = null;
     pcoCodCol = null;
     pcoTabCol = null;
     pcoPrecoCol = null;
+    pcoClsCol = null;
+    pcoCusCol = null;
     tblMar = null;
     tblFor = null;
   }
@@ -63,6 +71,16 @@ class ProductDbMetadata {
         hasQtdpen = false;
       }
 
+      hasReg = allTables.contains('estpcoreg00');
+      if (hasReg) {
+        final regCols = (await db.rawQuery('PRAGMA table_info(estpcoreg00)')).map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+        regClsCol = regCols.contains('pro00_codpco')
+            ? 'pro00_codpco'
+            : (regCols.contains('pro00_codcls') ? 'pro00_codcls' : 'pro00_codpco');
+      } else {
+        regClsCol = null;
+      }
+
       if (allTables.contains('estpcopro00')) {
         tblPco = 'estpcopro00';
       } else if (allTables.contains('pcopro00')) {
@@ -79,6 +97,12 @@ class ProductDbMetadata {
         }
         for (final c in ['pro00_pcosub', 'pro00_preco', 'pcopro00_pcosub', 'preco']) {
           if (pCols.contains(c)) { pcoPrecoCol = c; break; }
+        }
+        for (final c in ['pro00_codcls', 'codcls']) {
+          if (pCols.contains(c)) { pcoClsCol = c; break; }
+        }
+        for (final c in ['pro00_pcocus', 'pcocus']) {
+          if (pCols.contains(c)) { pcoCusCol = c; break; }
         }
       }
 
@@ -111,6 +135,7 @@ Future<Database> _getDbProduto() async {
 
 /// Busca de produtos rápida e otimizada trazendo Preço, Marca e Estoque,
 /// armazenando metadados de estrutura e conexão do banco em memória.
+/// Implementa a resolução canônica de preços da SPEC-058 e isolamento de filial.
 Future<List<ProdutoResultStruct>> buscaProduto(
   String? filtro,
   String? ultimoDescri,
@@ -124,6 +149,8 @@ Future<List<ProdutoResultStruct>> buscaProduto(
   String? dataEntrada, [
   int? codTabela,
   int? offset,
+  int? codRegiao,
+  int? codClasse,
 ]) async {
   try {
     final db = await _getDbProduto();
@@ -133,7 +160,11 @@ Future<List<ProdutoResultStruct>> buscaProduto(
     final int filial = (codFilial != null && codFilial > 0)
         ? codFilial
         : (AppState().codFilialAtiva != 0 ? AppState().codFilialAtiva : 1);
-    final int tab = (codTabela != null && codTabela > 0) ? codTabela : 1;
+    final int tab = (codTabela != null && codTabela > 0)
+        ? codTabela
+        : (AppState().tabelaPrecoAtiva > 0 ? AppState().tabelaPrecoAtiva : 1);
+    final int regiao = codRegiao ?? (AppState().clienteSelecionado?.codRegiao ?? 0);
+    final int classe = codClasse ?? (AppState().clienteSelecionado?.codTipoPreco ?? 0);
 
     // 1. Projeção de colunas de produto
     final String colCod = ProductDbMetadata.proCols.contains('pro00_codigo')
@@ -165,13 +196,10 @@ Future<List<ProdutoResultStruct>> buscaProduto(
         ? 'p.pro00_qtdest'
         : (ProductDbMetadata.proCols.contains('qtdest') ? 'p.qtdest' : '0.0');
 
-    final String colPrecoBase = ProductDbMetadata.proCols.contains('pro00_preco')
-        ? 'p.pro00_preco'
-        : (ProductDbMetadata.proCols.contains('pro00_pcomax')
-            ? 'p.pro00_pcomax'
-            : (ProductDbMetadata.proCols.contains('preco') ? 'p.preco' : '0.0'));
-
-    final List<dynamic> binds = [];
+    final List<dynamic> bindsEst = [];
+    final List<dynamic> bindsPreco = [];
+    final List<dynamic> bindsMarca = [];
+    final List<dynamic> bindsWhere = [];
 
     // 2. Junção de Marca
     String joinMarca = '';
@@ -189,7 +217,7 @@ Future<List<ProdutoResultStruct>> buscaProduto(
       selFab = "COALESCE(f.for00_descri, '') AS fabricante_nome";
     }
 
-    // 4. Junção de Estoque por Filial
+    // 4. Junção de Estoque por Filial (Isolamento estrito)
     String joinEst = '';
     String selEst = "COALESCE($colQtdEst, 0.0) AS saldo";
     if (ProductDbMetadata.hasEst) {
@@ -199,26 +227,71 @@ Future<List<ProdutoResultStruct>> buscaProduto(
               AND CAST(e.pro00_codfil AS INTEGER) = ?
       ''';
       if (ProductDbMetadata.hasQtdpen) {
-        selEst = "COALESCE(e.pro00_qtdest - COALESCE(e.pro00_qtdpen, 0.0), 0.0) AS saldo";
+        selEst = "COALESCE(e.pro00_qtdest - COALESCE(e.pro00_qtdpen, 0.0), p.$colQtdEst, 0.0) AS saldo";
       } else {
-        selEst = "COALESCE(e.pro00_qtdest, 0.0) AS saldo";
+        selEst = "COALESCE(e.pro00_qtdest, p.$colQtdEst, 0.0) AS saldo";
       }
-      binds.add(filial);
+      bindsEst.add(filial);
     }
 
-    // 5. Junção de Preço por Tabela com fallback
+    // 5. Junção de Preço Canônico SPEC-058 (estpcoreg00 -> estpcopro00)
     String joinPco = '';
-    String selPco = "COALESCE($colPrecoBase, 0.0) AS preco_venda";
+    String selPco = "0.0 AS preco_venda, 0.0 AS pro00_pcomax, 0.0 AS pro00_pcomin";
+
     if (ProductDbMetadata.tblPco != null &&
         ProductDbMetadata.pcoCodCol != null &&
         ProductDbMetadata.pcoPrecoCol != null) {
-      if (ProductDbMetadata.pcoTabCol != null) {
-        joinPco = 'LEFT JOIN ${ProductDbMetadata.tblPco} t ON (t.${ProductDbMetadata.pcoCodCol} = p.$colCod OR CAST(t.${ProductDbMetadata.pcoCodCol} AS INTEGER) = CAST(p.$colCod AS INTEGER)) AND CAST(t.${ProductDbMetadata.pcoTabCol} AS INTEGER) = ?';
-        binds.add(tab);
+      final pcoTbl = ProductDbMetadata.tblPco!;
+      final pcoCod = ProductDbMetadata.pcoCodCol!;
+      final pcoPco = ProductDbMetadata.pcoPrecoCol!;
+      final pcoCls = ProductDbMetadata.pcoClsCol;
+      final pcoCus = ProductDbMetadata.pcoCusCol;
+      final regCls = ProductDbMetadata.regClsCol;
+
+      if (ProductDbMetadata.hasReg && pcoCls != null && regCls != null) {
+        joinPco = '''
+          LEFT JOIN estpcoreg00 reg 
+                 ON (reg.pro00_codpro = p.$colCod OR CAST(reg.pro00_codpro AS INTEGER) = CAST(p.$colCod AS INTEGER))
+                AND CAST(reg.pro00_codtab AS INTEGER) = ?
+                AND CAST(reg.pro00_codreg AS INTEGER) = ?
+          LEFT JOIN $pcoTbl t 
+                 ON (t.$pcoCod = p.$colCod OR CAST(t.$pcoCod AS INTEGER) = CAST(p.$colCod AS INTEGER))
+                AND (
+                  (reg.$regCls IS NOT NULL AND CAST(t.$pcoCls AS INTEGER) = CAST(reg.$regCls AS INTEGER))
+                  OR (reg.$regCls IS NULL AND (CAST(t.$pcoCls AS INTEGER) = ? OR ? = 0))
+                )
+        ''';
+        bindsPreco.addAll([tab, regiao, classe, classe]);
+      } else if (pcoCls != null) {
+        joinPco = '''
+          LEFT JOIN $pcoTbl t 
+                 ON (t.$pcoCod = p.$colCod OR CAST(t.$pcoCod AS INTEGER) = CAST(p.$colCod AS INTEGER))
+                AND (CAST(t.$pcoCls AS INTEGER) = ? OR ? = 0)
+        ''';
+        bindsPreco.addAll([classe, classe]);
+      } else if (ProductDbMetadata.pcoTabCol != null) {
+        joinPco = '''
+          LEFT JOIN $pcoTbl t 
+                 ON (t.$pcoCod = p.$colCod OR CAST(t.$pcoCod AS INTEGER) = CAST(p.$colCod AS INTEGER))
+                AND CAST(t.${ProductDbMetadata.pcoTabCol} AS INTEGER) = ?
+        ''';
+        bindsPreco.add(tab);
       } else {
-        joinPco = 'LEFT JOIN ${ProductDbMetadata.tblPco} t ON (t.${ProductDbMetadata.pcoCodCol} = p.$colCod OR CAST(t.${ProductDbMetadata.pcoCodCol} AS INTEGER) = CAST(p.$colCod AS INTEGER))';
+        joinPco = '''
+          LEFT JOIN $pcoTbl t 
+                 ON (t.$pcoCod = p.$colCod OR CAST(t.$pcoCod AS INTEGER) = CAST(p.$colCod AS INTEGER))
+        ''';
       }
-      selPco = "COALESCE(t.${ProductDbMetadata.pcoPrecoCol}, $colPrecoBase, 0.0) AS preco_venda";
+
+      final String expMin = pcoCus != null
+          ? 'COALESCE(NULLIF(t.$pcoCus, 0.0), t.$pcoPco, 0.0)'
+          : 'COALESCE(t.$pcoPco, 0.0)';
+
+      selPco = '''
+        COALESCE(t.$pcoPco, 0.0) AS preco_venda,
+        COALESCE(t.$pcoPco, 0.0) AS pro00_pcomax,
+        $expMin AS pro00_pcomin
+      ''';
     }
 
     // 6. Montagem de filtros
@@ -246,7 +319,7 @@ Future<List<ProdutoResultStruct>> buscaProduto(
 
       if (buscaResult.hasFilter) {
         condicoes.add(buscaResult.sql);
-        binds.addAll(buscaResult.binds);
+        bindsWhere.addAll(buscaResult.binds);
       }
     }
 
@@ -254,7 +327,7 @@ Future<List<ProdutoResultStruct>> buscaProduto(
       final val = int.tryParse(filtroLinha.trim());
       if (val != null) {
         condicoes.add('p.pro00_codlin = ?');
-        binds.add(val);
+        bindsWhere.add(val);
       }
     }
 
@@ -262,7 +335,7 @@ Future<List<ProdutoResultStruct>> buscaProduto(
       final val = int.tryParse(filtroGrupo.trim());
       if (val != null) {
         condicoes.add('p.pro00_codgrp = ?');
-        binds.add(val);
+        bindsWhere.add(val);
       }
     }
 
@@ -270,20 +343,20 @@ Future<List<ProdutoResultStruct>> buscaProduto(
       final val = int.tryParse(filtroFabricante.trim());
       if (val != null) {
         condicoes.add('p.pro00_codfab = ?');
-        binds.add(val);
+        bindsWhere.add(val);
       }
     }
 
     if (filtroMarca != null && filtroMarca.trim().isNotEmpty && filtroMarca != 'Todas') {
       if (joinMarca.isNotEmpty) {
         condicoes.add('(m.mar00_descri = ? OR CAST(p.pro00_codmar AS TEXT) = ?)');
-        binds.add(filtroMarca.trim());
-        binds.add(filtroMarca.trim());
+        bindsMarca.add(filtroMarca.trim());
+        bindsMarca.add(filtroMarca.trim());
       } else if (ProductDbMetadata.proCols.contains('pro00_codmar')) {
         final val = int.tryParse(filtroMarca.trim());
         if (val != null) {
           condicoes.add('p.pro00_codmar = ?');
-          binds.add(val);
+          bindsWhere.add(val);
         }
       }
     }
@@ -291,9 +364,9 @@ Future<List<ProdutoResultStruct>> buscaProduto(
     if (apenasEstoque == true) {
       if (ProductDbMetadata.hasEst) {
         if (ProductDbMetadata.hasQtdpen) {
-          condicoes.add('COALESCE(e.pro00_qtdest - COALESCE(e.pro00_qtdpen, 0.0), 0.0) > 0');
+          condicoes.add('COALESCE(e.pro00_qtdest - COALESCE(e.pro00_qtdpen, 0.0), p.$colQtdEst, 0.0) > 0');
         } else {
-          condicoes.add('COALESCE(e.pro00_qtdest, 0.0) > 0');
+          condicoes.add('COALESCE(e.pro00_qtdest, p.$colQtdEst, 0.0) > 0');
         }
       } else {
         condicoes.add('COALESCE($colQtdEst, 0.0) > 0');
@@ -331,10 +404,19 @@ Future<List<ProdutoResultStruct>> buscaProduto(
       $limitSql;
     ''';
 
-    final rows = await db.rawQuery(query, binds);
+    final List<dynamic> allBinds = [
+      ...bindsEst,
+      ...bindsPreco,
+      ...bindsMarca,
+      ...bindsWhere,
+    ];
+
+    final rows = await db.rawQuery(query, allBinds);
 
     return rows.map((m) {
       final double preco = (m['preco_venda'] as num?)?.toDouble() ?? 0.0;
+      final double pcomax = (m['pro00_pcomax'] as num?)?.toDouble() ?? preco;
+      final double pcomin = (m['pro00_pcomin'] as num?)?.toDouble() ?? preco;
       final double saldo = (m['saldo'] as num?)?.toDouble() ?? 0.0;
       return ProdutoResultStruct(
         codigo: (m['codigo'] ?? '').toString(),
@@ -351,7 +433,8 @@ Future<List<ProdutoResultStruct>> buscaProduto(
         saldoEstoque: saldo,
         estoqueAtual: saldo,
         preco: preco,
-        pcomax: preco,
+        pcomax: pcomax > 0 ? pcomax : preco,
+        pcomin: pcomin > 0 ? pcomin : preco,
       );
     }).toList();
   } catch (e, stack) {

@@ -470,6 +470,8 @@ class ClienteResultStruct extends BaseStruct {
   // "cli00Codreg" field.
   int? _cli00Codreg;
   int get cli00Codreg => _cli00Codreg ?? 0;
+  int get codRegiao => cli00Codreg;
+  int get codTipoPreco => cli00Typpco;
   set cli00Codreg(int? val) => _cli00Codreg = val;
 
   void incrementCli00Codreg(int amount) => cli00Codreg = cli00Codreg + amount;

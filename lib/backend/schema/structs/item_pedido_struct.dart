@@ -43,6 +43,9 @@ class ItemPedidoStruct extends BaseStruct {
     String? marca,
     String? referencia,
     String? codbar,
+    // SPEC-058: Faixas de preço canônicas
+    double? pcomax,
+    double? pcomin,
   })  : _codigoProduto = codigoProduto,
         _descricao = descricao,
         _unidade = unidade,
@@ -57,7 +60,9 @@ class ItemPedidoStruct extends BaseStruct {
         _embalagem = embalagem,
         _marca = marca,
         _referencia = referencia,
-        _codbar = codbar;
+        _codbar = codbar,
+        _pcomax = pcomax,
+        _pcomin = pcomin;
 
   // "codigo_produto" field.
   String? _codigoProduto;
@@ -165,6 +170,18 @@ class ItemPedidoStruct extends BaseStruct {
   set codbar(String? val) => _codbar = val;
   bool hasCodbar() => _codbar != null;
 
+  // "pcomax" field.
+  double? _pcomax;
+  double get pcomax => _pcomax ?? precoUnitario;
+  set pcomax(double? val) => _pcomax = val;
+  bool hasPcomax() => _pcomax != null;
+
+  // "pcomin" field.
+  double? _pcomin;
+  double get pcomin => _pcomin ?? precoUnitario;
+  set pcomin(double? val) => _pcomin = val;
+  bool hasPcomin() => _pcomin != null;
+
   static ItemPedidoStruct fromMap(Map<String, dynamic> data) =>
       ItemPedidoStruct(
         codigoProduto: data['codigo_produto'] as String?,
@@ -182,6 +199,8 @@ class ItemPedidoStruct extends BaseStruct {
         marca: data['marca'] as String?,
         referencia: data['referencia'] as String?,
         codbar: data['codbar'] as String?,
+        pcomax: castToType<double>(data['pcomax'] ?? data['dig01_pcomax']),
+        pcomin: castToType<double>(data['pcomin'] ?? data['dig01_pcomin']),
       );
 
   static ItemPedidoStruct? maybeFromMap(dynamic data) => data is Map
@@ -204,6 +223,8 @@ class ItemPedidoStruct extends BaseStruct {
         'marca': _marca,
         'referencia': _referencia,
         'codbar': _codbar,
+        'pcomax': _pcomax,
+        'pcomin': _pcomin,
       }.withoutNulls;
 
   @override
@@ -255,6 +276,14 @@ class ItemPedidoStruct extends BaseStruct {
         'embalagem': serializeParam(
           _embalagem,
           ParamType.String,
+        ),
+        'pcomax': serializeParam(
+          _pcomax,
+          ParamType.double,
+        ),
+        'pcomin': serializeParam(
+          _pcomin,
+          ParamType.double,
         ),
       }.withoutNulls;
 
@@ -320,6 +349,16 @@ class ItemPedidoStruct extends BaseStruct {
           ParamType.String,
           false,
         ),
+        pcomax: deserializeParam(
+          data['pcomax'],
+          ParamType.double,
+          false,
+        ),
+        pcomin: deserializeParam(
+          data['pcomin'],
+          ParamType.double,
+          false,
+        ),
       );
 
   @override
@@ -375,6 +414,8 @@ ItemPedidoStruct createItemPedidoStruct({
   String? marca,
   String? referencia,
   String? codbar,
+  double? pcomax,
+  double? pcomin,
 }) =>
     ItemPedidoStruct(
       codigoProduto: codigoProduto,
@@ -392,4 +433,6 @@ ItemPedidoStruct createItemPedidoStruct({
       marca: marca,
       referencia: referencia,
       codbar: codbar,
+      pcomax: pcomax,
+      pcomin: pcomin,
     );

@@ -105,9 +105,12 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
 
 
   void _abrirModalAdicionarCarrinho(ProdutoResultStruct produto) async {
-    final bool validaEstoque = (AppState().ven_chkest == 1);
-    final bool temEstoque = !validaEstoque || (produto.saldoEstoque > 0);
-    int quantidade = temEstoque ? 1 : 0;
+    final bool ignoraLimiteEstoque = (AppState().ven_ignlimfis == 1);
+    final bool validaEstoque = (AppState().ven_chkest == 1) && !ignoraLimiteEstoque;
+    final bool bloqueadoPorEstoque = !ignoraLimiteEstoque && (produto.saldoEstoque <= 0);
+    final bool bloqueadoPorPreco = (produto.preco <= 0) && !produto.isBonificacaoAutorizada;
+    final bool temEstoque = !bloqueadoPorEstoque;
+    int quantidade = (temEstoque && !bloqueadoPorPreco) ? 1 : 0;
     final qtdController = TextEditingController(text: '$quantidade');
 
     final itemSelecionado = await showModalBottomSheet<ItemPedidoStruct?>(
@@ -271,8 +274,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                     ),
                                   ],
                                 ),
-                                if (validaEstoque &&
-                                    produto.saldoEstoque <= 0) ...[
+                                if (bloqueadoPorEstoque) ...[
                                   const SizedBox(height: 12.0),
                                   const Row(
                                     children: [
@@ -281,7 +283,26 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                       SizedBox(width: 6.0),
                                       Expanded(
                                         child: Text(
-                                          'Produto indisponível: Estoque esgotado (Saldo: 0)',
+                                          'Produto sem estoque disponível na filial ativa',
+                                          style: TextStyle(
+                                              color: Colors.red,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13.0),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                                if (bloqueadoPorPreco) ...[
+                                  const SizedBox(height: 12.0),
+                                  const Row(
+                                    children: [
+                                      Icon(Icons.error_outline_rounded,
+                                          color: Colors.red, size: 18.0),
+                                      SizedBox(width: 6.0),
+                                      Expanded(
+                                        child: Text(
+                                          'Item com preço zerado não pode ser adicionado (sem bonificação autorizada)',
                                           style: TextStyle(
                                               color: Colors.red,
                                               fontWeight: FontWeight.bold,
@@ -448,7 +469,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                         borderRadius:
                                             BorderRadius.circular(8.0)),
                                   ),
-                                  onPressed: quantidade > 0
+                                  onPressed: (quantidade > 0 && !bloqueadoPorPreco && !bloqueadoPorEstoque)
                                       ? () {
                                           final mul = (produto.mulver != 0)
                                               ? produto.mulver
@@ -458,6 +479,8 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                             descricao: produto.descricao,
                                             unidade: produto.unidade,
                                             precoUnitario: produto.preco,
+                                            pcomax: produto.pcomax > 0 ? produto.pcomax : produto.preco,
+                                            pcomin: produto.pcomin > 0 ? produto.pcomin : produto.preco,
                                             quantidade: quantidade.toDouble(),
                                             totalItem:
                                                 produto.preco * quantidade,
@@ -1653,7 +1676,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                         .descricao,
                                                     subtitulo: listaProdutoItem.preco > 0
                                                         ? 'Cód: ${listaProdutoItem.codigo} • ${listaProdutoItem.preco.toMoeda()}'
-                                                        : 'Cód: ${listaProdutoItem.codigo}',
+                                                        : 'Cód: ${listaProdutoItem.codigo} • Sob Consulta',
                                                   ),
                                                 ),
                                                 Expanded(
@@ -2038,9 +2061,9 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                                     ),
                                                               ),
                                                               Text(
-                                                                listaProdutoItem
-                                                                    .preco
-                                                                    .toMoeda(),
+                                                                listaProdutoItem.preco > 0
+                                                                    ? listaProdutoItem.preco.toMoeda()
+                                                                    : 'Sob Consulta',
                                                                 style: AppTheme.of(
                                                                         context)
                                                                     .bodyMedium
@@ -2058,7 +2081,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                                           ? const Color(
                                                                               0xFF2E7D32)
                                                                           : AppTheme.of(context)
-                                                                              .primaryText,
+                                                                              .secondaryText,
                                                                       fontSize:
                                                                           16.0,
                                                                       letterSpacing:
