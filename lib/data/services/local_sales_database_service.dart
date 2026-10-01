@@ -18,9 +18,21 @@ class LocalSalesDatabaseService {
 
   static Database? _dbForTesting;
   static Database? _activeDb;
+  static String? _customDatabasesPathForTesting;
 
   static void setDatabaseForTesting(Database? db) {
     _dbForTesting = db;
+  }
+
+  static void setCustomDatabasesPathForTesting(String? path) {
+    _customDatabasesPathForTesting = path;
+  }
+
+  static Future<String> _resolveDatabasesPath() async {
+    if (_customDatabasesPathForTesting != null) {
+      return _customDatabasesPathForTesting!;
+    }
+    return await getDatabasesPath();
   }
 
   /// Reinicializa o pool de conexões com o SQLite ('dbforcacad001.db')
@@ -37,13 +49,13 @@ class LocalSalesDatabaseService {
   }
 
   Future<File> get databaseFile async {
-    final databasesPath = await getDatabasesPath();
+    final databasesPath = await _resolveDatabasesPath();
     return File(p.join(databasesPath, databaseName));
   }
 
   /// Retorna o caminho absoluto do banco de dados SQLite unificado.
   static Future<String> getDatabasePath() async {
-    final databasesPath = await getDatabasesPath();
+    final databasesPath = await _resolveDatabasesPath();
     final pMain = p.join(databasesPath, databaseName);
     final pAlt = p.join(databasesPath, aliasDig);
     if (await File(pMain).exists()) return pMain;
@@ -561,7 +573,7 @@ class LocalSalesDatabaseService {
   /// Retorna todos os caminhos de bancos existentes no dispositivo (principal e alias)
   /// para garantir sincronização de escrita caso ambos os arquivos existam.
   static Future<List<String>> getTargetDatabasePaths() async {
-    final databasesPath = await getDatabasesPath();
+    final databasesPath = await _resolveDatabasesPath();
     final pMain = p.join(databasesPath, databaseName);
     final pAlt = p.join(databasesPath, aliasDig);
     final list = <String>[];
@@ -589,7 +601,7 @@ class LocalSalesDatabaseService {
   }
 
   Future<void> replaceWithValidatedBytes(List<int> sqliteBytes) async {
-    final databasesPath = await getDatabasesPath();
+    final databasesPath = await _resolveDatabasesPath();
     final tempFile = File(p.join(databasesPath, _tempDatabaseName));
     final finalFile = File(p.join(databasesPath, databaseName));
 

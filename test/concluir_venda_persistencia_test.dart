@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:forca_de_vendas/data/services/local_sales_database_service.dart';
 import 'package:forca_de_vendas/data/services/pac_xml_generator_service.dart';
 import 'package:forca_de_vendas/domain/models/pedido_venda.dart';
 import 'package:forca_de_vendas/domain/models/status_envio.dart';
@@ -24,15 +25,14 @@ void main() {
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('persist_test_temp_');
     docsDir = await Directory.systemTemp.createTemp('persist_test_docs_');
-    final databasesPath = await getDatabasesPath();
-    dbPath = p.join(databasesPath, 'test_persist_${DateTime.now().microsecondsSinceEpoch}.db');
-    // Remove se existir de teste anterior
-    try { await File(dbPath).delete(); } catch (_) {}
+    LocalSalesDatabaseService.setCustomDatabasesPathForTesting(tempDir.path);
+    dbPath = p.join(tempDir.path, LocalSalesDatabaseService.databaseName);
     manifestPath = p.join(tempDir.path, 'carga_manifest.json');
   });
 
   tearDown(() async {
-    try { await databaseFactory.deleteDatabase(dbPath); } catch (_) {}
+    LocalSalesDatabaseService.setCustomDatabasesPathForTesting(null);
+    await LocalSalesDatabaseService.closeAndResetConnectionPool();
     if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
     if (docsDir.existsSync()) docsDir.deleteSync(recursive: true);
   });
@@ -70,15 +70,6 @@ void main() {
   }
 
   test('persistencia: salvar 1 pedido 1 item e checar SELECT COUNT(*) >0 e PAC gerado', () async {
-    // Pre-cria o banco com tabela via serviço, usando dbPath isolado.
-    // Para forçar o serviço a usar esse dbPath, precisamos mockar getTargetDatabasePaths?
-    // Em vez disso, testamos diretamente via openDatabase no dbPath e via serviço com tempDir injetado,
-    // mas o serviço usa LocalSalesDatabaseService.getTargetDatabasePaths() que aponta para dbforcacad001.db.
-    // Para isolar, vamos criar o arquivo físico em dbPath e também usar openDatabase direto para simular fluxo:
-    // 1) cria pckvendig000 e insere header+itens manualmente como faz salvarCarrinhoPedido
-    // 2) chama gerarESalvarPedidoLocal que deve fazer UPDATE + gerar PAC + sttenv=1
-    //   e validamos SELECT COUNT(*) e existência do .pac.
-
     // Cria estrutura inicial simulando salvarCarrinhoPedido
     final db = await openDatabase(dbPath);
     await db.execute('''
@@ -131,72 +122,47 @@ void main() {
     );
     await db.close();
 
-    // Agora precisamos fazer o serviço enxergar esse dbPath.
-    // Truque: copiar o arquivo para o path real que o serviço usa (dbforcacad001.db)
-    final realPath = p.join(await getDatabasesPath(), 'dbforcacad001.db');
-    // Backup do real se existir
-    final realFile = File(realPath);
-    final hadReal = await realFile.exists();
-    File? backup;
-    if (hadReal) {
-      backup = File('$realPath.bak_${DateTime.now().microsecondsSinceEpoch}');
-      await realFile.copy(backup.path);
-    }
-    await File(dbPath).copy(realPath);
+    final pedido = sample(codMov: 9001);
+    final service = ConcluirVendaService(
+      getTemporaryDirectoryFn: () async => tempDir,
+      getDocumentsDirFn: () async => docsDir,
+      registry: CargaRegistryService(manifestPath: manifestPath),
+    );
 
+    final pedId = await service.salvarPedidoConcluidoLocal(
+      pedido: pedido,
+      empresa: 'diniz',
+      codigoEquipe: 71,
+    );
+
+    expect(pedId, 9001);
+
+    // Valida persistência SQLite: COUNT(*)>0, sttdig=1, sttenv=0 (Aguardando Pacote), pacstr=''
+    await Future.delayed(const Duration(milliseconds: 50));
+    final verifyDb = await openDatabase(dbPath, readOnly: true);
+    final rows = await verifyDb.rawQuery('SELECT COUNT(*) as c FROM pckvendig000');
+    final count = rows.first['c'] as int;
+    expect(count, greaterThan(0), reason: 'SELECT COUNT(*) FROM pckvendig000 deve ser >0');
+
+    final row = await verifyDb.rawQuery('SELECT ped00_sttenv, ped00_pacstr, ped00_sttdig FROM pckvendig000 WHERE ped00_numped = ?', [9001]);
+    expect(row.isNotEmpty, isTrue);
+    expect(row.first['ped00_sttdig'], equals(1), reason: 'ped00_sttdig deve ser 1 (Digitado/Concluído)');
+    expect(row.first['ped00_sttenv'], equals(0), reason: 'ped00_sttenv deve ser 0 (Aguardando Pacote)');
+    expect(row.first['ped00_pacstr'] == null || row.first['ped00_pacstr'] == '', isTrue);
+
+    // Valida que itens ainda existem
+    final itens = await verifyDb.rawQuery('SELECT COUNT(*) as c FROM pckvendig010 WHERE ped10_numped = ?', [9001]);
+    expect(itens.first['c'] as int, greaterThan(0));
+
+    // Valida VIEW dig00 reflete pckvendig000
     try {
-      final pedido = sample(codMov: 9001);
-      final service = ConcluirVendaService(
-        getTemporaryDirectoryFn: () async => tempDir,
-        getDocumentsDirFn: () async => docsDir,
-        registry: CargaRegistryService(manifestPath: manifestPath),
-      );
-
-      final pedId = await service.salvarPedidoConcluidoLocal(
-        pedido: pedido,
-        empresa: 'diniz',
-        codigoEquipe: 71,
-      );
-
-      expect(pedId, 9001);
-
-      // Valida persistência SQLite: COUNT(*)>0, sttdig=1, sttenv=0 (Aguardando Pacote), pacstr=''
-      await Future.delayed(const Duration(milliseconds: 50));
-      final verifyDb = await openDatabase(realPath, readOnly: true);
-      final rows = await verifyDb.rawQuery('SELECT COUNT(*) as c FROM pckvendig000');
-      final count = rows.first['c'] as int;
-      expect(count, greaterThan(0), reason: 'SELECT COUNT(*) FROM pckvendig000 deve ser >0');
-
-      final row = await verifyDb.rawQuery('SELECT ped00_sttenv, ped00_pacstr, ped00_sttdig FROM pckvendig000 WHERE ped00_numped = ?', [9001]);
-      expect(row.isNotEmpty, isTrue);
-      expect(row.first['ped00_sttdig'], equals(1), reason: 'ped00_sttdig deve ser 1 (Digitado/Concluído)');
-      expect(row.first['ped00_sttenv'], equals(0), reason: 'ped00_sttenv deve ser 0 (Aguardando Pacote)');
-      expect(row.first['ped00_pacstr'] == null || row.first['ped00_pacstr'] == '', isTrue);
-
-      // Valida que itens ainda existem
-      final itens = await verifyDb.rawQuery('SELECT COUNT(*) as c FROM pckvendig010 WHERE ped10_numped = ?', [9001]);
-      expect(itens.first['c'] as int, greaterThan(0));
-
-      // Valida VIEW dig00 reflete pckvendig000
-      try {
-        final vRows = await verifyDb.rawQuery('SELECT COUNT(*) as c FROM dig00');
-        expect(vRows.first['c'] as int, equals(count));
-      } catch (_) {
-        fail('VIEW dig00 deve existir e refletir pckvendig000');
-      }
-
-      await verifyDb.close();
-    } finally {
-      // Restaura backup — fecha antes de deletar para liberar lock Windows
-      await Future.delayed(const Duration(milliseconds: 100));
-      try { await databaseFactory.deleteDatabase(realPath); } catch (_) {}
-      if (hadReal && backup != null) {
-        try {
-          await File(backup.path).copy(realPath);
-          await backup.delete();
-        } catch (_) {}
-      }
+      final vRows = await verifyDb.rawQuery('SELECT COUNT(*) as c FROM dig00');
+      expect(vRows.first['c'] as int, equals(count));
+    } catch (_) {
+      fail('VIEW dig00 deve existir e refletir pckvendig000');
     }
+
+    await verifyDb.close();
   });
 
   test('geracao PAC: XML contem pac00/pac01 e totais corretos', () async {

@@ -1,0 +1,204 @@
+version: "1.0"
+name: "dev-cycle"
+description: "Pipeline completo orientado a Spec com TDD (Red-Green-Refactor), loop autônomo de autorreparo e Git committer semântico."
+
+# 1. Parâmetros de Entrada do Workflow
+inputs:
+  feature_spec:
+    type: string
+    description: "Caminho relativo da especificação da funcionalidade (ex: _specs/features/auth-login.md)"
+    required: true
+  target:
+    type: string
+    description: "Alvo da execução: mobile | web | landing (se omitido, lê targets de _specs/prd.md)"
+    required: false
+  skip_design:
+    type: boolean
+    description: "Pular inspeção visual caso a tarefa seja puramente backend/lógica de negócio"
+    default: false
+
+# 2. Definição do Pipeline Sequencial
+steps:
+
+  # -------------------------------------------------------------
+  # ETAPA 1: Ingestão de Contexto e Grafo de Símbolos
+  # -------------------------------------------------------------
+  - id: step_ingest_context
+    name: "1. Ingestão de Contexto e Análise de Símbolos"
+    agent: "product_architect"
+    actions:
+      - description: "Validar se a spec existe e possui critérios de aceitação objetivos"
+        command: "test -f ${inputs.feature_spec}"
+      - description: "Consultar grafo estático via Graft para mapear arquivos impactados"
+        command: "graft scan --path apps/${inputs.target || 'mobile'}"
+      - description: "Inicializar ticket de execução no ai-memory"
+        command: >
+          ai-memory ticket create
+          --title "Dev Cycle: ${inputs.feature_spec}"
+          --tags "target:${inputs.target},tdd,in_progress"
+    output_artifacts:
+      - "context_ticket_id"
+
+  # -------------------------------------------------------------
+  # ETAPA 2: Validação Visual e Design Tokens (Opcional/Condicional)
+  # -------------------------------------------------------------
+  - id: step_design_tokens
+    name: "2. Verificação de Tokens e Referências Visuais"
+    agent: "ui_ux_designer"
+    condition: "${inputs.skip_design == false}"
+    actions:
+      - description: "Verificar se há referências visuais em _references/screens/ para a feature"
+        tool: "google_stitch_mcp"
+        parameters:
+          action: "extract_design_context"
+          source_dir: "_references/screens/"
+      - description: "Garantir consistência das cores e tipografia em _specs/design-tokens.json"
+        tool: "file_read"
+        path: "_specs/design-tokens.json"
+      - description: "Salvar handoff de design no ai-memory"
+        command: >
+          ai-memory ticket update
+          --id "${steps.step_ingest_context.outputs.context_ticket_id}"
+          --note "Design tokens validados e alinhados com referências do Stitch."
+
+  # -------------------------------------------------------------
+  # ETAPA 3: TDD Fase Vermelha (RED) - Criação dos Testes Falhos
+  # -------------------------------------------------------------
+  - id: step_tdd_red
+    name: "3. TDD Fase Vermelha (RED) - Escrita de Testes Que Devem Falhar"
+    agent: "tdd_tester"
+    actions:
+      - description: "Ler contratos e critérios de aceitação em ${inputs.feature_spec}"
+        tool: "file_read"
+        path: "${inputs.feature_spec}"
+      - description: "Identificar modelos e assinaturas existentes via Graft"
+        command: "graft symbols --query 'Repository|Controller|Notifier|Bloc'"
+      - description: "Escrever testes unitários/widget/integração cobrindo todos os cenários"
+        tool: "file_write"
+      - description: "Executar suíte de testes e assegurar que FALHA por falta de implementação (Red)"
+        command: >
+          if [ "${inputs.target}" = "web" ] || [ "${inputs.target}" = "landing" ]; then
+            cd apps/${inputs.target} && npm test || true
+          else
+            cd apps/mobile && flutter test || true
+          fi
+      - description: "Registrar handoff da fase RED no ai-memory"
+        command: >
+          ai-memory ticket update
+          --id "${steps.step_ingest_context.outputs.context_ticket_id}"
+          --status "red_phase_complete"
+          --note "Testes criados e falhando conforme o esperado. Pronto para implementação."
+
+  # -------------------------------------------------------------
+  # ETAPA 4: TDD Fase Verde (GREEN) - Implementação Mínima
+  # -------------------------------------------------------------
+  - id: step_tdd_green
+    name: "4. TDD Fase Verde (GREEN) - Implementação de Código de Produção"
+    agent_selector:
+      when:
+        - condition: "${inputs.target == 'mobile'}"
+          agent: "mobile_builder"
+        - condition: "${inputs.target == 'web' || inputs.target == 'landing'}"
+          agent: "web_builder"
+        - default: "mobile_builder"
+    actions:
+      - description: "Ler notas do ticket de handoff no ai-memory"
+        command: "ai-memory ticket get --id ${steps.step_ingest_context.outputs.context_ticket_id}"
+      - description: "Escrever código estritamente necessário para satisfazer os testes"
+        tool: "file_write"
+      - description: "Consultar dependências com Graft para evitar importações incorretas"
+        command: "graft imports --target ${inputs.target}"
+
+  # -------------------------------------------------------------
+  # ETAPA 5: Loop de Autorreparo e Validação Contínua (REPAIR LOOP)
+  # -------------------------------------------------------------
+  - id: step_repair_loop
+    name: "5. Validação de Testes e Loop Fechado de Autorreparo"
+    agent: "qa_validator"
+    loop:
+      max_iterations: 3
+      until: "test_result.exit_code == 0 && lint_result.exit_code == 0"
+      on_iteration:
+        - name: "Executar Verificação de Tipos e Linter"
+          command: >
+            if [ "${inputs.target}" = "web" ] || [ "${inputs.target}" = "landing" ]; then
+              cd apps/${inputs.target} && npm run lint
+            else
+              cd apps/mobile && dart analyze
+            fi
+          catch_output: "lint_result"
+
+        - name: "Executar Suíte de Testes"
+          command: >
+            if [ "${inputs.target}" = "web" ] || [ "${inputs.target}" = "landing" ]; then
+              cd apps/${inputs.target} && npm test
+            else
+              cd apps/mobile && flutter test
+            fi
+          catch_output: "test_result"
+
+        - name: "Correção Cirúrgica em Caso de Falha"
+          condition: "test_result.exit_code != 0 || lint_result.exit_code != 0"
+          actions:
+            - description: "Registrar diagnóstico de erro no ai-memory"
+              command: >
+                ai-memory ticket update
+                --id "${steps.step_ingest_context.outputs.context_ticket_id}"
+                --error-log "Iteração falhou. Erros: ${lint_result.stderr} ${test_result.stderr}"
+            - description: "Acionar agente construtor para corrigir arquivos defeituosos"
+              tool: "file_write"
+      on_failure_exhausted:
+        abort: true
+        message: "O autorreparo atingiu o limite de 3 iterações sem sucesso. Revise os logs no ai-memory antes de prosseguir."
+
+  # -------------------------------------------------------------
+  # ETAPA 6: Fase de Refatoração (REFACTOR) e Boas Práticas
+  # -------------------------------------------------------------
+  - id: step_refactor
+    name: "6. Refatoração de Código, Limpeza e Formatação"
+    agent: "qa_validator"
+    actions:
+      - description: "Aplicar formatador de código oficial"
+        command: >
+          if [ "${inputs.target}" = "web" ] || [ "${inputs.target}" = "landing" ]; then
+            cd apps/${inputs.target} && npm run format || true
+          else
+            cd apps/mobile && dart format .
+          fi
+      - description: "Verificar se nenhum teste quebrou após a refatoração (Green persistente)"
+        command: >
+          if [ "${inputs.target}" = "web" ] || [ "${inputs.target}" = "landing" ]; then
+            cd apps/${inputs.target} && npm test
+          else
+            cd apps/mobile && flutter test
+          fi
+      - description: "Finalizar status de implementação no ai-memory"
+        command: >
+          ai-memory ticket update
+          --id "${steps.step_ingest_context.outputs.context_ticket_id}"
+          --status "refactor_complete_ready_to_commit"
+
+  # -------------------------------------------------------------
+  # ETAPA 7: Commit Atômico no Git (Conventional Commits)
+  # -------------------------------------------------------------
+  - id: step_git_commit
+    name: "7. Versionamento Atômico e Fechamento no Git"
+    agent: "git_committer"
+    actions:
+      - description: "Adicionar arquivos alterados da feature à staging area"
+        command: "git add apps/${inputs.target} _specs/ test/"
+      - description: "Inspecionar diff preparado para validação de segurança"
+        command: "git diff --staged --stat"
+      - description: "Consultar histórico de decisões e título no ai-memory para compor mensagem semântica"
+        command: "ai-memory ticket summary --id ${steps.step_ingest_context.outputs.context_ticket_id}"
+      - description: "Executar commit padronizado"
+        command: >
+          git commit -m "feat(${inputs.target}): implement ${inputs.feature_spec} with TDD coverage" \
+                     -m "- Verified against criteria in ${inputs.feature_spec}" \
+                     -m "- Full test suite passed with clean architecture" \
+                     -m "- Context Ticket: ${steps.step_ingest_context.outputs.context_ticket_id}"
+      - description: "Fechar ticket de contexto com sucesso"
+        command: >
+          ai-memory ticket close
+          --id "${steps.step_ingest_context.outputs.context_ticket_id}"
+          --resolution "merged_and_committed"

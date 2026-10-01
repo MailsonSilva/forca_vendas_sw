@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:forca_de_vendas/app_state.dart';
 import 'package:forca_de_vendas/action_code/salvar_carrinho_pedido.dart';
@@ -13,9 +16,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   setUpAll(() {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMessageHandler('flutter/assets', (ByteData? message) async {
+      if (message == null) return null;
+      try {
+        final key = utf8.decode(message.buffer.asUint8List());
+        if (key == 'AssetManifest.bin') {
+          return const StandardMessageCodec().encodeMessage(<String, dynamic>{});
+        }
+      } catch (_) {}
+      return ByteData(0);
+    });
+    GoogleFonts.config.allowRuntimeFetching = false;
   });
 
   setUp(() async {
@@ -121,14 +138,23 @@ void main() {
       );
       await tester.pump();
 
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
       final backButtonFinder = find.byTooltip('Voltar ao Menu Principal');
       await tester.tap(backButtonFinder);
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(NavBarService().currentTab, NavBarService.homeTab);
     });
 
     testWidgets('NavBarPage alterna da tab ConfiguracaoPage para HomePage ao tocar no botão voltar', (tester) async {
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
       await tester.pumpWidget(
         ChangeNotifierProvider<AppState>(
           create: (_) => AppState(),
@@ -146,7 +172,8 @@ void main() {
       final backButtonFinder = find.byTooltip('Voltar ao Menu Principal');
       expect(backButtonFinder, findsOneWidget);
       await tester.tap(backButtonFinder);
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       // Verifica que agora está na tela Home (Painel Administrativo)
       expect(find.text('Painel Administrativo'), findsOneWidget);

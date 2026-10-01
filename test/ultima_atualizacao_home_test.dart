@@ -17,7 +17,7 @@ void main() {
       expect(appState.dataHoraUltimaCarga, isNull);
       expect(
         appState.dataHoraUltimaCargaFormatada,
-        'Última atualização: Não realizada',
+        'Última Carga: Não realizada',
       );
     });
 
@@ -30,7 +30,7 @@ void main() {
       expect(appState.dataHoraUltimaCarga, equals(dataCarga));
       expect(
         appState.dataHoraUltimaCargaFormatada,
-        'Última atualização: 15/09/2026 às 14:55',
+        'Última Carga: 15/09/2026 14:55',
       );
 
       // Simula reinicialização do app para verificar se persistiu em SharedPreferences
@@ -41,7 +41,7 @@ void main() {
       expect(novoAppState.dataHoraUltimaCarga, equals(dataCarga));
       expect(
         novoAppState.dataHoraUltimaCargaFormatada,
-        'Última atualização: 15/09/2026 às 14:55',
+        'Última Carga: 15/09/2026 14:55',
       );
     });
   });

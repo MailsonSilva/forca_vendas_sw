@@ -1,0 +1,147 @@
+version: "1.0"
+name: "unified-developer-harness"
+description: "Harness unificado multi-alvo com alocação dinâmica de modelos de IA, TDD, Stitch MCP, Graft e ai-memory."
+
+# -------------------------------------------------------------
+# 1. Alocação Dinâmica de Modelos (Configurável por Variáveis/Perfil)
+# -------------------------------------------------------------
+# Permite definir ou trocar os modelos de cada tarefa sem alterar os subagentes.
+# Você pode sobrescrever via variável de ambiente (ex: MODEL_REASONING="gemini-3.8-pro")
+# ou alterar diretamente neste bloco conforme as versões que preferir usar.
+models:
+  # Raciocínio profundo, arquitetura, design de PRD e modelagem
+  reasoning: "${MODEL_REASONING:-gemini-3.8-pro}"
+  
+  # Codificação rápida, TDD, builders de componentes e refatoração
+  coding: "${MODEL_CODING:-gemini-3.8-flash}"
+  
+  # Tarefas multimodais, inspeção de imagens no Stitch e tokens visuais
+  multimodal_design: "${MODEL_DESIGN:-gemini-3.8-flash}"
+  
+  # Execução rápida de comandos bash, git commits e parsing de testes
+  fast_ops: "${MODEL_OPS:-gemini-3.8-flash}"
+
+# -------------------------------------------------------------
+# 2. Configurações Gerais
+# -------------------------------------------------------------
+settings:
+  prd_path: "_specs/prd.md"
+  language: "pt-BR"
+  enforce_tdd: true
+  max_repair_cycles: 3
+  active_profile: "dynamic" # Lê targets diretamente de _specs/prd.md
+
+# -------------------------------------------------------------
+# 3. Workspaces e Comandos de Validação por Target
+# -------------------------------------------------------------
+workspaces:
+  shared:
+    paths:
+      - "_specs/"
+      - "_references/"
+      - ".agents/"
+  mobile:
+    path: "./"
+    active_when: "targets.mobile == true"
+    test_command: "flutter test"
+    lint_command: "dart analyze"
+
+# -------------------------------------------------------------
+# 4. Ferramentas Externas e MCPs Conectados
+# -------------------------------------------------------------
+tools:
+  ai_memory:
+    cli: "ai-memory"
+    description: "Handoffs atômicos entre agentes e histórico de aprendizado do ciclo TDD."
+  graft:
+    cli: "graft"
+    description: "Grafo de símbolos e chamadas via AST Tree-sitter para navegação precisa no código."
+  google_stitch_mcp:
+    server_id: "google-stitch"
+    description: "Leitor de referências visuais de telas e prototipagem de UI."
+  git:
+    cli: "git"
+    description: "Controle de versão e commits semânticos atômicos."
+
+# -------------------------------------------------------------
+# 5. Elenco de Subagentes Especializados
+# -------------------------------------------------------------
+subagents:
+  # Agente 1: Descoberta e PRD
+  product_architect:
+    model: "${models.reasoning}"
+    role: "Entrevista o desenvolvedor, define requisitos de negócio e gera o PRD agnóstico em _specs/ com diagramas Archify."
+    rules:
+      - ".agents/rules/global.md"
+    skills:
+      - ".agents/skills/spec-discovery/SKILL.md"
+    tools: ["file_read", "file_write", "ai_memory"]
+
+  # Agente 2: UX/UI e Prototipagem Visual
+  ui_ux_designer:
+    model: "${models.multimodal_design}"
+    role: "Inspeciona capturas em _references/screens/ usando Google Stitch MCP e gera os tokens de design em _specs/design-tokens.json."
+    rules:
+      - ".agents/rules/global.md"
+    skills:
+      - ".agents/skills/mobile-ux-stitch/SKILL.md"
+    tools: ["google_stitch_mcp", "file_read", "file_write", "ai_memory"]
+
+  # Agente 3: TDD Tester (Fase Vermelha - RED)
+  tdd_tester:
+    model: "${models.coding}"
+    role: "Lê a spec da feature e cria testes unitários/widgets/componentes que obrigatoriamente falham antes do código."
+    rules:
+      - ".agents/rules/global.md"
+    skills:
+      - ".agents/skills/clean-architecture-tdd/SKILL.md"
+    tools: ["file_read", "file_write", "bash", "graft", "ai_memory"]
+
+  # Agente 4: Desenvolvedor Mobile (Fase Verde - GREEN)
+  mobile_builder:
+    model: "${models.coding}"
+    role: "Escreve código Flutter estritamente tipado, modular e aderente à Clean Architecture para passar nos testes."
+    active_when: "targets.mobile == true"
+    rules:
+      - ".agents/rules/global.md"
+      - ".agents/rules/mobile.md"
+    skills:
+      - ".agents/skills/mobile-ux-stitch/SKILL.md"
+      - ".agents/skills/clean-architecture-tdd/SKILL.md"
+    tools: ["file_read", "file_write", "graft", "ai_memory"]
+
+  # Agente 5: Desenvolvedor Web e Landing Pages (Fase Verde - GREEN)
+  web_builder:
+    model: "${models.coding}"
+    role: "Escreve componentes Next.js/React com Server Components e boas práticas de Core Web Vitals (Addy Osmani)."
+    active_when: "targets.web == true || targets.landing_page == true"
+    rules:
+      - ".agents/rules/global.md"
+      - ".agents/rules/web.md"
+    skills:
+      - ".agents/skills/web-performance-seo/SKILL.md"
+    tools: ["file_read", "file_write", "graft", "ai_memory"]
+
+  # Agente 6: Auditor de Qualidade e Autorreparo (Fase REFACTOR)
+  qa_validator:
+    model: "${models.coding}"
+    role: "Executa testes e linters do target ativo, orquestrando até 3 ciclos de autorreparo automático caso algo quebre."
+    rules:
+      - ".agents/rules/global.md"
+    tools: ["bash", "file_read", "file_write", "ai_memory"]
+
+  # Agente 7: Versionador Semântico
+  git_committer:
+    model: "${models.fast_ops}"
+    role: "Inspeciona o diff staged, extrai o contexto do ticket no ai-memory e cria o commit semântico atômico."
+    rules:
+      - ".agents/rules/global.md"
+    tools: ["git", "ai_memory", "bash"]
+
+# -------------------------------------------------------------
+# 6. Workflows
+# -------------------------------------------------------------
+workflows:
+  dev_cycle:
+    file: ".agents/workflows/dev-cycle.yaml"
+    description: "Ciclo ponta a ponta: Ingestão -> Design -> TDD Red -> Green -> Refactor -> Commit."

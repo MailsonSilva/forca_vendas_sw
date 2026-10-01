@@ -1,4 +1,5 @@
 import 'package:sqflite/sqflite.dart';
+import '/backend/schema/structs/index.dart';
 import '/domain/models/produto_lookup_dto.dart';
 import '/domain/models/produto_card_dto.dart';
 import '/domain/models/produto_detalhe_dto.dart';
@@ -80,11 +81,6 @@ class ProdutoRepository {
 
       final bool hasCls = pcoCols.contains('pro00_codcls') || pcoCols.contains('codcls');
       final bool hasTab = pcoCols.contains('pro00_codtab') || pcoCols.contains('codtab');
-      final String colPcosub = pcoCols.contains('pro00_pcosub')
-          ? 'pro00_pcosub'
-          : (pcoCols.contains('pro00_preco') ? 'pro00_preco' : 'preco');
-      final bool hasPcocus = pcoCols.contains('pro00_pcocus') || pcoCols.contains('pcocus');
-      final String colPcocus = pcoCols.contains('pro00_pcocus') ? 'pro00_pcocus' : 'pcocus';
 
       if (temEstpcoreg00 && hasCls) {
         Set<String> regCols = {};
@@ -590,5 +586,309 @@ class ProdutoRepository {
 
     final rows = await db.rawQuery(sql, binds);
     return rows.map((row) => ProdutoLookupDTO.fromMap(row)).toList();
+  }
+
+  /// Consulta rápida de produtos com precificação via estpcoreg00/estpcoregpco00
+  /// e isolamento de filial dinâmica selecionada.
+  Future<List<ProdutoResultStruct>> buscaProduto({
+    String? filtro,
+    String? ultimoDescri,
+    String? filtroLinha,
+    String? filtroGrupo,
+    String? filtroFabricante,
+    String? filtroMarca,
+    bool? apenasEstoque,
+    bool? apenasPromocao,
+    int? codFilial,
+    String? dataEntrada,
+    int? codTabela,
+    int? offset,
+    int limit = 100,
+  }) async {
+    final db = await _getDb();
+
+    // 1. PARÂMETRO DINÂMICO DE FILIAL SELECIONADA:
+    final int filialAtiva = (codFilial != null && codFilial > 0)
+        ? codFilial
+        : (AppState().codFilialAtiva > 0 ? AppState().codFilialAtiva : 1);
+
+    // Inspeciona tabelas e colunas presentes no SQLite
+    Set<String> tabelas = {};
+    Set<String> proCols = {};
+    try {
+      final tRows = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'");
+      tabelas = tRows.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+      final cRows = await db.rawQuery('PRAGMA table_info(cadpro00)');
+      proCols = cRows.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+    } catch (_) {}
+
+    final bool hasEmb = tabelas.contains('cadproemb00');
+    final bool hasEst = tabelas.contains('estpro00');
+    final bool hasReg = tabelas.contains('estpcoreg00');
+    final bool hasPco = tabelas.contains('estpcoregpco00');
+    final bool hasPcopro = tabelas.contains('estpcopro00') || tabelas.contains('pcopro00');
+    final bool hasMar = tabelas.contains('cadmar00');
+    final bool hasFab = tabelas.contains('cadfor00');
+
+    Set<String> estCols = {};
+    if (hasEst) {
+      try {
+        final eRows = await db.rawQuery('PRAGMA table_info(estpro00)');
+        estCols = eRows.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+      } catch (_) {}
+    }
+
+    // Mapeamento dinâmico de colunas seguras da subquery cadpro00
+    final String colUnid = proCols.contains('pro00_unidad')
+        ? 'pro00_unidad'
+        : (proCols.contains('unidade') ? 'unidade AS pro00_unidad' : "'UN' AS pro00_unidad");
+    final String colCodbar = proCols.contains('pro00_codbar')
+        ? 'pro00_codbar'
+        : (proCols.contains('codbar') ? 'codbar AS pro00_codbar' : "'' AS pro00_codbar");
+    final String colReffor = proCols.contains('pro00_reffor')
+        ? 'pro00_reffor'
+        : (proCols.contains('reffor') ? 'reffor AS pro00_reffor' : "'' AS pro00_reffor");
+    final String colCodimg = proCols.contains('pro00_codimg')
+        ? 'pro00_codimg'
+        : (proCols.contains('codimg') ? 'codimg AS pro00_codimg' : '0 AS pro00_codimg');
+    final String colCodemb = proCols.contains('pro00_codemb')
+        ? 'pro00_codemb'
+        : 'NULL AS pro00_codemb';
+    final String colEmbala = proCols.contains('pro00_embala')
+        ? 'pro00_embala'
+        : (proCols.contains('embalagem') ? 'embalagem AS pro00_embala' : "'' AS pro00_embala");
+    final String colPcomaxCad = proCols.contains('pro00_pcomax')
+        ? 'pro00_pcomax'
+        : '0.0 AS pro00_pcomax';
+    final String colQtdestCad = proCols.contains('pro00_qtdest')
+        ? 'pro00_qtdest'
+        : '0.0 AS pro00_qtdest';
+    final String colRef1 = proCols.contains('pro00_ref001')
+        ? 'pro00_ref001'
+        : "'' AS pro00_ref001";
+    final String colRef2 = proCols.contains('pro00_ref002')
+        ? 'pro00_ref002'
+        : "'' AS pro00_ref002";
+    final String colCodmar = proCols.contains('pro00_codmar')
+        ? 'pro00_codmar'
+        : 'NULL AS pro00_codmar';
+    final String colCodfab = proCols.contains('pro00_codfab')
+        ? 'pro00_codfab'
+        : 'NULL AS pro00_codfab';
+
+    // Monta WHERE interna e binds internos da subquery
+    final List<String> condicoesInternas = [];
+    final List<dynamic> bindsInternos = [];
+
+    final String busca = (filtro ?? '').trim();
+    if (busca.isNotEmpty) {
+      final List<String> refs = [
+        if (proCols.contains('pro00_ref001')) 'pro00_ref001',
+        if (proCols.contains('pro00_ref002')) 'pro00_ref002',
+        if (proCols.contains('pro00_reffor')) 'pro00_reffor',
+      ];
+      final buscaResult = ProdutoSearchFilterBuilder.build(
+        input: busca,
+        colDesc: 'pro00_descri',
+        colCod: 'pro00_codigo',
+        colCodbar: (proCols.contains('pro00_codbar') || proCols.contains('codbar')) ? 'pro00_codbar' : null,
+        colRefs: refs,
+      );
+      if (buscaResult.hasFilter) {
+        condicoesInternas.add(buscaResult.sql);
+        bindsInternos.addAll(buscaResult.binds);
+      }
+    }
+
+    if (filtroLinha != null && filtroLinha.trim().isNotEmpty && filtroLinha != 'Todas' && proCols.contains('pro00_codlin')) {
+      final val = int.tryParse(filtroLinha.trim());
+      if (val != null) {
+        condicoesInternas.add('pro00_codlin = ?');
+        bindsInternos.add(val);
+      }
+    }
+
+    if (filtroGrupo != null && filtroGrupo.trim().isNotEmpty && filtroGrupo != 'Todas' && proCols.contains('pro00_codgrp')) {
+      final val = int.tryParse(filtroGrupo.trim());
+      if (val != null) {
+        condicoesInternas.add('pro00_codgrp = ?');
+        bindsInternos.add(val);
+      }
+    }
+
+    if (filtroFabricante != null && filtroFabricante.trim().isNotEmpty && filtroFabricante != 'Todas') {
+      final fabTermo = filtroFabricante.trim();
+      final val = int.tryParse(fabTermo);
+      if (hasFab && proCols.contains('pro00_codfab')) {
+        condicoesInternas.add(
+          '(pro00_codfab = ? OR pro00_codfab IN (SELECT for00_codigo FROM cadfor00 WHERE for00_descri = ?))',
+        );
+        bindsInternos.add(val ?? -1);
+        bindsInternos.add(fabTermo);
+      } else if (val != null && proCols.contains('pro00_codfab')) {
+        condicoesInternas.add('pro00_codfab = ?');
+        bindsInternos.add(val);
+      }
+    }
+
+    if (filtroMarca != null && filtroMarca.trim().isNotEmpty && filtroMarca != 'Todas') {
+      final marcaTermo = filtroMarca.trim();
+      final val = int.tryParse(marcaTermo);
+      if (hasMar && proCols.contains('pro00_codmar')) {
+        condicoesInternas.add(
+          '(pro00_codmar = ? OR pro00_codmar IN (SELECT mar00_codigo FROM cadmar00 WHERE mar00_descri = ?))',
+        );
+        bindsInternos.add(val ?? -1);
+        bindsInternos.add(marcaTermo);
+      } else if (val != null && proCols.contains('pro00_codmar')) {
+        condicoesInternas.add('pro00_codmar = ?');
+        bindsInternos.add(val);
+      }
+    }
+
+    final String whereInterna = condicoesInternas.isNotEmpty
+        ? 'WHERE ${condicoesInternas.join(' AND ')}'
+        : '';
+
+    final int pageOffset = (offset != null && offset > 0) ? offset : 0;
+    final int pageLimit = limit > 0 ? limit : 100;
+
+    // Joins opcionais e seguros conforme tabelas existentes
+    final String joinEmb = hasEmb
+        ? 'LEFT JOIN cadproemb00 emb ON (emb.emb00_codseq = p.pro00_codemb OR CAST(emb.emb00_codseq AS TEXT) = CAST(p.pro00_codemb AS TEXT))'
+        : '';
+    final String selEmbalagem = hasEmb
+        ? 'COALESCE(emb.emb00_embala, NULLIF(p.pro00_embala, \'\'), p.pro00_unidad) AS embalagem'
+        : (proCols.contains('pro00_embala')
+            ? 'COALESCE(NULLIF(p.pro00_embala, \'\'), p.pro00_unidad) AS embalagem'
+            : 'p.pro00_unidad AS embalagem');
+
+    final String joinEst = hasEst
+        ? '''
+          LEFT JOIN estpro00 est 
+                 ON (est.pro00_codpro = p.pro00_codigo OR CAST(est.pro00_codpro AS TEXT) = CAST(p.pro00_codigo AS TEXT)) 
+                AND CAST(est.pro00_codfil AS INTEGER) = ?
+        '''
+        : '';
+    final String penExp = estCols.contains('pro00_qtdpen') ? 'COALESCE(est.pro00_qtdpen, 0)' : '0';
+    final String selEstoque = hasEst
+        ? 'COALESCE(est.pro00_qtdest - $penExp, 0.0) AS estoque_saldo'
+        : 'COALESCE(p.pro00_qtdest, 0.0) AS estoque_saldo';
+
+    String joinPco = '';
+    String fallbackPco = proCols.contains('pro00_pcomax') ? 'NULLIF(MAX(p.pro00_pcomax), 0.0)' : 'NULL';
+
+    if (hasPcopro) {
+      final String tblP = tabelas.contains('estpcopro00') ? 'estpcopro00' : 'pcopro00';
+      joinPco += '''
+        LEFT JOIN $tblP pcopro 
+               ON (pcopro.pro00_codpro = p.pro00_codigo OR CAST(pcopro.pro00_codpro AS TEXT) = CAST(p.pro00_codigo AS TEXT))
+      ''';
+      fallbackPco = 'COALESCE(NULLIF(MAX(pcopro.pro00_pcosub), 0.0), $fallbackPco)';
+    }
+
+    String selPcomax = 'COALESCE($fallbackPco, 0.0) AS pcomax';
+    String selPcomin = 'COALESCE($fallbackPco, 0.0) AS pcomin';
+
+    if (hasReg && hasPco) {
+      joinPco += '''
+        LEFT JOIN estpcoreg00 reg 
+               ON (reg.pro00_codpro = p.pro00_codigo OR CAST(reg.pro00_codpro AS TEXT) = CAST(p.pro00_codigo AS TEXT)) 
+              AND reg.pro00_codkey = 1
+        LEFT JOIN estpcoregpco00 pco 
+               ON (pco.pro00_codseq = reg.pro00_codpco OR CAST(pco.pro00_codseq AS TEXT) = CAST(reg.pro00_codpco AS TEXT))
+      ''';
+      selPcomax = 'COALESCE(NULLIF(MAX(pco.pro00_pcomax), 0.0), $fallbackPco, 0.0) AS pcomax';
+      selPcomin = 'COALESCE(NULLIF(MAX(pco.pro00_pcomin), 0.0), $fallbackPco, 0.0) AS pcomin';
+    }
+
+    final String joinMar = hasMar
+        ? 'LEFT JOIN cadmar00 mar ON (mar.mar00_codigo = p.pro00_codmar OR CAST(mar.mar00_codigo AS TEXT) = CAST(p.pro00_codmar AS TEXT))'
+        : '';
+    final String selMarca = hasMar
+        ? "COALESCE(mar.mar00_descri, 'SEM MARCA') AS marca_nome"
+        : "'SEM MARCA' AS marca_nome";
+
+    final String joinFab = hasFab
+        ? 'LEFT JOIN cadfor00 fab ON (fab.for00_codigo = p.pro00_codfab OR CAST(fab.for00_codigo AS TEXT) = CAST(p.pro00_codfab AS TEXT))'
+        : '';
+    final String selFab = hasFab
+        ? "COALESCE(fab.for00_descri, '') AS fabricante_nome"
+        : "'' AS fabricante_nome";
+
+    final String havingClause = apenasEstoque == true ? 'HAVING estoque_saldo > 0' : '';
+
+    // 2. QUERY DE ALTA PERFORMANCE (SEM FULL SCAN, SEM ÍNDICES ADICIONAIS E SEM DUPLICAÇÃO)
+    final String query = '''
+      SELECT 
+          p.pro00_codigo,
+          p.pro00_descri,
+          p.pro00_unidad,
+          p.pro00_codbar,
+          p.pro00_reffor,
+          p.pro00_ref001,
+          p.pro00_ref002,
+          p.pro00_codimg,
+          $selMarca,
+          $selFab,
+          $selEmbalagem,
+          $selEstoque,
+          $selPcomax,
+          $selPcomin
+      FROM (
+          SELECT pro00_codigo, pro00_descri, $colUnid, $colCodbar, $colReffor, $colRef1, $colRef2, $colCodimg, $colCodemb, $colEmbala, $colPcomaxCad, $colQtdestCad, $colCodmar, $colCodfab
+          FROM cadpro00
+          $whereInterna
+          ORDER BY pro00_descri ASC
+          LIMIT ? OFFSET ?
+      ) p
+      $joinEmb
+      $joinEst
+      $joinPco
+      $joinMar
+      $joinFab
+      GROUP BY p.pro00_codigo
+      $havingClause
+      ORDER BY p.pro00_descri ASC;
+    ''';
+
+    // 3. ORDEM E BIND DOS ARGUMENTOS:
+    // 1º Termos de busca da WHERE interna de 'cadpro00' (se houver).
+    // 2º LIMIT e OFFSET da subquery interna.
+    // 3º filialAtiva (para 'est.pro00_codfil = ?').
+    final List<dynamic> args = [
+      ...bindsInternos,
+      pageLimit,
+      pageOffset,
+      if (hasEst) filialAtiva,
+    ];
+
+    final rows = await db.rawQuery(query, args);
+
+    // 4. MAPEAMENTO DE RETORNO (ProdutoResultStruct)
+    return rows.map((m) {
+      final double pmax = (m['pcomax'] as num?)?.toDouble() ?? 0.0;
+      final double pmin = (m['pcomin'] as num?)?.toDouble() ?? pmax;
+      final double saldo = (m['estoque_saldo'] as num?)?.toDouble() ?? 0.0;
+
+      return ProdutoResultStruct(
+        codigo: (m['pro00_codigo'] ?? '').toString(),
+        descricao: (m['pro00_descri'] ?? '').toString(),
+        unidade: (m['pro00_unidad'] ?? 'UN').toString(),
+        embalagem: (m['embalagem'] ?? 'UN').toString(),
+        codbar: (m['pro00_codbar'] ?? '').toString(),
+        reffor: (m['pro00_reffor'] ?? '').toString(),
+        referencia1: (m['pro00_ref001'] ?? '').toString(),
+        referencia2: (m['pro00_ref002'] ?? '').toString(),
+        marca: (m['marca_nome'] ?? 'SEM MARCA').toString(),
+        fabricante: (m['fabricante_nome'] ?? '').toString(),
+        imagemId: (m['pro00_codimg'] as num?)?.toInt() ?? 0,
+        saldoEstoque: saldo,
+        estoqueAtual: saldo,
+        preco: pmax,
+        pcomax: pmax,
+        pcomin: pmin,
+      );
+    }).toList();
   }
 }

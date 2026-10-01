@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forca_de_vendas/app_state.dart';
 import 'package:forca_de_vendas/pages/cliente/extrato_cliente_page/extrato_cliente_page_widget.dart';
@@ -9,9 +11,22 @@ import 'package:provider/provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   setUpAll(() {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMessageHandler('flutter/assets', (ByteData? message) async {
+      if (message == null) return null;
+      try {
+        final key = utf8.decode(message.buffer.asUint8List());
+        if (key == 'AssetManifest.bin') {
+          return const StandardMessageCodec().encodeMessage(<String, dynamic>{});
+        }
+      } catch (_) {}
+      return ByteData(0);
+    });
     GoogleFonts.config.allowRuntimeFetching = false;
   });
 

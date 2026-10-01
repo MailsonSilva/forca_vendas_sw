@@ -21,6 +21,7 @@ void main() {
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('cli_temp_');
     docsDir = await Directory.systemTemp.createTemp('cli_docs_');
+    LocalSalesDatabaseService.setCustomDatabasesPathForTesting(tempDir.path);
 
     const MethodChannel channel = MethodChannel('plugins.flutter.io/path_provider');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -73,6 +74,8 @@ void main() {
   });
 
   tearDown(() async {
+    LocalSalesDatabaseService.setCustomDatabasesPathForTesting(null);
+    await LocalSalesDatabaseService.closeAndResetConnectionPool();
     try {
       if (await tempDir.exists()) await tempDir.delete(recursive: true);
       if (await docsDir.exists()) await docsDir.delete(recursive: true);

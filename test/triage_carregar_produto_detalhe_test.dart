@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forca_de_vendas/action_code/carregar_produto_detalhe.dart';
 import 'package:forca_de_vendas/data/repositories/produto_repository.dart';
+import 'package:forca_de_vendas/data/services/local_sales_database_service.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:path/path.dart' as p;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -10,23 +10,11 @@ void main() {
   databaseFactory = databaseFactoryFfi;
 
   group('Triage: carregarProdutoDetalhe e obterDetalhesProduto em banco padrão', () {
-    late String dbPath;
+    late Database db;
 
     setUp(() async {
-      dbPath = p.join(await getDatabasesPath(), 'dbforcacad001.db');
-      final db = await openDatabase(dbPath);
-
-      await db.execute('DROP TABLE IF EXISTS cadpro00');
-      await db.execute('DROP TABLE IF EXISTS estpro00');
-      await db.execute('DROP TABLE IF EXISTS estpcopro00');
-      await db.execute('DROP TABLE IF EXISTS cadmar00');
-      await db.execute('DROP TABLE IF EXISTS cadfor00');
-      // Tabelas cadpro02, cadprofra00, cadprobon00, cadproemb00, estprodat00 NÃO EXISTEM neste banco padrão!
-      await db.execute('DROP TABLE IF EXISTS cadpro02');
-      await db.execute('DROP TABLE IF EXISTS cadprofra00');
-      await db.execute('DROP TABLE IF EXISTS cadprobon00');
-      await db.execute('DROP TABLE IF EXISTS cadproemb00');
-      await db.execute('DROP TABLE IF EXISTS estprodat00');
+      db = await openDatabase(inMemoryDatabasePath);
+      LocalSalesDatabaseService.setDatabaseForTesting(db);
 
       await db.execute('''
         CREATE TABLE cadpro00 (
@@ -55,7 +43,10 @@ void main() {
         'pro00_embala': 'CX 12 UN',
         'pro00_qtdest': 50.0,
       });
+    });
 
+    tearDown(() async {
+      LocalSalesDatabaseService.setDatabaseForTesting(null);
       await db.close();
     });
 

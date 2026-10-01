@@ -1,9 +1,29 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:forca_de_vendas/backend/schema/structs/item_pedido_struct.dart';
 import 'package:forca_de_vendas/pages/pedido_itens_lista/widgets/item_pedido_card_widget.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMessageHandler('flutter/assets', (ByteData? message) async {
+      if (message == null) return null;
+      try {
+        final key = utf8.decode(message.buffer.asUint8List());
+        if (key == 'AssetManifest.bin') {
+          return const StandardMessageCodec().encodeMessage(<String, dynamic>{});
+        }
+      } catch (_) {}
+      return ByteData(0);
+    });
+    GoogleFonts.config.allowRuntimeFetching = false;
+  });
+
   group('ItemPedidoCardWidget Tests', () {
     testWidgets('exibe Marca, Referencia, Embalagem, EAN e Total no formato solicitado', (tester) async {
       final item = ItemPedidoStruct(

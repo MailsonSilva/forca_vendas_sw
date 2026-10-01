@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -23,6 +25,17 @@ void main() {
     late Database db;
 
     setUp(() async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMessageHandler('flutter/assets', (ByteData? message) async {
+        if (message == null) return null;
+        try {
+          final key = utf8.decode(message.buffer.asUint8List());
+          if (key == 'AssetManifest.bin') {
+            return const StandardMessageCodec().encodeMessage(<String, dynamic>{});
+          }
+        } catch (_) {}
+        return ByteData(0);
+      });
       SharedPreferences.setMockInitialValues({});
       AppState.reset();
       await AppState().initializePersistedState();
@@ -50,7 +63,10 @@ void main() {
     }
 
     testWidgets('Não deve exibir ModalSelecaoFilial quando ven_selfil == 0', (WidgetTester tester) async {
-      print('Test 1 start');
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
       AppState().ven_selfil = 0;
       AppState().codFilialAtiva = 1;
       
@@ -59,26 +75,23 @@ void main() {
         await db.insert('estpro00', {'pro00_codfil': '2'});
       });
       
-      print('Test 1 pumpWidget');
       await tester.pumpWidget(createWidgetUnderTest());
-      print('Test 1 pump');
-      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(milliseconds: 300));
 
-      print('Test 1 find');
       final filialText = find.text('Filial: 01');
       expect(filialText, findsOneWidget);
 
-      print('Test 1 tap');
       await tester.tap(filialText);
-      print('Test 1 pump 2');
-      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.byType(ModalSelecaoFilialWidget), findsNothing);
-      print('Test 1 end');
     });
 
     testWidgets('Deve exibir ModalSelecaoFilial quando ven_selfil == 1 e houver múltiplas filiais', (WidgetTester tester) async {
-      print('Test 2 start');
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
       AppState().ven_selfil = 1;
       AppState().codFilialAtiva = 1;
       await tester.runAsync(() async {
@@ -88,32 +101,26 @@ void main() {
         await db.insert('cadfil00', {'fil00_codigo': '2', 'fil00_descri': 'Filial 2'});
       });
 
-      print('Test 2 pumpWidget');
       await tester.pumpWidget(createWidgetUnderTest());
-      print('Test 2 pump');
-      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(milliseconds: 300));
 
-      print('Test 2 find');
       final filialText = find.text('Filial: 01');
       expect(filialText, findsOneWidget);
 
-      print('Test 2 tap');
       await tester.runAsync(() async {
         await tester.tap(filialText);
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future.delayed(const Duration(milliseconds: 300));
       });
-      print('Test 2 pump 2');
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.byType(ModalSelecaoFilialWidget), findsOneWidget);
 
       // Fechar o modal para evitar futures soltas e falha no tearDown
       await tester.tap(find.textContaining('Filial 1'));
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
       await tester.tap(find.text('Confirmar Filial'));
-      await tester.pumpAndSettle();
-
-      print('Test 2 end');
+      await tester.pump(const Duration(milliseconds: 500));
     });
   });
 }

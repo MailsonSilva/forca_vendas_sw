@@ -10,19 +10,25 @@ void main() {
   databaseFactory = databaseFactoryFfi;
 
   group('Substituição Integral do Banco de Dados SQLite', () {
-    late String databasesPath;
+    late Directory tempDir;
     late String finalDbPath;
     late LocalSalesDatabaseService service;
 
     setUp(() async {
-      databasesPath = await getDatabasesPath();
-      finalDbPath = p.join(databasesPath, LocalSalesDatabaseService.databaseName);
+      tempDir = await Directory.systemTemp.createTemp('sqflite_subst_test_');
+      LocalSalesDatabaseService.setCustomDatabasesPathForTesting(tempDir.path);
+      finalDbPath = p.join(tempDir.path, LocalSalesDatabaseService.databaseName);
       service = LocalSalesDatabaseService();
+    });
 
-      final existingFile = File(finalDbPath);
-      if (await existingFile.exists()) {
-        await existingFile.delete();
-      }
+    tearDown(() async {
+      LocalSalesDatabaseService.setCustomDatabasesPathForTesting(null);
+      await LocalSalesDatabaseService.closeAndResetConnectionPool();
+      try {
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      } catch (_) {}
     });
 
     test('deleta e substitui integralmente o arquivo do banco com os novos bytes da carga', () async {
@@ -35,7 +41,7 @@ void main() {
       expect(await File(finalDbPath).exists(), isTrue);
 
       // 2. Cria em arquivo temporário a "nova carga baixada"
-      final newTempDbPath = p.join(databasesPath, 'temp_nova_carga.db');
+      final newTempDbPath = p.join(tempDir.path, 'temp_nova_carga.db');
       final newTempFile = File(newTempDbPath);
       if (await newTempFile.exists()) await newTempFile.delete();
 

@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forca_de_vendas/app_state.dart';
 import 'package:forca_de_vendas/pages/login_page/login_page_widget.dart';
@@ -14,9 +16,28 @@ import 'package:provider/provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   setUpAll(() {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
+    final transparentPng = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMessageHandler('flutter/assets', (ByteData? message) async {
+      if (message == null) return null;
+      try {
+        final key = utf8.decode(message.buffer.asUint8List());
+        if (key == 'AssetManifest.bin') {
+          return const StandardMessageCodec().encodeMessage(<String, dynamic>{});
+        }
+        if (key.endsWith('.png') || key.endsWith('.jpg') || key.endsWith('.jpeg')) {
+          return ByteData.view(transparentPng.buffer);
+        }
+      } catch (_) {}
+      return ByteData(0);
+    });
     GoogleFonts.config.allowRuntimeFetching = false;
   });
 
@@ -142,11 +163,11 @@ void main() {
       await tester.pump();
 
       expect(find.text('Selecione a Filial'), findsOneWidget);
-      expect(find.text('MATRIZ SP'), findsOneWidget);
-      expect(find.text('FILIAL RJ'), findsOneWidget);
+      expect(find.text('1 - MATRIZ SP'), findsOneWidget);
+      expect(find.text('2 - FILIAL RJ'), findsOneWidget);
       expect(find.text('Confirmar Filial'), findsOneWidget);
 
-      await tester.tap(find.text('MATRIZ SP'));
+      await tester.tap(find.text('1 - MATRIZ SP'));
       await tester.pumpAndSettle();
 
       // Botão habilitado após seleção
