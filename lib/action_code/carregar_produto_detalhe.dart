@@ -11,17 +11,25 @@ import '../app_state.dart';
 import '/data/repositories/produto_repository.dart';
 import '/data/services/local_sales_database_service.dart';
 import '/domain/models/produto_detalhe_dto.dart';
+import '/domain/services/calculo_preco_produto_service.dart';
 
 /// Carrega os detalhes completos do produto sob demanda via Query 2 fiel ao Tcadpro00::cload de usysctr00.cpp (SPEC-052).
 Future<ProdutoResultStruct?> carregarProdutoDetalhe(
-  String? produtoRef,
-) async {
+  String? produtoRef, [
+  int? codPlano,
+  int? codTabela,
+]) async {
   final String codigoBusca = (produtoRef ?? '').trim();
   if (codigoBusca.isEmpty) return null;
 
   try {
     final int filial = AppState().codFilialAtiva != 0 ? AppState().codFilialAtiva : 1;
-    final int tabela = AppState().tabelaPrecoAtiva > 0 ? AppState().tabelaPrecoAtiva : 1;
+    final int tabela = (codTabela != null && codTabela > 0)
+        ? codTabela
+        : (AppState().tabelaPrecoAtiva > 0 ? AppState().tabelaPrecoAtiva : 1);
+    final int plano = (codPlano != null && codPlano > 0)
+        ? codPlano
+        : AppState().planoAtivo;
     final int regiao = AppState().clienteSelecionado?.codRegiao ?? 0;
     final int classe = AppState().clienteSelecionado?.codTipoPreco ?? 0;
 
@@ -82,13 +90,31 @@ Future<ProdutoResultStruct?> carregarProdutoDetalhe(
         fotosEncontradas.add("images/catalogo_imagens/$baseImgCode.jpg");
       }
 
-      // Consulta complementar segura de descrições de marca/fabricante se existirem
-      final double precoVenda = detalhe.preco;
+      final db = await LocalSalesDatabaseService.getDatabase(readOnly: true);
+      final calculoPreco = await CalculoPrecoProdutoService.calcularPrecoCompleto(
+        codProduto: codigoBusca,
+        codTabela: tabela,
+        codPlano: plano,
+        codFilial: filial,
+        codRegiao: regiao,
+        codClasseCliente: classe,
+        db: db,
+      );
+
+      final double precoVenda = (calculoPreco.precoEfetivo > 0)
+          ? calculoPreco.precoEfetivo
+          : detalhe.preco;
+      final double pcominFinal = (calculoPreco.pcomin > 0)
+          ? calculoPreco.pcomin
+          : detalhe.pcomin;
+      final double pcomaxFinal = (calculoPreco.pcomax > 0)
+          ? calculoPreco.pcomax
+          : detalhe.pcomax;
+
       String? marcaDescri;
       String? fabDescri;
 
       try {
-        final db = await LocalSalesDatabaseService.getDatabase(readOnly: true);
         final tRows = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'");
         final Set<String> tabelas = tRows.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
         if (detalhe.codmar != null && tabelas.contains('cadmar00')) {
@@ -113,6 +139,8 @@ Future<ProdutoResultStruct?> carregarProdutoDetalhe(
 
       return detalhe.toProdutoResultStruct(
         precoVenda: precoVenda,
+        pcomax: pcomaxFinal,
+        pcomin: pcominFinal,
         fotos: fotosEncontradas,
         marcaDescri: marcaDescri,
         fabricanteDescri: fabDescri,

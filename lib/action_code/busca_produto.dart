@@ -61,6 +61,8 @@ Future<List<ProdutoResultStruct>> buscaProduto(
   String? dataEntrada, [
   int? codTabela,
   int? offset,
+  int? limit = 30,
+  int? codPlano,
 ]) async {
   try {
     final db = await _getDbProduto();
@@ -78,6 +80,8 @@ Future<List<ProdutoResultStruct>> buscaProduto(
       dataEntrada: dataEntrada,
       codTabela: codTabela,
       offset: offset,
+      limit: limit ?? 30,
+      codPlano: codPlano,
     );
   } catch (e, stack) {
     debugPrint('ERRO BUSCA PRODUTO: $e');

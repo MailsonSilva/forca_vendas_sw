@@ -162,20 +162,22 @@ class ProdutoDetalheDTO {
   /// Converte para ProdutoResultStruct preservando compatibilidade com formulários de pedido e detalhes
   ProdutoResultStruct toProdutoResultStruct({
     double? precoVenda,
+    double? pcomax,
+    double? pcomin,
     List<String>? fotos,
     String? marcaDescri,
     String? fabricanteDescri,
   }) {
     final double precoFinal = (precoVenda != null && precoVenda > 0) ? precoVenda : preco;
-    final double pmax = (pcomax > 0) ? pcomax : precoFinal;
-    final double pmin = (pcomin > 0) ? pcomin : precoFinal;
+    final double maxVal = (pcomax != null && pcomax > 0) ? pcomax : ((this.pcomax > 0) ? this.pcomax : precoFinal);
+    final double minVal = (pcomin != null && pcomin > 0) ? pcomin : ((this.pcomin > 0) ? this.pcomin : precoFinal);
     return ProdutoResultStruct(
       codigo: codigo.toString(),
       descricao: descricao,
       unidade: unidade,
       preco: precoFinal,
-      pcomax: pmax,
-      pcomin: pmin,
+      pcomax: maxVal,
+      pcomin: minVal,
       saldoEstoque: qtdest,
       estoqueAtual: qtdest,
       estoquePendente: 0.0,

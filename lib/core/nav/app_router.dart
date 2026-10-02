@@ -110,6 +110,18 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
               'produtoRef',
               ParamType.String,
             ),
+            planoCodigo: params.getParam(
+              'planoCodigo',
+              ParamType.String,
+            ),
+            tabelaPreco: params.getParam(
+              'tabelaPreco',
+              ParamType.String,
+            ),
+            precoInicial: params.getParam(
+              'precoInicial',
+              ParamType.double,
+            ),
           ),
         ),
         AppRoute(

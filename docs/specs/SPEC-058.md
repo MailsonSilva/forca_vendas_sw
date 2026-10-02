@@ -54,7 +54,16 @@ CREATE TABLE estpcopro00 (
 );
 ```
 
-#### D. Item Gravado na Digitação (`pckvendig010`)
+#### D. Tabela de Faixas Físicas de Preço por Sequencial (`estpcoregpco00`)
+```sql
+CREATE TABLE estpcoregpco00 (
+  pro00_codseq int PRIMARY KEY, -- Sequencial apontado por estpcoreg00.pro00_codpco
+  pro00_pcomax decimal (6, 3),  -- Preço máximo de venda de tabela
+  pro00_pcomin decimal (6, 3)   -- Preço mínimo permitido com desconto
+);
+```
+
+#### E. Item Gravado na Digitação (`pckvendig010`)
 * `dig01_pcomax`: Preço máximo permitido (tabela base).
 * `dig01_pcomin`: Preço mínimo permitido (piso de desconto para o vendedor).
 * `dig01_digpco`: Preço unitário efetivamente digitado/aplicado pelo vendedor.
@@ -64,12 +73,15 @@ CREATE TABLE estpcopro00 (
 ## 3. Hierarquia de Apuração de Preços e Margens (`pcomax` e `pcomin`)
 
 ### 3.1. Resolução do Preço Base de Venda (`pcomax`)
-Para calcular o valor de tabela exibido na tela do operador, o sistema adota a cascata:
+Para calcular o valor de tabela exibido na tela do operador, o sistema adota a cascata de alta performance:
 
-1. **Preço Regionalizado (Matriz `estpcoreg00` + `estpcopro00`):**
+1. **Preço Regionalizado Direto via Sequencial (`estpcoreg00` + `estpcoregpco00`):**
+   * Relacionamento direto `reg.pro00_codkey = 1` com junção em `pco.pro00_codseq = reg.pro00_codpco`.
+   * Traz diretamente `pro00_pcomax` e `pro00_pcomin` com máxima velocidade e sem duplicações de `pro00_typpco`.
+2. **Preço Regionalizado por Classe (`estpcoreg00` + `estpcopro00`):**
    * Ocorre quando o cliente selecionado possui região comercial (`cadcli00.cli00_codreg > 0`) e a tabela de preços está parametrizada.
    * A busca localiza `pro00_codpco` em `estpcoreg00` para o produto e cruza com `estpcopro00.pro00_codcls`.
-2. **Preço por Classe Direta (`estpcopro00`):**
+3. **Preço por Classe Direta (`estpcopro00`):**
    * Caso não haja entrada regional em `estpcoreg00`, utiliza a classe de preço padrão vinculada ao cliente (`cadcli00.cli00_typpco`) ou classe padrão da filial:
      ```sql
      SELECT COALESCE(pro00_pcosub, 0.0) 
@@ -78,7 +90,7 @@ Para calcular o valor de tabela exibido na tela do operador, o sistema adota a c
        AND (pro00_codcls = :codClasse OR :codClasse = 0)
      LIMIT 1;
      ```
-3. **Fallback Canônico:**
+4. **Fallback Canônico:**
    * Se nenhuma correspondência for encontrada, o valor retornado é estritamente `0.0`.
 
 ### 3.2. Resolução do Preço Mínimo (`pcomin`)
@@ -151,9 +163,11 @@ if (digpco > pcomax && !permiteAcrescimo) {
 
 ## 7. Critérios de Aceitação e Testes
 
-- [ ] A consulta de catálogo retorna o preço praticado (`pro00_pcosub`) da tabela `estpcopro00` correspondente à classe/região ativa.
-- [ ] Quando o vendedor digita um preço menor que `pcomin` ou maior que `pcomax`, o sistema emite validação imediata e não grava o item.
-- [ ] O saldo em estoque reflete estritamente a filial vinculada (`cadrep00.ven00_codfil` ou filial selecionada).
-- [ ] O catálogo exibe produtos com estoque zero por padrão, ocultando-os apenas quando o switch `apenasEstoque` for ativado pelo usuário.
-- [ ] Produtos com preço `0.0` são bloqueados para inserção em pedidos de venda normal, permitindo apenas se marcados como bonificação autorizada.
-- [ ] Execução dos testes automatizados em `test/services/preco_service_test.dart` e `flutter analyze` sem advertências.
+- [x] A consulta de catálogo retorna o preço praticado (`pro00_pcosub`) da tabela `estpcopro00` correspondente à classe/região ativa.
+- [x] Quando o vendedor digita um preço menor que `pcomin` ou maior que `pcomax`, o sistema emite validação imediata e não grava o item.
+- [x] O saldo em estoque reflete estritamente a filial vinculada (`cadrep00.ven00_codfil` ou filial selecionada).
+- [x] O catálogo exibe produtos com estoque zero por padrão, ocultando-os apenas quando o switch `apenasEstoque` for ativado pelo usuário.
+- [x] Produtos com preço `0.0` são bloqueados para inserção em pedidos de venda normal, permitindo apenas se marcados como bonificação autorizada.
+- [x] Resolução unificada de faixas de preço (`ValidePcoService.obterFaixasPreco`, `obterDetalhesProduto` e `carregarProdutoDetalhe`): prioriza matriz `estpcoreg00` + `estpcoregpco00` com ordenação por maior preço praticado (`pcomax`) e desambiguação por região/tabela ativas.
+- [x] Modal de edição de preço unitário e recarregamento de itens existentes em `PedidoItensListaWidget` exibem faixas oficiais (`pcomin` e `pcomax`) ajustadas com o fator financeiro do plano de pagamento.
+- [x] Execução dos testes automatizados em `test/services/preco_service_test.dart`, `test/preco_detalhes_e_digitacao_spec058_test.dart`, `test/otimizacao_estpcoregpco00_test.dart`, `test/correcao_valores_produto_digitacao_test.dart` e `flutter analyze` sem advertências.

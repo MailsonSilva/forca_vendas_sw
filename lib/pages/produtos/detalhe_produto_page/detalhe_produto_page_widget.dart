@@ -16,9 +16,15 @@ class DetalheProdutoPageWidget extends StatefulWidget {
   const DetalheProdutoPageWidget({
     super.key,
     required this.produtoRef,
+    this.planoCodigo,
+    this.tabelaPreco,
+    this.precoInicial,
   });
 
   final String? produtoRef;
+  final String? planoCodigo;
+  final String? tabelaPreco;
+  final double? precoInicial;
 
   static String routeName = 'DetalheProdutoPage';
   static String routePath = '/detalheProdutoPage';
@@ -39,13 +45,29 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
     super.initState();
     _model = createModel(context, () => DetalheProdutoPageModel());
 
+    final int? codPlano = int.tryParse(widget.planoCodigo ?? '') ??
+        (AppState().planoAtivo > 0 ? AppState().planoAtivo : null);
+    final int? codTabela = int.tryParse(widget.tabelaPreco ?? '') ??
+        (AppState().tabelaPrecoAtiva > 0 ? AppState().tabelaPrecoAtiva : null);
+
     // On page load action.
     SchedulerBinding.instance.addPostFrameCallback((_) async {
       try {
         _model.resultadoBanco = await actions.carregarProdutoDetalhe(
           widget.produtoRef,
+          codPlano,
+          codTabela,
         );
         _model.produtoResult = _model.resultadoBanco;
+
+        if (_model.produtoResult != null &&
+            (_model.produtoResult!.preco <= 0) &&
+            widget.precoInicial != null &&
+            widget.precoInicial! > 0) {
+          _model.produtoResult!.preco = widget.precoInicial!;
+          _model.produtoResult!.pcomax = widget.precoInicial!;
+          _model.produtoResult!.pcomin = widget.precoInicial!;
+        }
       } catch (e) {
         debugPrint('Erro ao carregar detalhes do produto: $e');
       } finally {
@@ -830,7 +852,9 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                                       ),
                                             ),
                                             Text(
-                                              (_model.produtoResult?.preco ?? 0.0).toMoeda(),
+                                              ((_model.produtoResult?.preco ?? 0.0) > 0)
+                                                  ? (_model.produtoResult!.preco).toMoeda()
+                                                  : 'Sob Consulta',
                                               style: AppTheme.of(
                                                       context)
                                                   .headlineSmall
@@ -847,7 +871,7 @@ class _DetalheProdutoPageWidgetState extends State<DetalheProdutoPageWidget> {
                                                     ),
                                                     color: ((_model.produtoResult?.preco ?? 0) > 0)
                                                         ? const Color(0xFF2E7D32)
-                                                        : AppTheme.of(context).primaryText,
+                                                        : AppTheme.of(context).secondaryText,
                                                     letterSpacing: 0.0,
                                                     fontWeight: FontWeight.w800,
                                                     fontStyle:

@@ -171,8 +171,9 @@ void main() {
         false,
         1,
         'Todas',
-        null,
+        null, // codTabela
         0, // offset 0
+        100, // limit 100
       );
 
       expect(pagina1.length, equals(100));
@@ -189,8 +190,9 @@ void main() {
         false,
         1,
         'Todas',
-        null,
+        null, // codTabela
         100, // offset 100
+        100, // limit 100
       );
 
       expect(pagina2.length, equals(50));
@@ -203,7 +205,7 @@ void main() {
     });
 
     test('5. Índices de performance existem no SQLite pós-carga', () async {
-      final dbCheck = await openDatabase(dbPath, readOnly: true);
+      final dbCheck = await openDatabase(dbPath, readOnly: true, singleInstance: false);
       final indicesEst = await dbCheck.rawQuery(
           "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='estpro00'");
       final nomesEst = indicesEst.map((r) => r['name']?.toString() ?? '').toSet();

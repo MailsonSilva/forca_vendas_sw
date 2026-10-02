@@ -573,6 +573,14 @@ class AppState extends ChangeNotifier {
     _tabelaPrecoAtiva = value > 0 ? value : 1;
     notifyListeners();
   }
+
+  /// Plano de pagamento ativo para aplicação do fator financeiro (cadpla00.pla00_fator)
+  int _planoAtivo = 0;
+  int get planoAtivo => _planoAtivo;
+  set planoAtivo(int value) {
+    _planoAtivo = value;
+    notifyListeners();
+  }
 }
 
 void _safeInit(Function() initializeField) {

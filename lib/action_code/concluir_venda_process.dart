@@ -269,7 +269,7 @@ Future<bool> concluirVendaProcess({
       clides: clidesSnap,
       lindes: lindesSnap,
       plades: pladesSnap,
-      codTab: int.tryParse(planoCodigo ?? '') ?? 0,
+      codTab: (AppState().tabelaPrecoAtiva > 0 ? AppState().tabelaPrecoAtiva : 1),
       bonfrcven: bonfrcven,
       sttDig: PedidoSttDig.digitado,
       sttEnv: PedidoSttEnv.digitado,

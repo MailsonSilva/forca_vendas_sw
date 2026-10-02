@@ -19,6 +19,7 @@ Future<bool> salvarCarrinhoPedido({
   String? nomePacote,
   List<double>? itensSubtot,
   String? observacao,
+  int? codTabela,
 }) async {
   try {
     final db = await LocalSalesDatabaseService.getDatabase();
@@ -203,6 +204,9 @@ Future<bool> salvarCarrinhoPedido({
       int finalPlaVal = plaVal;
       int finalCodRep = codRep;
       int finalCodFil = codFil;
+      int finalTabela = (codTabela != null && codTabela > 0)
+          ? codTabela
+          : (AppState().tabelaPrecoAtiva > 0 ? AppState().tabelaPrecoAtiva : 1);
 
       // Preserva dados existentes no registro para não perder status, agente ou pacote
       int existingSttDig = 0;
@@ -339,7 +343,7 @@ Future<bool> salvarCarrinhoPedido({
       addHeaderIf('ped00_agtcod', finalCodAgt);
       addHeaderIf('ped00_codage', finalCodAgt);
       addHeaderIf('ped00_digagt', finalCodAgt);
-      addHeaderIf('ped00_digtab', plaVal);
+      addHeaderIf('ped00_digtab', finalTabela);
       addHeaderIf('ped00_digcob', 0);
       addHeaderIf('ped00_bonfrcven', finalBonFrcVen);
       addHeaderIf('ped00_clides', finalClides);

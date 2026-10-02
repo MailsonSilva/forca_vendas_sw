@@ -7,6 +7,7 @@ import '/core/app_icon_button.dart';
 import '/core/app_util.dart';
 import '/index.dart';
 import '/domain/services/valide_pco_service.dart';
+import '/domain/services/calculo_preco_produto_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'pedido_itens_lista_model.dart';
@@ -78,6 +79,9 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
     super.initState();
     _model = createModel(context, () => PedidoItensListaModel());
     _currentPlanoCodigo = widget.planoCodigo;
+    if (_currentPlanoCodigo != null && _currentPlanoCodigo!.isNotEmpty) {
+      AppState().planoAtivo = int.tryParse(_currentPlanoCodigo!) ?? AppState().planoAtivo;
+    }
     _currentPlanoDescricao = widget.planoDescricao;
     _currentLinhaCodigo = widget.linhaCodigo;
     _currentLinhaDescricao = widget.linhaDescricao;
@@ -144,6 +148,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
         }
         if ((_currentPlanoCodigo == null || _currentPlanoCodigo!.isEmpty) && plaCod.isNotEmpty) {
           _currentPlanoCodigo = plaCod;
+          AppState().planoAtivo = int.tryParse(plaCod) ?? AppState().planoAtivo;
         }
         if ((_currentPlanoDescricao == null || _currentPlanoDescricao!.isEmpty) && plaDes.isNotEmpty) {
           _currentPlanoDescricao = plaDes;
@@ -240,13 +245,48 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
           final isBon = (r['ped10_sttbon'] == 1 || r['ped10_flgbon'] == 1 || r['ped10_bonificado'] == 1);
           final qtd = (r['ped10_qtdped'] is num) ? (r['ped10_qtdped'] as num).toDouble() : (double.tryParse(r['ped10_qtdped']?.toString() ?? '') ?? 0.0);
           final qtdBon = (r['ped10_qtdbon'] is num) ? (r['ped10_qtdbon'] as num).toDouble() : (double.tryParse(r['ped10_qtdbon']?.toString() ?? '') ?? 0.0);
-          final pco = (r['ped10_pcosub'] is num)
-              ? (r['ped10_pcosub'] as num).toDouble()
-              : (r['ped10_prcuni'] is num)
-                  ? (r['ped10_prcuni'] as num).toDouble()
-                  : (r['ped10_vlruni'] is num)
-                      ? (r['ped10_vlruni'] as num).toDouble()
-                      : (double.tryParse(r['ped10_pcosub']?.toString() ?? r['ped10_prcuni']?.toString() ?? r['ped10_vlruni']?.toString() ?? '') ?? 0.0);
+          final pco = (r['ped10_digpco'] is num && (r['ped10_digpco'] as num) > 0)
+              ? (r['ped10_digpco'] as num).toDouble()
+              : (r['dig01_digpco'] is num && (r['dig01_digpco'] as num) > 0)
+                  ? (r['dig01_digpco'] as num).toDouble()
+                  : (r['ped10_pcosub'] is num && (r['ped10_pcosub'] as num) > 0)
+                      ? (r['ped10_pcosub'] as num).toDouble()
+                      : (r['ped10_prcuni'] is num && (r['ped10_prcuni'] as num) > 0)
+                          ? (r['ped10_prcuni'] as num).toDouble()
+                          : (r['ped10_vlruni'] is num && (r['ped10_vlruni'] as num) > 0)
+                              ? (r['ped10_vlruni'] as num).toDouble()
+                              : (double.tryParse(r['ped10_digpco']?.toString() ?? r['dig01_digpco']?.toString() ?? r['ped10_pcosub']?.toString() ?? r['ped10_prcuni']?.toString() ?? r['ped10_vlruni']?.toString() ?? '') ?? 0.0);
+
+          final pmax = (r['dig01_pcomax'] as num?)?.toDouble() ?? (r['ped10_pcomax'] as num?)?.toDouble() ?? pco;
+          final pmin = (r['dig01_pcomin'] as num?)?.toDouble() ?? (r['ped10_pcomin'] as num?)?.toDouble() ?? pco;
+
+          String codPrd = r['ped10_codprd']?.toString() ?? r['ped10_codpro']?.toString() ?? r['ped10_procod']?.toString() ?? '';
+          String descri = r['ped10_descri']?.toString() ?? r['ped10_descricao']?.toString() ?? r['ped10_prodes']?.toString() ?? '';
+
+          double finalPco = pco;
+          double finalPmax = pmax;
+          double finalPmin = pmin;
+
+          if (codPrd.isNotEmpty) {
+            try {
+              final tabId = AppState().tabelaPrecoAtiva > 0 ? AppState().tabelaPrecoAtiva : 1;
+              final regId = AppState().clienteSelecionado?.codRegiao ?? 0;
+              final clsId = AppState().clienteSelecionado?.codTipoPreco ?? 0;
+              final f = await ValidePcoService.obterFaixasPreco(
+                codPrd,
+                codTabela: tabId,
+                codRegiao: regId,
+                codClasseCliente: clsId,
+              );
+              if (f.pcomax > 0) {
+                finalPmax = f.pcomax;
+                finalPmin = f.pcomin > 0 ? f.pcomin : f.pcomax;
+                if (finalPco <= 0 || (finalPco < finalPmin) || (pmax == pmin && pmax < f.pcomax)) {
+                  finalPco = f.pcomax;
+                }
+              }
+            } catch (_) {}
+          }
 
           double tot = (r['ped10_totprd'] is num)
               ? (r['ped10_totprd'] as num).toDouble()
@@ -256,12 +296,9 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                       ? (r['ped10_valtot'] as num).toDouble()
                       : (double.tryParse(r['ped10_totprd']?.toString() ?? r['ped10_totite']?.toString() ?? r['ped10_valtot']?.toString() ?? '') ?? 0.0);
 
-          if (tot == 0.0 && !isBon && qtd > 0 && pco > 0) {
-            tot = qtd * pco;
+          if ((tot == 0.0 || finalPco != pco) && !isBon && qtd > 0 && finalPco > 0) {
+            tot = qtd * finalPco;
           }
-
-          String codPrd = r['ped10_codprd']?.toString() ?? r['ped10_codpro']?.toString() ?? r['ped10_procod']?.toString() ?? '';
-          String descri = r['ped10_descri']?.toString() ?? r['ped10_descricao']?.toString() ?? r['ped10_prodes']?.toString() ?? '';
           String unid = r['ped10_unidpri']?.toString() ?? r['ped10_unidade']?.toString() ?? r['ped10_unimed']?.toString() ?? 'UN';
 
           String marca = '';
@@ -318,7 +355,9 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
             descricao: descri,
             unidade: unid.isNotEmpty ? unid : 'UN',
             quantidade: isBon ? 0.0 : qtd,
-            precoUnitario: pco,
+            precoUnitario: finalPco,
+            pcomax: finalPmax > 0 ? finalPmax : finalPco,
+            pcomin: finalPmin > 0 ? finalPmin : finalPco,
             totalItem: isBon ? 0.0 : tot,
             isBonificacao: isBon,
             quantidadeBonificada: isBon ? (qtdBon > 0 ? qtdBon : qtd) : 0.0,
@@ -409,9 +448,10 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
     });
 
     try {
-      // Calls existing buscaProduto action with active filial and active price table
-      final int tabId = int.tryParse(_currentPlanoCodigo ?? widget.planoCodigo ?? '0') ?? 0;
+      // Chama buscaProduto com filial ativa, tabela de preço ativa e plano de pagamento
+      final int tabId = AppState().tabelaPrecoAtiva > 0 ? AppState().tabelaPrecoAtiva : 1;
       final int filial = AppState().codFilialAtiva != 0 ? AppState().codFilialAtiva : 1;
+      final int planId = int.tryParse(_currentPlanoCodigo ?? widget.planoCodigo ?? '0') ?? AppState().planoAtivo;
       final results = await buscaProduto(
         query,
         null,
@@ -424,6 +464,9 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
         filial,
         'Todas',
         tabId,
+        0,
+        30,
+        planId,
       );
 
       safeSetState(() {
@@ -636,10 +679,14 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
       return;
     }
 
-    final int tabId = int.tryParse(_currentPlanoCodigo ?? widget.planoCodigo ?? '0') ?? 0;
+    final int tabId = AppState().tabelaPrecoAtiva > 0 ? AppState().tabelaPrecoAtiva : 1;
+    final int regId = AppState().clienteSelecionado?.codRegiao ?? 0;
+    final int clsId = AppState().clienteSelecionado?.codTipoPreco ?? 0;
     final faixa = await ValidePcoService.obterFaixasPreco(
       item.codigoProduto,
       codTabela: tabId,
+      codRegiao: regId,
+      codClasseCliente: clsId,
     );
 
     if (!faixa.freadpco) {
@@ -653,10 +700,22 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
       return;
     }
 
+    final int planId = int.tryParse(_currentPlanoCodigo ?? widget.planoCodigo ?? '0') ?? AppState().planoAtivo;
+    final double fatorPlano = await CalculoPrecoProdutoService.obterFatorPlano(planId);
+
+    final double minVal = faixa.pcomin > 0
+        ? CalculoPrecoProdutoService.arredondarMoeda(faixa.pcomin * fatorPlano)
+        : (item.pcomin > 0 ? item.pcomin : 0.0);
+    final double maxVal = faixa.pcomax > 0
+        ? CalculoPrecoProdutoService.arredondarMoeda(faixa.pcomax * fatorPlano)
+        : (item.pcomax > 0 ? item.pcomax : (item.precoUnitario > 0 ? item.precoUnitario : 999999.0));
+
     if (!mounted) return;
 
     final precoController = TextEditingController(
-      text: item.precoUnitario > 0 ? item.precoUnitario.toStringAsFixed(2) : '',
+      text: item.precoUnitario > 0
+          ? item.precoUnitario.toStringAsFixed(2)
+          : (maxVal < 999999 ? maxVal.toStringAsFixed(2) : ''),
     );
     String? erroValidacao;
 
@@ -698,7 +757,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                             children: [
                               const Text('Preço Mínimo:', style: TextStyle(fontSize: 12, color: Colors.grey)),
                               Text(
-                                faixa.pcomin > 0 ? _formatCurrency(faixa.pcomin) : 'Livre',
+                                minVal > 0 ? _formatCurrency(minVal) : 'Livre',
                                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                               ),
                             ],
@@ -709,7 +768,7 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                             children: [
                               const Text('Preço Máximo:', style: TextStyle(fontSize: 12, color: Colors.grey)),
                               Text(
-                                faixa.pcomax < 999999 ? _formatCurrency(faixa.pcomax) : 'Livre',
+                                maxVal < 999999 ? _formatCurrency(maxVal) : 'Livre',
                                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                               ),
                             ],
@@ -759,8 +818,8 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                     }
 
                     final res = ValidePcoService.validePCOValues(
-                      pcomin: faixa.pcomin,
-                      pcomax: faixa.pcomax,
+                      pcomin: minVal,
+                      pcomax: maxVal,
                       commax: faixa.commax,
                       digpco: novoPreco,
                       destot: 0.0,
@@ -778,6 +837,8 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
                     // Preço válido! Atualiza item e totais
                     safeSetState(() {
                       item.precoUnitario = novoPreco;
+                      item.pcomax = maxVal;
+                      item.pcomin = minVal;
                       item.totalItem = item.quantidade * novoPreco;
                       _model.recalcularTotais();
                     });
@@ -994,6 +1055,8 @@ class _PedidoItensListaWidgetState extends State<PedidoItensListaWidget> {
         builder: (context) => BuscaProdutoPageWidget(
           isSelectionMode: true,
           filtroInicial: filtro.isNotEmpty ? filtro : null,
+          planoCodigo: _currentPlanoCodigo,
+          tabelaPreco: AppState().tabelaPrecoAtiva > 0 ? AppState().tabelaPrecoAtiva : 1,
         ),
       ),
     );
@@ -1959,6 +2022,9 @@ carrinhoItens: _model.carrinhoItens,
 
   Future<void> _salvarPlanoAlterado(String planoCodigo) async {
     try {
+      final int plaVal = int.tryParse(planoCodigo) ?? 0;
+      AppState().planoAtivo = plaVal;
+
       // Usa o singleton ativo — sem abrir conexão descartável
       final db = await LocalSalesDatabaseService.getDatabase();
       final List<Map<String, dynamic>> columns = await db.rawQuery('PRAGMA table_info(pckvendig000)');
@@ -1967,7 +2033,6 @@ carrinhoItens: _model.carrinhoItens,
       if (colNames.contains('ped00_codpag')) {
         colName = 'ped00_codpag';
       }
-      final int plaVal = int.tryParse(planoCodigo) ?? 0;
       await db.rawUpdate(
         'UPDATE pckvendig000 SET $colName = ? WHERE ped00_numped = ?',
         [plaVal, widget.pedidoId ?? 0]

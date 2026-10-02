@@ -4,8 +4,80 @@ import '/domain/models/produto_lookup_dto.dart';
 import '/domain/models/produto_card_dto.dart';
 import '/domain/models/produto_detalhe_dto.dart';
 import '/domain/services/produto_search_filter_builder.dart';
+import '/domain/services/calculo_preco_produto_service.dart';
 import '/data/services/local_sales_database_service.dart';
 import '/app_state.dart';
+
+class _ProdutoDbMeta {
+  final Set<String> tabelas;
+  final Set<String> proCols;
+  final Set<String> estCols;
+  final bool hasEmb;
+  final bool hasEst;
+  final bool hasReg;
+  final bool hasPco;
+  final bool hasPcopro;
+  final bool hasMar;
+  final bool hasFab;
+  final String? tblPcopro;
+
+  const _ProdutoDbMeta({
+    required this.tabelas,
+    required this.proCols,
+    required this.estCols,
+    required this.hasEmb,
+    required this.hasEst,
+    required this.hasReg,
+    required this.hasPco,
+    required this.hasPcopro,
+    required this.hasMar,
+    required this.hasFab,
+    this.tblPcopro,
+  });
+}
+
+/// Cache em memória de esquema SQLite para garantir buscas < 100ms sem PRAGMA repetido
+class ProdutoMetadataCache {
+  static final Map<int, _ProdutoDbMeta> _cache = {};
+
+  static void reset() => _cache.clear();
+
+  static Future<_ProdutoDbMeta> get(Database db) async {
+    final key = db.hashCode;
+    if (_cache.containsKey(key)) {
+      return _cache[key]!;
+    }
+    Set<String> tabelas = {};
+    Set<String> proCols = {};
+    Set<String> estCols = {};
+    try {
+      final tRows = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'");
+      tabelas = tRows.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+      final cRows = await db.rawQuery('PRAGMA table_info(cadpro00)');
+      proCols = cRows.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+      if (tabelas.contains('estpro00')) {
+        final eRows = await db.rawQuery('PRAGMA table_info(estpro00)');
+        estCols = eRows.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+      }
+    } catch (_) {}
+
+    final info = _ProdutoDbMeta(
+      tabelas: tabelas,
+      proCols: proCols,
+      estCols: estCols,
+      hasEmb: tabelas.contains('cadproemb00'),
+      hasEst: tabelas.contains('estpro00'),
+      hasReg: tabelas.contains('estpcoreg00'),
+      hasPco: tabelas.contains('estpcoregpco00'),
+      hasPcopro: tabelas.contains('estpcopro00') || tabelas.contains('pcopro00'),
+      hasMar: tabelas.contains('cadmar00'),
+      hasFab: tabelas.contains('cadfor00'),
+      tblPcopro: tabelas.contains('estpcopro00') ? 'estpcopro00' : (tabelas.contains('pcopro00') ? 'pcopro00' : null),
+    );
+    _cache[key] = info;
+    return info;
+  }
+}
 
 /// Repositório de dados para consulta e seleção de produtos.
 /// Implementa a estratégia em duas etapas da SPEC-052 e método Tcadpro00::cload de usysctr00.cpp.
@@ -363,10 +435,51 @@ class ProdutoRepository {
           ? 'COALESCE(NULLIF(t.$colPcocus, 0.0), $expPrecoVenda, 0.0)'
           : expPrecoVenda;
 
+      final bool hasEstpcoregpco00 = tabelas.contains('estpcoregpco00');
+      if (hasEstpcoreg00 && hasEstpcoregpco00) {
+        joinPreco += '''
+          LEFT JOIN (
+            SELECT 
+              reg.pro00_codpro,
+              MAX(pco.pro00_pcomax) AS pcomax,
+              MAX(pco.pro00_pcomin) AS pcomin
+            FROM estpcoreg00 reg
+            JOIN estpcoregpco00 pco 
+              ON (pco.pro00_codseq = reg.pro00_codpco OR CAST(pco.pro00_codseq AS TEXT) = CAST(reg.pro00_codpco AS TEXT))
+            WHERE (reg.pro00_codkey = 1 OR reg.pro00_codkey IS NULL)
+            GROUP BY reg.pro00_codpro
+          ) pco_reg ON (pco_reg.pro00_codpro = sel.pro00_codigo OR CAST(pco_reg.pro00_codpro AS TEXT) = CAST(sel.pro00_codigo AS TEXT))
+        ''';
+        selPreco = '''
+          COALESCE(NULLIF(pco_reg.pcomax, 0.0), $expPrecoVenda) AS pro00_pcomax,
+          COALESCE(NULLIF(pco_reg.pcomin, 0.0), $expMin) AS pro00_pcomin,
+          COALESCE(NULLIF(pco_reg.pcomax, 0.0), $expPrecoVenda) AS preco_venda
+        ''';
+      } else {
+        selPreco = '''
+          $expPrecoVenda AS pro00_pcomax,
+          $expMin AS pro00_pcomin,
+          $expPrecoVenda AS preco_venda
+        ''';
+      }
+    } else if (hasEstpcoreg00 && tabelas.contains('estpcoregpco00')) {
+      joinPreco = '''
+        LEFT JOIN (
+          SELECT 
+            reg.pro00_codpro,
+            MAX(pco.pro00_pcomax) AS pcomax,
+            MAX(pco.pro00_pcomin) AS pcomin
+          FROM estpcoreg00 reg
+          JOIN estpcoregpco00 pco 
+            ON (pco.pro00_codseq = reg.pro00_codpco OR CAST(pco.pro00_codseq AS TEXT) = CAST(reg.pro00_codpco AS TEXT))
+          WHERE (reg.pro00_codkey = 1 OR reg.pro00_codkey IS NULL)
+          GROUP BY reg.pro00_codpro
+        ) pco_reg ON (pco_reg.pro00_codpro = sel.pro00_codigo OR CAST(pco_reg.pro00_codpro AS TEXT) = CAST(sel.pro00_codigo AS TEXT))
+      ''';
       selPreco = '''
-        $expPrecoVenda AS pro00_pcomax,
-        $expMin AS pro00_pcomin,
-        $expPrecoVenda AS preco_venda
+        COALESCE(pco_reg.pcomax, 0.0) AS pro00_pcomax,
+        COALESCE(pco_reg.pcomin, 0.0) AS pro00_pcomin,
+        COALESCE(pco_reg.pcomax, 0.0) AS preco_venda
       ''';
     }
 
@@ -603,7 +716,8 @@ class ProdutoRepository {
     String? dataEntrada,
     int? codTabela,
     int? offset,
-    int limit = 100,
+    int limit = 30,
+    int? codPlano,
   }) async {
     final db = await _getDb();
 
@@ -612,31 +726,17 @@ class ProdutoRepository {
         ? codFilial
         : (AppState().codFilialAtiva > 0 ? AppState().codFilialAtiva : 1);
 
-    // Inspeciona tabelas e colunas presentes no SQLite
-    Set<String> tabelas = {};
-    Set<String> proCols = {};
-    try {
-      final tRows = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'");
-      tabelas = tRows.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
-      final cRows = await db.rawQuery('PRAGMA table_info(cadpro00)');
-      proCols = cRows.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
-    } catch (_) {}
-
-    final bool hasEmb = tabelas.contains('cadproemb00');
-    final bool hasEst = tabelas.contains('estpro00');
-    final bool hasReg = tabelas.contains('estpcoreg00');
-    final bool hasPco = tabelas.contains('estpcoregpco00');
-    final bool hasPcopro = tabelas.contains('estpcopro00') || tabelas.contains('pcopro00');
-    final bool hasMar = tabelas.contains('cadmar00');
-    final bool hasFab = tabelas.contains('cadfor00');
-
-    Set<String> estCols = {};
-    if (hasEst) {
-      try {
-        final eRows = await db.rawQuery('PRAGMA table_info(estpro00)');
-        estCols = eRows.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
-      } catch (_) {}
-    }
+    // Inspeciona metadados em cache de alta velocidade
+    final meta = await ProdutoMetadataCache.get(db);
+    final proCols = meta.proCols;
+    final bool hasEmb = meta.hasEmb;
+    final bool hasEst = meta.hasEst;
+    final bool hasReg = meta.hasReg;
+    final bool hasPco = meta.hasPco;
+    final bool hasPcopro = meta.hasPcopro;
+    final bool hasMar = meta.hasMar;
+    final bool hasFab = meta.hasFab;
+    final estCols = meta.estCols;
 
     // Mapeamento dinâmico de colunas seguras da subquery cadpro00
     final String colUnid = proCols.contains('pro00_unidad')
@@ -776,15 +876,15 @@ class ProdutoRepository {
         : 'COALESCE(p.pro00_qtdest, 0.0) AS estoque_saldo';
 
     String joinPco = '';
-    String fallbackPco = proCols.contains('pro00_pcomax') ? 'NULLIF(MAX(p.pro00_pcomax), 0.0)' : 'NULL';
+    String fallbackPco = '0.0';
 
     if (hasPcopro) {
-      final String tblP = tabelas.contains('estpcopro00') ? 'estpcopro00' : 'pcopro00';
+      final String tblP = meta.tblPcopro ?? 'estpcopro00';
       joinPco += '''
         LEFT JOIN $tblP pcopro 
                ON (pcopro.pro00_codpro = p.pro00_codigo OR CAST(pcopro.pro00_codpro AS TEXT) = CAST(p.pro00_codigo AS TEXT))
       ''';
-      fallbackPco = 'COALESCE(NULLIF(MAX(pcopro.pro00_pcosub), 0.0), $fallbackPco)';
+      fallbackPco = 'COALESCE(NULLIF(MAX(pcopro.pro00_pcosub), 0.0), 0.0)';
     }
 
     String selPcomax = 'COALESCE($fallbackPco, 0.0) AS pcomax';
@@ -865,11 +965,21 @@ class ProdutoRepository {
 
     final rows = await db.rawQuery(query, args);
 
+    final int planoFinal = (codPlano != null && codPlano > 0) ? codPlano : AppState().planoAtivo;
+    final double fatorPlano = await CalculoPrecoProdutoService.obterFatorPlano(planoFinal, db: db);
+
     // 4. MAPEAMENTO DE RETORNO (ProdutoResultStruct)
     return rows.map((m) {
-      final double pmax = (m['pcomax'] as num?)?.toDouble() ?? 0.0;
-      final double pmin = (m['pcomin'] as num?)?.toDouble() ?? pmax;
+      final double rawPmax = (m['pcomax'] as num?)?.toDouble() ?? 0.0;
+      final double rawPmin = (m['pcomin'] as num?)?.toDouble() ?? rawPmax;
       final double saldo = (m['estoque_saldo'] as num?)?.toDouble() ?? 0.0;
+
+      final double pmax = (fatorPlano > 0 && fatorPlano != 1.0)
+          ? CalculoPrecoProdutoService.arredondarMoeda(rawPmax * fatorPlano)
+          : rawPmax;
+      final double pmin = (fatorPlano > 0 && fatorPlano != 1.0)
+          ? CalculoPrecoProdutoService.arredondarMoeda(rawPmin * fatorPlano)
+          : rawPmin;
 
       return ProdutoResultStruct(
         codigo: (m['pro00_codigo'] ?? '').toString(),

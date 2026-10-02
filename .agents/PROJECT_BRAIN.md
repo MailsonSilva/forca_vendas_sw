@@ -304,5 +304,12 @@ O arquivo `.pac` é um container ZIP padronizado contendo internamente o arquivo
    - **Solução:** Configurado interceptador de canal de plataforma (`flutter/assets`) com suporte a PNG 1x1 transparente (base64) e desativação de runtime fetch de fontes (`GoogleFonts.config.allowRuntimeFetching = false`), estabilizando suites de widgets (`responsividade_e_comportamento_test.dart`, `logout_relocation_test.dart`, `pedido_itens_lista_card_test.dart`, `home_page_selecao_filial_test.dart`, `extrato_cliente_ajustes_test.dart`, `spec_043_extrato_titulos_test.dart`, entre outros).
 4. **Resolução de Latência e Tolerância de Benchmark (Resolvido):**
    - **Solução:** Adicionado warmup de query e margem de tolerância para cargas concorrentes em `spec_050_catalogo_produtos_sql_test.dart`.
+5. **Performance de Busca e Unificação do Cálculo de Preços (Concluído):**
+   - **Índices de Alto Desempenho:** Adicionados `idx_cadpro00_busca ON cadpro00(pro00_descri, pro00_codigo, pro00_prifil)` e `idx_cadproemb02_prd ON cadproemb02(pro02_codprd)` no SQLite local com garantia de coluna via migração suave.
+   - **Paginação e Debounce:** Paginação fatiada (`LIMIT 30 OFFSET ?`) por padrão na busca de produtos e repositório, com debounce de 350ms em `busca_produto_page_widget.dart` para evitar consultas redundantes a cada caractere digitado.
+   - **Single Source of Truth de Precificação:** Criado o serviço de domínio puro `CalculoPrecoProdutoService` (`lib/domain/services/calculo_preco_produto_service.dart`).
+   - **Fórmula Unificada:** Preço Efetivo = (Preço Base da Tabela x Fator do Plano cadpla00) - Descontos, respeitando multiplicador de embalagem (`cadproemb02.pro02_mulven`) e trava estrita de preço mínimo (`pcomin`).
+   - **Eliminação de Divergências:** Corrigido desacoplamento entre `ped00_digtab` (tabela de preço ativa) e `ped00_codpla` (plano de pagamento) em `salvarCarrinhoPedido`, `concluirVendaProcess` e `pedido_itens_lista_widget.dart`.
+   - **Validação:** 100% de testes unitários aprovados cobrindo busca (<100ms) e consistência exata de centavos entre catálogo de busca, tela de detalhes e item de pedido (`unificacao_calculo_preco_e_busca_test.dart`).
 
 

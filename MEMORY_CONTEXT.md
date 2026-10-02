@@ -1,6 +1,6 @@
 # MEMORY CONTEXT — FORÇA DE VENDAS (FLUTTER & SQLITE)
-> **Versão:** 2.6.0  
-> **Status:** 100% Homologado, Testado, Protegido e Compilado em APK Release (SPEC-053/054/056, Bloqueio de Clientes da Carga e Configurações Otimizadas)  
+> **Versão:** 2.7.0  
+> **Status:** 100% Homologado, Testado, Protegido e Validado (SPEC-058: Paridade Canônica de Preços, Faixas pcomin/pcomax e Unificação Catálogo/Detalhes/Digitação)  
 > **Escopo:** Aplicativo Mobile Força de Vendas Offline-First (Flutter / SQLite / XML-PAC / FTP)
 
 ---
@@ -10,9 +10,9 @@
 ### 1.1 Padrão Arquitetural
 O aplicativo adota uma arquitetura modular por camadas e orientada a casos de uso (**Clean Architecture / Feature-First**), separando estritamente:
 - **Presentation Layer (`lib/pages/`, `lib/components/`, `lib/core/`):** Widgets Flutter reativos, modais padronizados via `AppBottomSheet` / `showAppModalBottomSheet` com `SafeArea`, visualizador interativo de imagens (`ImagemPreviewDialog` via `ImagemLocalWidget`), formatação monetária global centralizada (`lib/core/formatters/currency_formatter.dart`), formulários com `InputDecorationTheme` global e gerenciamento de estado via `AppModel` com métodos `safeSetState`, `initState` e `dispose`.
-- **Domain Layer (`lib/domain/models/`, `lib/domain/services/`):** Modelos de negócio puros (`PedidoVenda`, `ItemPedidoVenda`, `ParcelaVenda`, `AgenteCobrador`, `StatusEnvio`, `ContaCorrenteSaldo`, `ContaCorrenteMovimentacao`), regras fiscais (`IcmsStService`) e validações financeiras (`BloqueioFinanceiroService`).
+- **Domain Layer (`lib/domain/models/`, `lib/domain/services/`):** Modelos de negócio puros (`PedidoVenda`, `ItemPedidoVenda`, `ParcelaVenda`, `AgenteCobrador`, `StatusEnvio`, `ContaCorrenteSaldo`, `ContaCorrenteMovimentacao`), regras fiscais (`IcmsStService`), validações financeiras (`BloqueioFinanceiroService`) e validação de preços/faixas (`ValidePcoService`, `CalculoPrecoProdutoService`, `PrecoService`).
 - **Data & Infrastructure Layer (`lib/data/`, `lib/services/`, `lib/backend/`):** Acesso a banco local (`LocalSalesDatabaseService`), gerador de pacotes comprimidos (`PacXmlGeneratorService`), registro e manifesto de arquivos (`CargaRegistryService`), serviço de conta-corrente (`ContaCorrenteService`) e cliente FTP (`FtpUploadService`, `FtpClient`).
-- **Action Code Layer (`lib/action_code/`):** Orquestradores de casos de uso e regras de transição (ex: `concluirVendaProcess`, `salvarCarrinhoPedido`, `salvarClienteOffline`, `listarClientesPendentes`, `carregarAgentesCobrador`, `carregarClienteOffline`, `enviarArquivosPendentesFtp`).
+- **Action Code Layer (`lib/action_code/`):** Orquestradores de casos de uso e regras de transição (ex: `concluirVendaProcess`, `salvarCarrinhoPedido`, `salvarClienteOffline`, `listarClientesPendentes`, `carregarAgentesCobrador`, `carregarClienteOffline`, `enviarArquivosPendentesFtp`, `carregarProdutoDetalhe`).
 
 ### 1.2 Gerenciamento de Estado Global (`AppState`)
 O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_state.dart`) com sincronização em `SharedPreferences`:
@@ -48,12 +48,27 @@ O estado global da aplicação reside no singleton reativo `AppState` (`lib/app_
   - Aba 0 ("Todos"): Exibe todos os títulos pendentes com botão "Copiar Texto" no rodapé e sem quadro inferior de totais.
 - **Limite de Crédito Informativo:** O limite de crédito e o saldo disponível são informados de forma transparente, não bloqueando a abertura do carrinho, mas alertando o vendedor conforme o perfil comercial (`ven_ignlimfis`).
 
-### 2.3 Catálogo de Produtos & Estoque
-- **Tabela de Preço Ativa (`digtab` / `cadtab00`):** Aplicação de preços conforme a tabela do cliente/pedido.
-- **Estoque Dinâmico por Filial (`estpro00`):** Exibição do saldo disponível considerando a filial ativa selecionada na sessão.
+### 2.3 Catálogo de Produtos, Preços Canônicos & Estoque (SPEC-058)
+- **Preço Praticado Canônico (`estpcoregpco00` / `estpcopro00`):**
+  - O preço base de venda do produto é originado prioritariamente da relação `estpcoreg00` (`pro00_codkey = 1`) com `estpcoregpco00` (`pro00_codseq = reg.pro00_codpco`), extraindo diretamente `pro00_pcomax` e `pro00_pcomin` (ex: produto `42422` com preço `56.65`).
+  - Fallback automático para `estpcopro00.pro00_pcosub` (ou `pro00_preco`) quando a matriz de sequenciais não estiver presente. O campo `cadpro00.pro00_preco` não é utilizado como preço comercial.
+- **Isolamento de Filial Dinâmica Selecionada:**
+  - O código da filial ativa é resolvido estritamente do contexto selecionado pelo vendedor: `(codFilial != null && codFilial > 0) ? codFilial : (AppState().codFilialAtiva > 0 ? AppState().codFilialAtiva : 1)`. Nunca utiliza filial hardcoded.
+  - A consulta cruza com `estpro00` via `est.pro00_codfil = ?` no bind posicional, garantindo saldo líquido preciso (`pro00_qtdest - pro00_qtdpen`).
+- **Query de Alta Performance (< 100ms):**
+  - Subquery isolada na tabela base `cadpro00` com ordenação por descrição e paginação `LIMIT ? OFFSET ?`.
+  - Agregação `MAX(pco.pro00_pcomax)` e `MAX(pco.pro00_pcomin)` via `GROUP BY p.pro00_codigo`, eliminando duplicações de `pro00_typpco`.
+  - Cache de metadados em memória estática (`ProdutoMetadataCache`), eliminando repetições de `sqlite_master` e `PRAGMA table_info` a cada busca.
+- **Fator do Plano de Pagamento (`cadpla00.pla00_fator`):** O preço base é multiplicado pelo fator do plano ativo no pedido com arredondamento monetário de duas casas (`CalculoPrecoProdutoService.arredondarMoeda`).
+- **Faixas de Venda (`pcomax` e `pcomin`):** Resolvidas via `ValidePcoService.obterFaixasPreco` com desambiguação regional/tabela e ordenação por maior preço praticado (`pcomax DESC`), eliminando quedas para tabelas antigas/contingência. O fator financeiro do plano ativo (`cadpla00.pla00_fator`) é aplicado ao teto e ao piso.
+- **Paridade Unificada entre Telas:**
+  - **Pesquisa de Produtos (`BuscaProdutoPageWidget`):** Apura preço via query otimizada e mapeia `pcomax` diretamente como preço de venda e teto no `ProdutoResultStruct`, preservando os limites ao abrir modal de inserção no pedido.
+  - **Detalhes do Produto (`DetalheProdutoPageWidget`):** Apura via `obterDetalhesProduto` e `carregarProdutoDetalhe` integrados a `estpcoregpco00` via subquery agregada `MAX`, refletindo exatamente o preço praticado (`56.65`) e piso comercial (`48.00`).
+  - **Digitação e Itens do Pedido (`PedidoItensListaWidget`):** Sincroniza itens existentes com as faixas comerciais vigentes, e no modal `_exibirDialogEdicaoPreco` exibe explicitamente o Preço Mínimo (`minVal`) e o Preço Máximo (`maxVal`) calculados, validando a digitação estritamente dentro desse intervalo.
+- **Estoque Dinâmico por Filial (`estpro00`):** Exibição do saldo disponível considerando a filial ativa selecionada na sessão. O catálogo exibe produtos com saldo zerado por padrão, ocultando apenas se o filtro `apenasEstoque` for acionado.
+- **Bloqueio de Preço Zerado:** Produtos com preço `0.0` não podem ser adicionados em vendas normais; a inclusão com preço zero é restrita estritamente a bonificações autorizadas (`bontyp = 1`).
 - **Formatação de Unidades:** Formatação inteligente que exibe inteiros para unidades fechadas (ex: `10 UN`, `5 CX`) e 3 casas decimais para unidades fracionadas (ex: `1.250 KG`).
 - **Multiplicador de Venda / Embalagem (`mulver` / `mulemb`):** Cálculo automático de quantidades e valores baseado no multiplicador de venda do produto.
-- **Combos e Bonificações:** Suporte a itens bonificados com valor unitário a **R$ 0,00**, gravando flags `bontyp = 1` e totalizadores em `ped00_bontot` sem afetar o faturamento líquido.
 
 ### 2.4 Digitação & Fechamento de Pedidos (Crítico)
 - **Persistência Relacional Atômica e Filial Ativa:**

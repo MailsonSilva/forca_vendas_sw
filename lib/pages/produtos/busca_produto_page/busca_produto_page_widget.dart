@@ -21,11 +21,18 @@ export 'busca_produto_page_model.dart';
 
 /// Consulta de estoque e catalogo de produtos com busca SQLite.
 class BuscaProdutoPageWidget extends StatefulWidget {
-  const BuscaProdutoPageWidget(
-      {super.key, this.isSelectionMode = false, this.filtroInicial});
+  const BuscaProdutoPageWidget({
+    super.key,
+    this.isSelectionMode = false,
+    this.filtroInicial,
+    this.planoCodigo,
+    this.tabelaPreco,
+  });
 
   final bool isSelectionMode;
   final String? filtroInicial;
+  final String? planoCodigo;
+  final int? tabelaPreco;
 
   static String routeName = 'BuscaProdutoPage';
   static String routePath = '/estoque';
@@ -39,6 +46,12 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
   final ScrollController _scrollController = ScrollController();
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
+
+  int get _tabelaAtiva => (widget.tabelaPreco != null && widget.tabelaPreco! > 0)
+      ? widget.tabelaPreco!
+      : (AppState().tabelaPrecoAtiva > 0 ? AppState().tabelaPrecoAtiva : 1);
+
+  int get _planoAtivo => int.tryParse(widget.planoCodigo ?? '') ?? AppState().planoAtivo;
 
   @override
   void initState() {
@@ -62,7 +75,10 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
           _model.filtroPromocao,
           (AppState().codFilialAtiva > 0 ? AppState().codFilialAtiva : 1),
           _model.filtroDataEntrada,
-          (AppState().tabelaPrecoAtiva > 0 ? AppState().tabelaPrecoAtiva : 1),
+          _tabelaAtiva,
+          0,
+          30,
+          _planoAtivo,
         );
         _model.listaProdutos =
             _model.resultadoOnLoad?.toList().cast<ProdutoResultStruct>() ?? [];
@@ -618,9 +634,10 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                       ? AppState().codFilialAtiva
                                       : 1),
                                   _model.filtroDataEntrada,
-                                  (AppState().tabelaPrecoAtiva > 0
-                                      ? AppState().tabelaPrecoAtiva
-                                      : 1),
+                                  _tabelaAtiva,
+                                  0,
+                                  30,
+                                  _planoAtivo,
                                 );
                                 _model.listaProdutos = _model.resultadoBusca!
                                     .toList()
@@ -695,9 +712,10 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                               ? AppState().codFilialAtiva
                                               : 1),
                                           _model.filtroDataEntrada,
-                                          (AppState().tabelaPrecoAtiva > 0
-                                              ? AppState().tabelaPrecoAtiva
-                                              : 1),
+                                          _tabelaAtiva,
+                                          0,
+                                          30,
+                                          _planoAtivo,
                                         );
                                         _model.listaProdutos = _model
                                             .resultadoBusca!
@@ -1552,9 +1570,10 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                       ? AppState().codFilialAtiva
                                                       : 1),
                                                   _model.filtroDataEntrada,
-                                                  (AppState().tabelaPrecoAtiva > 0
-                                                      ? AppState().tabelaPrecoAtiva
-                                                      : 1),
+                                                  _tabelaAtiva,
+                                                  0,
+                                                  30,
+                                                  _planoAtivo,
                                                 );
                                                 _model.listaProdutos = _model
                                                     .resultadoOnLoadFiltro!
@@ -1639,13 +1658,19 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                         highlightColor: Colors.transparent,
                                         onTap: () async {
                                           if (widget.isSelectionMode) {
-                                            // SPEC-052: Dispara a Query 2 sob demanda para obter todas as amarrações do legado antes de abrir o modal
+                                            // SPEC-052/SPEC-058: Dispara a Query 2 sob demanda preservando preço apurado em pro00_pcosub
                                             final detalhe = await actions.carregarProdutoDetalhe(
                                               listaProdutoItem.codigo,
+                                              _planoAtivo,
+                                              _tabelaAtiva,
                                             );
-                                            _abrirModalAdicionarCarrinho(
-                                              detalhe ?? listaProdutoItem,
-                                            );
+                                            ProdutoResultStruct produtoModal = detalhe ?? listaProdutoItem;
+                                            if (listaProdutoItem.preco > 0 && (produtoModal.preco <= 0 || produtoModal.preco < listaProdutoItem.preco)) {
+                                              produtoModal.preco = listaProdutoItem.preco;
+                                              produtoModal.pcomax = listaProdutoItem.pcomax > 0 ? listaProdutoItem.pcomax : listaProdutoItem.preco;
+                                              produtoModal.pcomin = listaProdutoItem.pcomin > 0 ? listaProdutoItem.pcomin : listaProdutoItem.preco;
+                                            }
+                                            _abrirModalAdicionarCarrinho(produtoModal);
                                           } else {
                                             context.pushNamed(
                                               DetalheProdutoPageWidget
@@ -1654,6 +1679,18 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                                 'produtoRef': serializeParam(
                                                   listaProdutoItem.codigo,
                                                   ParamType.String,
+                                                ),
+                                                'planoCodigo': serializeParam(
+                                                  _planoAtivo.toString(),
+                                                  ParamType.String,
+                                                ),
+                                                'tabelaPreco': serializeParam(
+                                                  _tabelaAtiva.toString(),
+                                                  ParamType.String,
+                                                ),
+                                                'precoInicial': serializeParam(
+                                                  listaProdutoItem.preco,
+                                                  ParamType.double,
                                                 ),
                                               }.withoutNulls,
                                             );

@@ -172,11 +172,26 @@
 - **Novo Cliente Local**: Formulário editável acionado pelo botão de novo cadastro (`isNovoCliente == true`).
 - **Geração de XML e Fila de Envio**: Ao salvar, o app gera o arquivo `c<codRep>-<retornaMil(codCliente)>.xml`, grava em `cadcli00` com `cli00_sttenv = 0` e enfileira na Central de Transmissão para upload FTP na rotina de sincronização.
 
-## Módulo: Configurações do Aplicativo
+## Módulo: Preço do Produto, Faixas Comerciais e Paridade de Telas (SPEC-058)
 
-### 1. Interface Essencial e Desacoplada
-- **Funcionalidades Ativas**: Parâmetros de impressão do logotipo da distribuidora no PDF do espelho de vendas, atalho de suporte técnico via WhatsApp e ação de logout seguro.
-- **Eliminação de Cards Redundantes**: A seção "Sobre o Sistema" e o card duplicado "Versão do Sistema (Carga)" foram removidos da tela de configurações, mantendo o rodapé institucional enxuto com versão do aplicativo e carga.
+### 1. Variável Canônica e Hierarquia de Preço de Venda
+- **Preço Regionalizado Direto via Sequencial (`estpcoregpco00`)**: A variável oficial prioritária que determina o preço base de venda e limites é a relação `estpcoreg00` (`pro00_codkey = 1`) com `estpcoregpco00` (`pro00_codseq = reg.pro00_codpco`), provendo `pro00_pcomax` (preço praticado) e `pro00_pcomin` (piso de desconto).
+- **Preço por Classe Direta (`estpcopro00.pro00_pcosub`)**: Fallback canônico quando a matriz regionalizada de sequenciais não estiver presente.
+- **Proibição de `cadpro00.pro00_preco`**: O campo `cadpro00.pro00_preco` não reflete o preço comercial praticado para o cliente e não deve ser utilizado como preço de venda na falta de tabela.
+- **Filial Dinâmica Selecionada**: O saldo em estoque e faturamento utilizam estritamente o código da filial ativa selecionada na sessão: `(codFilial != null && codFilial > 0) ? codFilial : (AppState().codFilialAtiva > 0 ? AppState().codFilialAtiva : 1)`. Proibido uso de filial hardcoded.
+- **Fator do Plano de Pagamento (`cadpla00.pla00_fator`)**: Multiplicador aplicado sobre o preço base: $\text{precoFinal} = \text{precoBase} \times \text{pla00\_fator}$, com arredondamento monetário de duas casas decimais.
+
+### 2. Faixas de Negociação (`pcomax` e `pcomin`)
+- **Resolução via `ValidePcoService.obterFaixasPreco`**: Determina o teto (`pcomax`) e o piso (`pcomin`) aceitos para o produto, priorizando a matriz regional `estpcoreg00` + `estpcoregpco00` com desambiguação por região/tabela e ordenação decrescente por maior preço praticado (`pcomax DESC`).
+- **Aplicação do Fator de Plano**: O fator financeiro do plano de pagamento (`cadpla00.pla00_fator`) incide sobre o teto e o piso comercial, garantindo coerência monetária nos modais e na digitação.
+- **Validação Imediata na Digitação**: O vendedor não pode digitar ou confirmar um preço fora da faixa $[\text{pcomin}, \text{pcomax}]$ (exceto em bonificações autorizadas).
+
+### 3. Paridade Unificada entre Telas
+- **Catálogo / Busca de Produtos (`BuscaProdutoPageWidget`)**: Query de alta performance (< 100ms) isolando a busca em subquery de `cadpro00`, agregando `MAX(pco.pro00_pcomax)` e `MAX(pco.pro00_pcomin)` via `GROUP BY`, com metadados em cache estático (`ProdutoMetadataCache`). Preserva o preço de venda e margens oficiais no modal de inclusão ao pedido.
+- **Detalhes do Produto (`DetalheProdutoPageWidget`)**: Apura via `obterDetalhesProduto` e `carregarProdutoDetalhe` integrados a `estpcoregpco00` via subquery agrupada `MAX`, refletindo exatamente o preço praticado (`56.65`) e piso comercial (`48.00`).
+- **Digitação e Itens do Pedido (`PedidoItensListaWidget`)**: Lê as colunas canônicas `ped10_digpco` / `dig01_digpco`, sincroniza automaticamente itens com as faixas comerciais oficiais e exibe no diálogo de edição rápida de preço o Preço Mínimo e Preço Máximo oficiais do produto.
+- **Bloqueio de Itens com Preço Zerado**: Impede a inserção de produtos com preço zero no carrinho para vendas normais, preservando a permissão para bonificações (`bontyp = 1`).
+
 
 
 

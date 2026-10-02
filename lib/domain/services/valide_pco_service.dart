@@ -86,6 +86,7 @@ class ValidePcoService {
     int? codTabela,
     int? codRegiao,
     int? codFilial,
+    int? codClasseCliente,
   }) async {
     try {
       final db = await LocalSalesDatabaseService.getDatabase();
@@ -94,7 +95,74 @@ class ValidePcoService {
 
       final int tab = codTabela ?? 0;
       final int reg = codRegiao ?? 0;
+      final int clsCliente = (codClasseCliente != null && codClasseCliente > 0)
+          ? codClasseCliente
+          : 0;
       final int? intVal = int.tryParse(codProduto);
+
+      // 0. Prioridade Canônica Regional (estpcoreg00 + estpcoregpco00)
+      if (tables.contains('estpcoreg00') && tables.contains('estpcoregpco00')) {
+        try {
+          final regCols = (await db.rawQuery('PRAGMA table_info(estpcoreg00)')).map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
+          final codColReg = regCols.contains('pro00_codpro') ? 'pro00_codpro' : 'codpro';
+          final pcoColReg = regCols.contains('pro00_codpco')
+              ? 'pro00_codpco'
+              : (regCols.contains('pro00_codcls') ? 'pro00_codcls' : 'codpco');
+          final tabColReg = regCols.contains('pro00_codtab') ? 'pro00_codtab' : 'codtab';
+          final regColReg = regCols.contains('pro00_codreg') ? 'pro00_codreg' : 'codreg';
+          final keyColReg = regCols.contains('pro00_codkey') ? 'pro00_codkey' : (regCols.contains('codkey') ? 'codkey' : null);
+
+          final hasRegCol = regCols.contains(regColReg);
+          final hasTabCol = regCols.contains(tabColReg);
+
+          final List<dynamic> binds = [codProduto, intVal ?? -1];
+          String whereClause = '(reg.$codColReg = ? OR CAST(reg.$codColReg AS TEXT) = ?)';
+          if (keyColReg != null) {
+            whereClause += ' AND (reg.$keyColReg = 1 OR reg.$keyColReg IS NULL)';
+          }
+
+          String orderByClause = '';
+          if (hasRegCol && hasTabCol && (reg > 0 || tab > 0)) {
+            orderByClause = '''
+              ORDER BY 
+                CASE 
+                  WHEN (${reg > 0 ? "reg.$regColReg = $reg" : "1=1"} AND ${tab > 0 ? "reg.$tabColReg = $tab" : "1=1"}) THEN 1
+                  WHEN ${reg > 0 ? "reg.$regColReg = $reg" : "1=0"} THEN 2
+                  WHEN ${tab > 0 ? "reg.$tabColReg = $tab" : "1=0"} THEN 3
+                  ELSE 4 
+                END ASC,
+                COALESCE(pco.pro00_pcomax, 0.0) DESC
+            ''';
+          } else {
+            orderByClause = 'ORDER BY COALESCE(pco.pro00_pcomax, 0.0) DESC';
+          }
+
+          final query = '''
+            SELECT pco.pro00_pcomax, pco.pro00_pcomin
+            FROM estpcoreg00 reg
+            JOIN estpcoregpco00 pco 
+              ON (pco.pro00_codseq = reg.$pcoColReg OR CAST(pco.pro00_codseq AS TEXT) = CAST(reg.$pcoColReg AS TEXT))
+            WHERE $whereClause
+            $orderByClause
+            LIMIT 1
+          ''';
+          final rRows = await db.rawQuery(query, binds);
+          if (rRows.isNotEmpty) {
+            final double pmax = _parseDouble(rRows.first['pro00_pcomax']);
+            final double pmin = _parseDouble(rRows.first['pro00_pcomin']);
+            if (pmax > 0 || pmin > 0) {
+              return FaixaPrecoProduto(
+                pcomin: pmin > 0 ? pmin : pmax,
+                pcomax: pmax > 0 ? pmax : pmin,
+                commax: 100.0,
+                precoBase: pmax > 0 ? pmax : pmin,
+                freadpco: true,
+                tabelaOrigem: 'estpcoregpco00',
+              );
+            }
+          }
+        } catch (_) {}
+      }
 
       // 1. Hierarquia Canônica SPEC-058: estpcoreg00 -> estpcopro00
       if (tables.contains('estpcopro00') || tables.contains('pcopro00')) {
@@ -128,6 +196,11 @@ class ValidePcoService {
             }
           }
 
+          // Se não encontrou via estpcoreg00 regional, usa a classe do cliente
+          if (resolvedCls == null || resolvedCls <= 0) {
+            resolvedCls = clsCliente > 0 ? clsCliente : null;
+          }
+
           final pcoCols = await db.rawQuery('PRAGMA table_info($tblPco)');
           final colNamesPco = pcoCols.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
 
@@ -144,19 +217,32 @@ class ValidePcoService {
           String maxCol = colNamesPco.contains('pro00_pcomax') ? 'pro00_pcomax' : 'pcomax';
           String comCol = colNamesPco.contains('pro00_commax') ? 'pro00_commax' : 'commax';
 
-          String queryPco = 'SELECT * FROM $tblPco WHERE ($codCol = ? OR $codCol = ?)';
-          List<dynamic> argsPco = [codProduto, intVal ?? -1];
+          List<Map<String, dynamic>> rowsPco = [];
 
+          // 1º tentativa: filtra pela classe apurada (regional ou do cliente)
           if (resolvedCls != null && resolvedCls > 0 && colNamesPco.contains(clsCol)) {
-            queryPco += ' AND $clsCol = ?';
-            argsPco.add(resolvedCls);
-          } else if (tab > 0 && colNamesPco.contains(tabCol)) {
-            queryPco += ' AND $tabCol = ?';
-            argsPco.add(tab);
+            String queryCls = 'SELECT * FROM $tblPco WHERE ($codCol = ? OR $codCol = ?) AND $clsCol = ?';
+            List<dynamic> argsCls = [codProduto, intVal ?? -1, resolvedCls];
+            if (tab > 0 && colNamesPco.contains(tabCol)) {
+              queryCls += ' AND $tabCol = ?';
+              argsCls.add(tab);
+            }
+            queryCls += ' ORDER BY COALESCE($subCol, 0.0) DESC LIMIT 1';
+            rowsPco = await db.rawQuery(queryCls, argsCls);
           }
-          queryPco += ' LIMIT 1';
 
-          final rowsPco = await db.rawQuery(queryPco, argsPco);
+          // 2º tentativa: filtra por tabela de preço (se a tabela tiver coluna de tabela)
+          if (rowsPco.isEmpty && tab > 0 && colNamesPco.contains(tabCol)) {
+            String queryTab = 'SELECT * FROM $tblPco WHERE ($codCol = ? OR $codCol = ?) AND $tabCol = ? ORDER BY COALESCE($subCol, 0.0) DESC LIMIT 1';
+            rowsPco = await db.rawQuery(queryTab, [codProduto, intVal ?? -1, tab]);
+          }
+
+          // 3º tentativa: fallback para a linha com maior preço praticado (pro00_pcosub > 0)
+          if (rowsPco.isEmpty) {
+            String queryFallback = 'SELECT * FROM $tblPco WHERE ($codCol = ? OR $codCol = ?) ORDER BY COALESCE($subCol, 0.0) DESC LIMIT 1';
+            rowsPco = await db.rawQuery(queryFallback, [codProduto, intVal ?? -1]);
+          }
+
           if (rowsPco.isNotEmpty) {
             final r = rowsPco.first;
             final double sub = colNamesPco.contains(subCol) ? _parseDouble(r[subCol]) : 0.0;
@@ -168,12 +254,13 @@ class ValidePcoService {
             final double pmax = explicitMax > 0 ? explicitMax : sub;
             final double pmin = explicitMin > 0 ? explicitMin : (cus > 0 ? cus : sub);
 
-            if (pmax > 0 || pmin > 0) {
+            if (pmax > 0 || pmin > 0 || sub > 0) {
+              final double base = sub > 0 ? sub : (pmax > 0 ? pmax : pmin);
               return FaixaPrecoProduto(
                 pcomin: pmin,
                 pcomax: pmax > 0 ? pmax : 999999.0,
                 commax: cmax > 0 ? cmax : 100.0,
-                precoBase: sub > 0 ? sub : pmax,
+                precoBase: base,
                 freadpco: true,
                 tabelaOrigem: tblPco,
               );

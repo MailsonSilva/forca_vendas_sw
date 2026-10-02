@@ -347,6 +347,26 @@ class LocalSalesDatabaseService {
     ''');
 
     await db.execute('''
+      CREATE TABLE IF NOT EXISTS cadproemb02 (
+        pro02_codprd INTEGER,
+        pro02_mulven REAL DEFAULT 1.0,
+        pro02_mulemb INTEGER DEFAULT 1
+      )
+    ''');
+    try { await db.execute('ALTER TABLE cadproemb02 ADD COLUMN pro02_mulven REAL DEFAULT 1.0'); } catch (_) {}
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS cadpla00 (
+        pla00_codigo INTEGER PRIMARY KEY,
+        pla00_descri TEXT,
+        pla00_fator REAL DEFAULT 1.0,
+        pla00_vlrmin REAL DEFAULT 0.0,
+        pla00_codtyp INTEGER DEFAULT 0
+      )
+    ''');
+    try { await db.execute('ALTER TABLE cadpla00 ADD COLUMN pla00_fator REAL DEFAULT 1.0'); } catch (_) {}
+
+    await db.execute('''
       CREATE TABLE IF NOT EXISTS estfatdat00 (
         dat00_dattim TEXT
       )
@@ -468,13 +488,24 @@ class LocalSalesDatabaseService {
 
     // Índices essenciais para busca rápida de produtos (cadpro00) e estoque (estpro00)
     if (tables.contains('cadpro00')) {
+      try {
+        final cols = (await db.rawQuery('PRAGMA table_info(cadpro00)')).map((c) => c['name']?.toString().toLowerCase() ?? '').toSet();
+        if (!cols.contains('pro00_prifil')) {
+          await db.execute('ALTER TABLE cadpro00 ADD COLUMN pro00_prifil INTEGER DEFAULT 0;');
+        }
+      } catch (_) {}
       try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_descri_cod ON cadpro00(pro00_descri ASC, pro00_codigo);'); } catch (_) {}
-      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_busca ON cadpro00(pro00_descri ASC, pro00_codigo);'); } catch (_) {}
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_busca ON cadpro00(pro00_descri, pro00_codigo, pro00_prifil);'); } catch (_) {}
       try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_order ON cadpro00(pro00_descri ASC, pro00_codigo);'); } catch (_) {}
       try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_descri ON cadpro00(pro00_descri)'); } catch (_) {}
       try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_codigo ON cadpro00(pro00_codigo)'); } catch (_) {}
       try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_codbar ON cadpro00(pro00_codbar)'); } catch (_) {}
       try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadpro00_filtros ON cadpro00(pro00_codlin, pro00_codgrp, pro00_codmar)'); } catch (_) {}
+    }
+
+    // Índices para embalagens secundárias e multiplicadores (cadproemb02)
+    if (tables.contains('cadproemb02')) {
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_cadproemb02_prd ON cadproemb02(pro02_codprd);'); } catch (_) {}
     }
 
     // Índices para marcas (cadmar00)
