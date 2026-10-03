@@ -7,18 +7,38 @@ Future<Database> _getDbCliente() async {
   return LocalSalesDatabaseService.getDatabase();
 }
 
+/// Cache em memória dos metadados de colunas de clientes para evitar PRAGMAs repetidos
+class ClienteDbMetadata {
+  static Set<String>? colsCadcli;
+  static bool? hasCadclipre;
+
+  static void reset() {
+    colsCadcli = null;
+    hasCadclipre = null;
+  }
+}
+
 Future<List<ClienteResultStruct>> pesquisaCliente(
   String? termo, [
   int? offset,
+  int? limit,
 ]) async {
   try {
     final db = await _getDbCliente();
     final String busca = (termo ?? '').trim();
     final String buscaLimpa = busca.replaceAll(RegExp(r'\D'), '');
 
-    // Verificação de colunas em cadcli00 para retrocompatibilidade
-    final pragma = await db.rawQuery('PRAGMA table_info(cadcli00)');
-    final cols = pragma.map((e) => e['name']?.toString().toLowerCase() ?? '').toSet();
+    final int pageLimit = (limit != null && limit > 0) ? limit : 100;
+    final int pageOffset = (offset != null && offset >= 0) ? offset : 0;
+
+    // 1. Verificação dinâmica de colunas em cadcli00
+    Set<String> cols = {};
+    try {
+      final pragma = await db.rawQuery('PRAGMA table_info(cadcli00)');
+      cols = pragma.map((e) => e['name']?.toString().toLowerCase() ?? '').toSet();
+    } catch (_) {
+      cols = {};
+    }
 
     final String selFantas = cols.contains('cli00_fantas')
         ? "COALESCE(c.cli00_fantas, c.cli00_descri) AS cli00_fantas"
@@ -60,29 +80,59 @@ Future<List<ClienteResultStruct>> pesquisaCliente(
     if (busca.isNotEmpty) {
       final List<String> orClauses = [
         'c.cli00_descri LIKE ?',
-        'CAST(c.cli00_codigo AS TEXT) = ?',
+        'CAST(c.cli00_codigo AS TEXT) LIKE ?',
       ];
       binds.add('%$busca%');
-      binds.add(busca);
+      binds.add('%$busca%');
+
+      final intCodigo = int.tryParse(busca);
+      if (intCodigo != null) {
+        orClauses.add('c.cli00_codigo = ?');
+        binds.add(intCodigo);
+        orClauses.add('CAST(c.cli00_codigo AS INTEGER) = ?');
+        binds.add(intCodigo);
+      }
+
+      if (cols.contains('cli00_codigo16')) {
+        orClauses.add('c.cli00_codigo16 LIKE ?');
+        binds.add('%$busca%');
+      }
 
       if (cols.contains('cli00_fantas')) {
         orClauses.add('c.cli00_fantas LIKE ?');
         binds.add('%$busca%');
       }
 
+      final tokens = busca.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
+      if (tokens.length > 1) {
+        final tokenAnds = <String>[];
+        for (final token in tokens) {
+          final tokenOrs = <String>['c.cli00_descri LIKE ?'];
+          binds.add('%$token%');
+          if (cols.contains('cli00_fantas')) {
+            tokenOrs.add('c.cli00_fantas LIKE ?');
+            binds.add('%$token%');
+          }
+          tokenAnds.add('(${tokenOrs.join(' OR ')})');
+        }
+        orClauses.add('(${tokenAnds.join(' AND ')})');
+      }
+
       if (cols.contains('cli00_cpfcnp')) {
-        if (buscaLimpa.isNotEmpty) {
-          orClauses.add('c.cli00_cpfcnp LIKE ?');
+        final bool isApenasDocumento = RegExp(r'^[0-9\.\-\/]+$').hasMatch(busca);
+        if (isApenasDocumento && buscaLimpa.isNotEmpty) {
+          orClauses.add("REPLACE(REPLACE(REPLACE(c.cli00_cpfcnp, '.', ''), '-', ''), '/', '') LIKE ?");
           binds.add('$buscaLimpa%');
         } else {
           orClauses.add('c.cli00_cpfcnp LIKE ?');
-          binds.add('$busca%');
+          binds.add('%$busca%');
         }
       }
 
       whereSql = 'WHERE (${orClauses.join(' OR ')})';
     }
 
+    // 2. Query paginada com LIMIT e OFFSET para resposta instantânea
     final sql = '''
       SELECT 
         c.cli00_codigo,
@@ -97,59 +147,80 @@ Future<List<ClienteResultStruct>> pesquisaCliente(
         $selCrelim,
         $selCreatu,
         $selTitven,
-        $selActive
+        $selActive,
+        0 AS is_novo_local
       FROM cadcli00 c
       $whereSql
-      ORDER BY c.cli00_descri ASC;
+      ORDER BY c.cli00_descri ASC
+      LIMIT ? OFFSET ?;
     ''';
 
-    final rows = await db.rawQuery(sql, binds);
+    final args = [...binds, pageLimit, pageOffset];
+    final rows = await db.rawQuery(sql, args);
     final List<Map<String, dynamic>> combinedRows = List.from(rows);
 
-    try {
-      final preCheck = await db.rawQuery(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='cadclipre00'",
-      );
-      if (preCheck.isNotEmpty) {
-        String wherePre = '';
-        final List<dynamic> bindsPre = [];
-        if (busca.isNotEmpty) {
-          final List<String> orClauses = [
-            'cli00_descri LIKE ?',
-            'CAST(cli00_codigo AS TEXT) = ?',
-            'cli00_fantas LIKE ?',
-          ];
-          bindsPre.add('%$busca%');
-          bindsPre.add(busca);
-          bindsPre.add('%$busca%');
-          if (buscaLimpa.isNotEmpty) {
-            orClauses.add('cli00_cpfcnp LIKE ?');
-            bindsPre.add('$buscaLimpa%');
+    // 3. Clientes locais em cadclipre00 (apenas na primeira página para priorizar novos locais)
+    if (pageOffset == 0) {
+      try {
+        final preCheck = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='cadclipre00'",
+        );
+        final bool hasPre = preCheck.isNotEmpty;
+
+        if (hasPre) {
+          String wherePre = '';
+          final List<dynamic> bindsPre = [];
+          if (busca.isNotEmpty) {
+            final List<String> orClauses = [
+              'cli00_descri LIKE ?',
+              'CAST(cli00_codigo AS TEXT) LIKE ?',
+              'cli00_fantas LIKE ?',
+            ];
+            bindsPre.add('%$busca%');
+            bindsPre.add('%$busca%');
+            bindsPre.add('%$busca%');
+
+            final intCod = int.tryParse(busca);
+            if (intCod != null) {
+              orClauses.add('cli00_codigo = ?');
+              bindsPre.add(intCod);
+            }
+
+            final bool isApenasDoc = RegExp(r'^[0-9\.\-\/]+$').hasMatch(busca);
+            if (isApenasDoc && buscaLimpa.isNotEmpty) {
+              orClauses.add("REPLACE(REPLACE(REPLACE(cli00_cpfcnp, '.', ''), '-', ''), '/', '') LIKE ?");
+              bindsPre.add('$buscaLimpa%');
+            } else {
+              orClauses.add('cli00_cpfcnp LIKE ?');
+              bindsPre.add('%$busca%');
+            }
+            wherePre = 'WHERE (${orClauses.join(' OR ')})';
           }
-          wherePre = 'WHERE (${orClauses.join(' OR ')})';
+          final preRows = await db.rawQuery('''
+            SELECT 
+              cli00_codigo,
+              cli00_descri,
+              cli00_fantas,
+              cli00_cpfcnp,
+              cli00_endere,
+              cli00_ciddes,
+              cli00_estsgl,
+              cli00_fonddd,
+              cli00_fonnum,
+              cli00_crelim,
+              cli00_creatu,
+              cli00_titven,
+              cli00_active,
+              1 AS is_novo_local
+            FROM cadclipre00
+            $wherePre
+            ORDER BY cli00_descri ASC
+            LIMIT 50
+          ''', bindsPre);
+          combinedRows.addAll(preRows);
         }
-        final preRows = await db.rawQuery('''
-          SELECT 
-            cli00_codigo,
-            cli00_descri,
-            cli00_fantas,
-            cli00_cpfcnp,
-            cli00_endere,
-            cli00_ciddes,
-            cli00_estsgl,
-            cli00_fonddd,
-            cli00_fonnum,
-            cli00_crelim,
-            cli00_creatu,
-            cli00_titven,
-            cli00_active,
-            1 AS is_novo_local
-          FROM cadclipre00
-          $wherePre
-        ''', bindsPre);
-        combinedRows.addAll(preRows);
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
 
     combinedRows.sort((a, b) =>
         (a['cli00_descri']?.toString() ?? '')

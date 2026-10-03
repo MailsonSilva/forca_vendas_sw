@@ -1,15 +1,10 @@
-import 'dart:io';
-import 'package:sqflite/sqflite.dart';
+import 'package:flutter/foundation.dart';
 import '/backend/schema/structs/index.dart';
 import '/data/services/local_sales_database_service.dart';
 
 Future<List<ListaPadraoStruct>> carregarFiltros(String tabela) async {
-  Database? db;
   try {
-    final dbPath = await LocalSalesDatabaseService.getDatabasePath();
-    if (!await File(dbPath).exists()) return [];
-
-    db = await openDatabase(dbPath, readOnly: true, singleInstance: false);
+    final db = await LocalSalesDatabaseService.getDatabase();
 
     final t = tabela.toLowerCase().trim();
     String nomeTabelaReal = '';
@@ -54,11 +49,7 @@ Future<List<ListaPadraoStruct>> carregarFiltros(String tabela) async {
       );
     }).toList();
   } catch (e) {
-    print('ERRO CARREGAR FILTROS ($tabela): $e');
+    debugPrint('ERRO CARREGAR FILTROS ($tabela): $e');
     return [];
-  } finally {
-    if (db != null && db.isOpen) {
-      await db.close();
-    }
   }
 }

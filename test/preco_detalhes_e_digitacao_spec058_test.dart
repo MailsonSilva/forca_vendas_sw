@@ -4,7 +4,6 @@ import 'package:forca_de_vendas/app_state.dart';
 import 'package:forca_de_vendas/action_code/busca_produto.dart';
 import 'package:forca_de_vendas/action_code/carregar_produto_detalhe.dart';
 import 'package:forca_de_vendas/action_code/salvar_carrinho_pedido.dart';
-import 'package:forca_de_vendas/data/repositories/produto_repository.dart';
 import 'package:forca_de_vendas/data/services/local_sales_database_service.dart';
 import 'package:forca_de_vendas/domain/services/valide_pco_service.dart';
 import 'package:forca_de_vendas/backend/schema/structs/cliente_result_struct.dart';

@@ -25,19 +25,34 @@ class ClientePageWidget extends StatefulWidget {
 class _ClientePageWidgetState extends State<ClientePageWidget> {
   late ClientePageModel _model;
   final ScrollController _scrollController = ScrollController();
+  bool _isInitialLoading = true;
   bool _isLoadingMore = false;
   bool _hasMoreItems = true;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
   Future<void> _recarregarClientes() async {
-    final termo = _model.buscaClienteFieldTextController?.text.trim() ?? '';
-    final res = await actions.pesquisaCliente(termo, 0);
     safeSetState(() {
-      _model.clientesIniciais = res;
-      _model.clientesResultPage = res.toList().cast<ClienteResultStruct>();
-      _hasMoreItems = false;
+      _isInitialLoading = true;
     });
+    try {
+      final termo = _model.buscaClienteFieldTextController?.text.trim() ?? '';
+      final res = await actions.pesquisaCliente(termo, 0, 100);
+      safeSetState(() {
+        _model.clientesIniciais = res;
+        _model.clientesResultPage = res.toList().cast<ClienteResultStruct>();
+        _hasMoreItems = res.length >= 100;
+      });
+    } catch (_) {
+      safeSetState(() {
+        _model.clientesResultPage = [];
+        _hasMoreItems = false;
+      });
+    } finally {
+      safeSetState(() {
+        _isInitialLoading = false;
+      });
+    }
   }
 
   Future<void> _carregarProximaPaginaClientes() async {
@@ -47,7 +62,7 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
     try {
       final termo = _model.buscaClienteFieldTextController?.text.trim() ?? '';
       final offset = _model.clientesResultPage.length;
-      final novos = await actions.pesquisaCliente(termo, offset);
+      final novos = await actions.pesquisaCliente(termo, offset, 100);
       if (novos.isEmpty || novos.length < 100) {
         _hasMoreItems = false;
       }
@@ -186,7 +201,7 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                       focusNode: _model.buscaClienteFieldFocusNode,
                       onChanged: (_) => EasyDebounce.debounce(
                         '_model.buscaClienteFieldTextController',
-                        const Duration(milliseconds: 350),
+                        const Duration(milliseconds: 300),
                         () async {
                           _model.buscaCliente =
                               _model.buscaClienteFieldTextController.text;
@@ -194,11 +209,13 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                           _model.resultadoBusca = await actions.pesquisaCliente(
                             _model.buscaCliente,
                             0,
+                            100,
                           );
                           _model.clientesResultPage = _model.resultadoBusca!
                               .toList()
                               .cast<ClienteResultStruct>();
-                          _hasMoreItems = false;
+                          _hasMoreItems = _model.clientesResultPage.length >= 100;
+                          _isInitialLoading = false;
                           safeSetState(() {});
                         },
                       ),
@@ -254,19 +271,20 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                                 onTap: () async {
                                   _model.buscaClienteFieldTextController
                                       ?.clear();
-                                  _model.buscaCliente = _model
-                                      .buscaClienteFieldTextController.text;
+                                  _model.buscaCliente = '';
                                   safeSetState(() {});
                                   _model.resultadoBusca =
                                       await actions.pesquisaCliente(
-                                    _model.buscaCliente,
+                                    '',
                                     0,
+                                    100,
                                   );
                                   _model.clientesResultPage = _model
                                       .resultadoBusca!
                                       .toList()
                                       .cast<ClienteResultStruct>();
-                                  _hasMoreItems = false;
+                                  _hasMoreItems = _model.clientesResultPage.length >= 100;
+                                  _isInitialLoading = false;
                                   safeSetState(() {});
                                 },
                                 child: Icon(
@@ -580,11 +598,45 @@ class _ClientePageWidgetState extends State<ClientePageWidget> {
                           );
                         },
                       );
-                    } else {
+                    } else if (_isInitialLoading) {
                       return wrapWithModel(
                         model: _model.loadingModel,
                         updateCallback: () => safeSetState(() {}),
                         child: const LoadingWidget(),
+                      );
+                    } else {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.person_search_rounded,
+                                size: 64.0,
+                                color: AppTheme.of(context).secondaryText,
+                              ),
+                              const SizedBox(height: 16.0),
+                              Text(
+                                'Nenhum cliente encontrado',
+                                style: AppTheme.of(context).titleMedium.override(
+                                  font: GoogleFonts.inter(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8.0),
+                              Text(
+                                'Verifique a digitação ou tente buscar por outro nome, razão social ou código.',
+                                textAlign: TextAlign.center,
+                                style: AppTheme.of(context).bodySmall.override(
+                                  font: GoogleFonts.inter(),
+                                  color: AppTheme.of(context).secondaryText,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       );
                     }
                   },

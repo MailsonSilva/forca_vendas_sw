@@ -80,7 +80,7 @@ Future<List<ProdutoResultStruct>> buscaProduto(
       dataEntrada: dataEntrada,
       codTabela: codTabela,
       offset: offset,
-      limit: limit ?? 30,
+      limit: (limit != null && limit > 0) ? limit : 30,
       codPlano: codPlano,
     );
   } catch (e, stack) {

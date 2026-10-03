@@ -103,12 +103,33 @@ class ProdutoSearchFilterBuilder {
       }
     }
 
-    // --- CASO 4: PESQUISA EXATA / PREFIXADA POR NOME (Ex: "Luva") ---
+    // --- CASO 4: PESQUISA EXATA / PREFIXADA POR NOME (Ex: "Luva" ou "Luva azul") ---
     // Traz "Luva de borracha", "Luva azul", etc.
-    // Não traz "Mangueira luva..."
+    // Não traz "Mangueira luva..." (sufixo no meio de palavra)
+    final palavras = termo
+        .split(RegExp(r'\s+'))
+        .where((w) => w.trim().isNotEmpty)
+        .toList();
+
+    if (palavras.length <= 1) {
+      return ProdutoSearchFilterResult(
+        sql: '($colDesc LIKE ? OR $colDesc LIKE ?)',
+        binds: ['$termo%', '% $termo%'],
+      );
+    }
+
+    final List<String> clauses = [];
+    final List<dynamic> binds = [];
+    for (final palavra in palavras) {
+      clauses.add('($colDesc LIKE ? OR $colDesc LIKE ?)');
+      binds.add('$palavra%');
+      binds.add('% $palavra%');
+    }
+
     return ProdutoSearchFilterResult(
-      sql: '($colDesc LIKE ? OR $colDesc LIKE ?)',
-      binds: ['$termo%', '% $termo%'],
+      sql: '(${clauses.join(' AND ')})',
+      binds: binds,
     );
   }
 }
+

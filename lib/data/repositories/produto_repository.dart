@@ -261,14 +261,14 @@ class ProdutoRepository {
       filialBinds.add(filial);
       final String penExp = estColsCard.contains('pro00_qtdpen') ? 'COALESCE(e.pro00_qtdpen, 0)' : '0';
       final String qtdExp = estColsCard.contains('pro00_qtdest') ? 'e.pro00_qtdest' : '0';
-      selEstoque = 'COALESCE($qtdExp - $penExp, p.pro00_qtdest, 0.0) AS pro00_qtdest';
+      selEstoque = 'COALESCE($qtdExp - $penExp, 0.0) AS pro00_qtdest';
     }
 
     if (apenasEstoque == true) {
       if (temEstpro00) {
         final String penExp = estColsCard.contains('pro00_qtdpen') ? 'COALESCE(e.pro00_qtdpen, 0)' : '0';
         final String qtdExp = estColsCard.contains('pro00_qtdest') ? 'e.pro00_qtdest' : '0';
-        condicoes.add('COALESCE($qtdExp - $penExp, p.pro00_qtdest, 0.0) > 0');
+        condicoes.add('COALESCE($qtdExp - $penExp, 0.0) > 0');
       } else {
         condicoes.add('COALESCE(p.pro00_qtdest, 0.0) > 0');
       }
@@ -319,7 +319,7 @@ class ProdutoRepository {
   /// cadpro02, estpro00, cadprofra00, cadprobon00, cadproemb00 e estprodat00.
   /// Preços calculados em cascata SPEC-058 (estpcoreg00 -> estpcopro00).
   Future<ProdutoDetalheDTO?> obterDetalhesProduto(
-    int codpro,
+    dynamic codpro,
     int filialAtiva, [
     int? codTabela,
     int? codRegiao,
@@ -447,9 +447,11 @@ class ProdutoRepository {
             JOIN estpcoregpco00 pco 
               ON (pco.pro00_codseq = reg.pro00_codpco OR CAST(pco.pro00_codseq AS TEXT) = CAST(reg.pro00_codpco AS TEXT))
             WHERE (reg.pro00_codkey = 1 OR reg.pro00_codkey IS NULL)
+              AND (reg.pro00_codpro = ? OR CAST(reg.pro00_codpro AS TEXT) = ?)
             GROUP BY reg.pro00_codpro
           ) pco_reg ON (pco_reg.pro00_codpro = sel.pro00_codigo OR CAST(pco_reg.pro00_codpro AS TEXT) = CAST(sel.pro00_codigo AS TEXT))
         ''';
+        precoArgs.addAll([codpro, codpro.toString()]);
         selPreco = '''
           COALESCE(NULLIF(pco_reg.pcomax, 0.0), $expPrecoVenda) AS pro00_pcomax,
           COALESCE(NULLIF(pco_reg.pcomin, 0.0), $expMin) AS pro00_pcomin,
@@ -473,9 +475,11 @@ class ProdutoRepository {
           JOIN estpcoregpco00 pco 
             ON (pco.pro00_codseq = reg.pro00_codpco OR CAST(pco.pro00_codseq AS TEXT) = CAST(reg.pro00_codpco AS TEXT))
           WHERE (reg.pro00_codkey = 1 OR reg.pro00_codkey IS NULL)
+            AND (reg.pro00_codpro = ? OR CAST(reg.pro00_codpro AS TEXT) = ?)
           GROUP BY reg.pro00_codpro
         ) pco_reg ON (pco_reg.pro00_codpro = sel.pro00_codigo OR CAST(pco_reg.pro00_codpro AS TEXT) = CAST(sel.pro00_codigo AS TEXT))
       ''';
+      precoArgs.addAll([codpro, codpro.toString()]);
       selPreco = '''
         COALESCE(pco_reg.pcomax, 0.0) AS pro00_pcomax,
         COALESCE(pco_reg.pcomin, 0.0) AS pro00_pcomin,
@@ -495,10 +499,13 @@ class ProdutoRepository {
         : '1.0 AS pro02_mulven';
 
     String joinEstpro00 = '';
-    String selEstoque = proCols.contains('pro00_qtdest')
-        ? 'COALESCE(sel.pro00_qtdest, 0) AS pro00_qtdest'
-        : '0 AS pro00_qtdest';
+    final String fallbackQtd = proCols.contains('pro00_qtdest') ? 'sel.pro00_qtdest' : '0.0';
+    String selEstoque = 'COALESCE($fallbackQtd, 0.0) AS pro00_qtdest';
+    String selEstAtual = 'COALESCE($fallbackQtd, 0.0) AS estoque_atual';
+    String selEstPen = '0.0 AS estoque_pendente';
+    String selSaldoEst = 'COALESCE($fallbackQtd, 0.0) AS saldo_estoque';
     String selPrifil = "'S' AS pro00_prifil";
+
     if (hasEstpro00) {
       Set<String> estCols = {};
       try {
@@ -506,15 +513,20 @@ class ProdutoRepository {
         estCols = eRows.map((r) => r['name']?.toString().toLowerCase() ?? '').toSet();
       } catch (_) {}
 
+      final String penCol = estCols.contains('pro00_qtdpen') ? 'COALESCE(est.pro00_qtdpen, 0.0)' : '0.0';
       joinEstpro00 = '''
         LEFT JOIN estpro00 est 
-               ON est.pro00_codfil = ? 
-              AND est.pro00_codpro = sel.pro00_codigo
+               ON (est.pro00_codpro = sel.pro00_codigo 
+                   OR CAST(est.pro00_codpro AS TEXT) = CAST(sel.pro00_codigo AS TEXT)
+                   OR CAST(est.pro00_codpro AS INTEGER) = CAST(sel.pro00_codigo AS INTEGER))
+              AND (CAST(est.pro00_codfil AS INTEGER) = ? OR CAST(est.pro00_codfil AS INTEGER) = 0)
       ''';
-      final String fallbackQtd = proCols.contains('pro00_qtdest') ? 'sel.pro00_qtdest' : '0';
-      final String penCol = estCols.contains('pro00_qtdpen') ? 'COALESCE(est.pro00_qtdpen, 0)' : '0';
-      final String qtdCol = estCols.contains('pro00_qtdest') ? 'est.pro00_qtdest' : fallbackQtd;
-      selEstoque = 'COALESCE($qtdCol - $penCol, $fallbackQtd, 0) AS pro00_qtdest';
+
+      selEstoque = 'COALESCE(est.pro00_qtdest - $penCol, 0.0) AS pro00_qtdest';
+      selEstAtual = 'COALESCE(est.pro00_qtdest, 0.0) AS estoque_atual';
+      selEstPen = 'COALESCE($penCol, 0.0) AS estoque_pendente';
+      selSaldoEst = 'COALESCE(est.pro00_qtdest - $penCol, 0.0) AS saldo_estoque';
+
       selPrifil = estCols.contains('pro00_prifil')
           ? "COALESCE(est.pro00_prifil, 'S') AS pro00_prifil"
           : "'S' AS pro00_prifil";
@@ -599,6 +611,9 @@ class ProdutoRepository {
         $selEntdat,
         $selPrifil,
         $selEstoque,
+        $selEstAtual,
+        $selEstPen,
+        $selSaldoEst,
         $selMulemb,
         $selMulven
       FROM cadpro00 sel
@@ -846,6 +861,22 @@ class ProdutoRepository {
       }
     }
 
+    if (apenasEstoque == true) {
+      if (hasEst) {
+        final String penField = estCols.contains('pro00_qtdpen') ? 'COALESCE(pro00_qtdpen, 0)' : '0';
+        condicoesInternas.add('''
+          pro00_codigo IN (
+            SELECT pro00_codpro FROM estpro00 
+            WHERE (CAST(pro00_codfil AS INTEGER) = ? OR CAST(pro00_codfil AS INTEGER) = 0)
+              AND (pro00_qtdest - $penField) > 0
+          )
+        ''');
+        bindsInternos.add(filialAtiva);
+      } else {
+        condicoesInternas.add('pro00_qtdest > 0');
+      }
+    }
+
     final String whereInterna = condicoesInternas.isNotEmpty
         ? 'WHERE ${condicoesInternas.join(' AND ')}'
         : '';
@@ -866,14 +897,22 @@ class ProdutoRepository {
     final String joinEst = hasEst
         ? '''
           LEFT JOIN estpro00 est 
-                 ON (est.pro00_codpro = p.pro00_codigo OR CAST(est.pro00_codpro AS TEXT) = CAST(p.pro00_codigo AS TEXT)) 
-                AND CAST(est.pro00_codfil AS INTEGER) = ?
+                 ON (est.pro00_codpro = p.pro00_codigo 
+                     OR CAST(est.pro00_codpro AS TEXT) = CAST(p.pro00_codigo AS TEXT)
+                     OR CAST(est.pro00_codpro AS INTEGER) = CAST(p.pro00_codigo AS INTEGER)) 
+                AND (CAST(est.pro00_codfil AS INTEGER) = ? OR CAST(est.pro00_codfil AS INTEGER) = 0)
         '''
         : '';
-    final String penExp = estCols.contains('pro00_qtdpen') ? 'COALESCE(est.pro00_qtdpen, 0)' : '0';
+    final String penExp = estCols.contains('pro00_qtdpen') ? 'COALESCE(est.pro00_qtdpen, 0.0)' : '0.0';
     final String selEstoque = hasEst
-        ? 'COALESCE(est.pro00_qtdest - $penExp, 0.0) AS estoque_saldo'
+        ? 'COALESCE(MAX(est.pro00_qtdest - $penExp), 0.0) AS estoque_saldo'
         : 'COALESCE(p.pro00_qtdest, 0.0) AS estoque_saldo';
+    final String selEstAtual = hasEst
+        ? 'COALESCE(MAX(est.pro00_qtdest), 0.0) AS estoque_atual'
+        : 'COALESCE(p.pro00_qtdest, 0.0) AS estoque_atual';
+    final String selEstPen = hasEst
+        ? 'COALESCE(MAX($penExp), 0.0) AS estoque_pendente'
+        : '0.0 AS estoque_pendente';
 
     String joinPco = '';
     String fallbackPco = '0.0';
@@ -933,6 +972,8 @@ class ProdutoRepository {
           $selFab,
           $selEmbalagem,
           $selEstoque,
+          $selEstAtual,
+          $selEstPen,
           $selPcomax,
           $selPcomin
       FROM (
@@ -973,6 +1014,8 @@ class ProdutoRepository {
       final double rawPmax = (m['pcomax'] as num?)?.toDouble() ?? 0.0;
       final double rawPmin = (m['pcomin'] as num?)?.toDouble() ?? rawPmax;
       final double saldo = (m['estoque_saldo'] as num?)?.toDouble() ?? 0.0;
+      final double atual = (m['estoque_atual'] as num?)?.toDouble() ?? saldo;
+      final double pendente = (m['estoque_pendente'] as num?)?.toDouble() ?? 0.0;
 
       final double pmax = (fatorPlano > 0 && fatorPlano != 1.0)
           ? CalculoPrecoProdutoService.arredondarMoeda(rawPmax * fatorPlano)
@@ -994,7 +1037,8 @@ class ProdutoRepository {
         fabricante: (m['fabricante_nome'] ?? '').toString(),
         imagemId: (m['pro00_codimg'] as num?)?.toInt() ?? 0,
         saldoEstoque: saldo,
-        estoqueAtual: saldo,
+        estoqueAtual: atual,
+        estoquePendente: pendente,
         preco: pmax,
         pcomax: pmax,
         pcomin: pmin,

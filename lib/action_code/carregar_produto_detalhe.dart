@@ -36,10 +36,7 @@ Future<ProdutoResultStruct?> carregarProdutoDetalhe(
     final repo = ProdutoRepository();
     final int? codpro = int.tryParse(codigoBusca);
 
-    ProdutoDetalheDTO? detalhe;
-    if (codpro != null) {
-      detalhe = await repo.obterDetalhesProduto(codpro, filial, tabela, regiao, classe);
-    }
+    ProdutoDetalheDTO? detalhe = await repo.obterDetalhesProduto(codpro ?? codigoBusca, filial, tabela, regiao, classe);
 
     // Fallback de contingência caso o repositório não tenha localizado o produto (ex: código alfanumérico ou schema restrito)
     if (detalhe == null) {
@@ -137,6 +134,33 @@ Future<ProdutoResultStruct?> carregarProdutoDetalhe(
         }
       } catch (_) {}
 
+      double estAtual = detalhe.estoqueAtual;
+      double estPen = detalhe.estoquePendente;
+      double estSaldo = detalhe.saldoEstoque;
+
+      if (estAtual == 0.0 && estSaldo == 0.0) {
+        try {
+          final estRows = await db.rawQuery('''
+            SELECT 
+              COALESCE(pro00_qtdest, 0.0) AS est_qtdest,
+              COALESCE(pro00_qtdpen, 0.0) AS est_qtdpen
+            FROM estpro00 
+            WHERE (pro00_codpro = ? OR CAST(pro00_codpro AS TEXT) = ?)
+            ORDER BY CASE WHEN pro00_codfil = ? THEN 1 WHEN pro00_codfil = 0 THEN 2 ELSE 3 END ASC
+            LIMIT 1
+          ''', [codigoBusca, codigoBusca, filial]);
+          if (estRows.isNotEmpty) {
+            final double q = (estRows.first['est_qtdest'] as num?)?.toDouble() ?? 0.0;
+            final double p = (estRows.first['est_qtdpen'] as num?)?.toDouble() ?? 0.0;
+            if (q > 0.0 || p > 0.0) {
+              estAtual = q;
+              estPen = p;
+              estSaldo = q - p;
+            }
+          }
+        } catch (_) {}
+      }
+
       return detalhe.toProdutoResultStruct(
         precoVenda: precoVenda,
         pcomax: pcomaxFinal,
@@ -144,6 +168,9 @@ Future<ProdutoResultStruct?> carregarProdutoDetalhe(
         fotos: fotosEncontradas,
         marcaDescri: marcaDescri,
         fabricanteDescri: fabDescri,
+        estoqueAtual: estAtual,
+        estoquePendente: estPen,
+        saldoEstoque: estSaldo,
       );
     }
   } catch (e) {

@@ -27,6 +27,9 @@ class ProdutoDetalheDTO {
   final String? entdat;
   final String? prifil;
   final double qtdest;
+  final double estoqueAtual;
+  final double estoquePendente;
+  final double saldoEstoque;
   final int mulemb;
   final double mulven;
   final double preco;
@@ -58,12 +61,17 @@ class ProdutoDetalheDTO {
     this.entdat,
     this.prifil,
     required this.qtdest,
+    double? estoqueAtual,
+    double? estoquePendente,
+    double? saldoEstoque,
     required this.mulemb,
     required this.mulven,
     this.preco = 0.0,
     this.pcomax = 0.0,
     this.pcomin = 0.0,
-  });
+  })  : estoqueAtual = estoqueAtual ?? qtdest,
+        estoquePendente = estoquePendente ?? 0.0,
+        saldoEstoque = saldoEstoque ?? qtdest;
 
   factory ProdutoDetalheDTO.fromMap(Map<String, dynamic> map) {
     double parseDouble(dynamic value, [double def = 0.0]) {
@@ -116,7 +124,10 @@ class ProdutoDetalheDTO {
       defbonven: map['bon00_defbonven']?.toString(),
       entdat: map['pro00_entdat']?.toString() ?? map['entdat']?.toString(),
       prifil: map['pro00_prifil']?.toString() ?? map['prifil']?.toString(),
-      qtdest: parseDouble(map['pro00_qtdest'] ?? map['qtdest'], 0.0),
+      qtdest: parseDouble(map['saldo_estoque'] ?? map['pro00_qtdest'] ?? map['qtdest'], 0.0),
+      estoqueAtual: parseDouble(map['estoque_atual'] ?? map['pro00_qtdest'] ?? map['qtdest'], 0.0),
+      estoquePendente: parseDouble(map['estoque_pendente'] ?? map['pro00_qtdpen'] ?? map['qtdpen'], 0.0),
+      saldoEstoque: parseDouble(map['saldo_estoque'] ?? map['pro00_qtdest'] ?? map['qtdest'], 0.0),
       mulemb: parseInt(map['pro02_mulemb'] ?? map['mulemb'], 1),
       mulven: parseDouble(map['pro02_mulven'] ?? map['mulven'], 1.0),
       preco: parseDouble(map['preco_venda'] ?? map['pro00_pcomax'] ?? map['preco'] ?? map['pro00_preco'], 0.0),
@@ -151,6 +162,9 @@ class ProdutoDetalheDTO {
       'pro00_entdat': entdat,
       'pro00_prifil': prifil,
       'pro00_qtdest': qtdest,
+      'estoque_atual': estoqueAtual,
+      'estoque_pendente': estoquePendente,
+      'saldo_estoque': saldoEstoque,
       'pro02_mulemb': mulemb,
       'pro02_mulven': mulven,
       'preco_venda': preco,
@@ -167,10 +181,17 @@ class ProdutoDetalheDTO {
     List<String>? fotos,
     String? marcaDescri,
     String? fabricanteDescri,
+    double? estoqueAtual,
+    double? estoquePendente,
+    double? saldoEstoque,
   }) {
     final double precoFinal = (precoVenda != null && precoVenda > 0) ? precoVenda : preco;
     final double maxVal = (pcomax != null && pcomax > 0) ? pcomax : ((this.pcomax > 0) ? this.pcomax : precoFinal);
     final double minVal = (pcomin != null && pcomin > 0) ? pcomin : ((this.pcomin > 0) ? this.pcomin : precoFinal);
+    final double estAtualFinal = estoqueAtual ?? this.estoqueAtual;
+    final double estPenFinal = estoquePendente ?? this.estoquePendente;
+    final double saldoFinal = saldoEstoque ?? this.saldoEstoque;
+
     return ProdutoResultStruct(
       codigo: codigo.toString(),
       descricao: descricao,
@@ -178,9 +199,9 @@ class ProdutoDetalheDTO {
       preco: precoFinal,
       pcomax: maxVal,
       pcomin: minVal,
-      saldoEstoque: qtdest,
-      estoqueAtual: qtdest,
-      estoquePendente: 0.0,
+      saldoEstoque: saldoFinal,
+      estoqueAtual: estAtualFinal,
+      estoquePendente: estPenFinal,
       linha: codlin?.toString() ?? '',
       grupo: codgrp?.toString() ?? '',
       fabricante: fabricanteDescri ?? codfab?.toString() ?? '',

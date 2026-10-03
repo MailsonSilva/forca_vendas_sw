@@ -35,9 +35,12 @@ class LocalSalesDatabaseService {
     return await getDatabasesPath();
   }
 
+  static bool _schemaMigrated = false;
+
   /// Reinicializa o pool de conexões com o SQLite ('dbforcacad001.db')
   /// para invalidar caches antigos em memória e liberar file locks.
   static Future<void> closeAndResetConnectionPool() async {
+    _schemaMigrated = false;
     if (_activeDb != null) {
       if (_activeDb!.isOpen) {
         try {
@@ -68,7 +71,20 @@ class LocalSalesDatabaseService {
     if (_dbForTesting != null) {
       return _dbForTesting!;
     }
+
     final path = await getDatabasePath();
+
+    if (_activeDb != null && _activeDb!.isOpen && _activeDb!.path == path) {
+      return _activeDb!;
+    }
+    if (_activeDb != null && _activeDb!.isOpen && _activeDb!.path != path) {
+      try {
+        await _activeDb!.close();
+      } catch (_) {}
+      _activeDb = null;
+      _schemaMigrated = false;
+    }
+
     final db = await openDatabase(path, readOnly: readOnly);
 
     // Pragmas de alto desempenho no SQLite nativo
@@ -80,11 +96,16 @@ class LocalSalesDatabaseService {
       await db.execute('PRAGMA optimize');
     } catch (_) {}
 
-    if (!readOnly) {
+    if (!readOnly && !_schemaMigrated) {
       try {
         await _ensureSchemaAndMigrate(db);
         await _criarIndicesPerformance(db);
+        _schemaMigrated = true;
       } catch (_) {}
+    }
+
+    if (!readOnly) {
+      _activeDb = db;
     }
     return db;
   }

@@ -44,6 +44,8 @@ class BuscaProdutoPageWidget extends StatefulWidget {
 class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
   late BuscaProdutoPageModel _model;
   final ScrollController _scrollController = ScrollController();
+  bool _isLoadingMore = false;
+  bool _hasMoreItems = true;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -53,10 +55,55 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
 
   int get _planoAtivo => int.tryParse(widget.planoCodigo ?? '') ?? AppState().planoAtivo;
 
+  Future<void> _carregarMaisProdutos() async {
+    if (_isLoadingMore || !_hasMoreItems) return;
+    _isLoadingMore = true;
+    if (mounted) safeSetState(() {});
+    try {
+      final String termo = _model.buscaProdutoFieldTextController?.text.trim() ?? '';
+      final int offset = _model.listaProdutos.length;
+      final novos = await actions.buscaProduto(
+        termo,
+        null,
+        _model.filtroLinha,
+        _model.filtroGrupo,
+        _model.filtroFabricante,
+        _model.filtroMarca,
+        _model.filtroEstoque,
+        _model.filtroPromocao,
+        (AppState().codFilialAtiva > 0 ? AppState().codFilialAtiva : 1),
+        _model.filtroDataEntrada,
+        _tabelaAtiva,
+        offset,
+        50,
+        _planoAtivo,
+      );
+      if (novos.isEmpty || novos.length < 50) {
+        _hasMoreItems = false;
+      }
+      _model.listaProdutos.addAll(novos);
+    } catch (_) {
+      _hasMoreItems = false;
+    } finally {
+      _isLoadingMore = false;
+      if (mounted) safeSetState(() {});
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => BuscaProdutoPageModel());
+
+    _scrollController.addListener(() {
+      if (_scrollController.hasClients &&
+          _scrollController.position.pixels >=
+              _scrollController.position.maxScrollExtent - 300) {
+        if (!_isLoadingMore && _hasMoreItems) {
+          _carregarMaisProdutos();
+        }
+      }
+    });
 
     // On page load action.
     SchedulerBinding.instance.addPostFrameCallback((_) async {
@@ -77,14 +124,16 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
           _model.filtroDataEntrada,
           _tabelaAtiva,
           0,
-          30,
+          50,
           _planoAtivo,
         );
         _model.listaProdutos =
             _model.resultadoOnLoad?.toList().cast<ProdutoResultStruct>() ?? [];
+        _hasMoreItems = _model.listaProdutos.length >= 50;
       } catch (e) {
         debugPrint('Erro busca produtos inicial: $e');
         _model.listaProdutos = [];
+        _hasMoreItems = false;
       } finally {
         _model.dadosCarregados = true;
         if (mounted) safeSetState(() {});
@@ -618,10 +667,9 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                             focusNode: _model.buscaProdutoFieldFocusNode,
                             onChanged: (_) => EasyDebounce.debounce(
                               '_model.buscaProdutoFieldTextController',
-                              const Duration(milliseconds: 350),
+                              const Duration(milliseconds: 300),
                               () async {
-                                _model.resultadoBusca =
-                                    await actions.buscaProduto(
+                                final res = await actions.buscaProduto(
                                   _model.buscaProdutoFieldTextController.text,
                                   null,
                                   _model.filtroLinha,
@@ -636,12 +684,12 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                   _model.filtroDataEntrada,
                                   _tabelaAtiva,
                                   0,
-                                  30,
+                                  50,
                                   _planoAtivo,
                                 );
-                                _model.listaProdutos = _model.resultadoBusca!
-                                    .toList()
-                                    .cast<ProdutoResultStruct>();
+                                _model.resultadoBusca = res;
+                                _model.listaProdutos = res.toList().cast<ProdutoResultStruct>();
+                                _hasMoreItems = res.length >= 50;
                                 safeSetState(() {});
                               },
                             ),
@@ -698,8 +746,7 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                       onTap: () async {
                                         _model.buscaProdutoFieldTextController
                                             ?.clear();
-                                        _model.resultadoBusca =
-                                            await actions.buscaProduto(
+                                        final res = await actions.buscaProduto(
                                           '',
                                           null,
                                           _model.filtroLinha,
@@ -714,13 +761,12 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                           _model.filtroDataEntrada,
                                           _tabelaAtiva,
                                           0,
-                                          30,
+                                          50,
                                           _planoAtivo,
                                         );
-                                        _model.listaProdutos = _model
-                                            .resultadoBusca!
-                                            .toList()
-                                            .cast<ProdutoResultStruct>();
+                                        _model.resultadoBusca = res;
+                                        _model.listaProdutos = res.toList().cast<ProdutoResultStruct>();
+                                        _hasMoreItems = res.length >= 50;
                                         safeSetState(() {});
                                       },
                                       child: Icon(
@@ -1641,10 +1687,22 @@ class _BuscaProdutoPageWidgetState extends State<BuscaProdutoPageWidget> {
                                   controller: _scrollController,
                                   padding: EdgeInsets.zero,
                                   scrollDirection: Axis.vertical,
-                                  itemCount: listaProduto.length,
+                                  itemCount: listaProduto.length + (_isLoadingMore ? 1 : 0),
                                   separatorBuilder: (_, __) =>
                                       const SizedBox(height: 12.0),
                                   itemBuilder: (context, listaProdutoIndex) {
+                                    if (listaProdutoIndex == listaProduto.length) {
+                                      return const Padding(
+                                        padding: EdgeInsets.symmetric(vertical: 16.0),
+                                        child: Center(
+                                          child: SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(strokeWidth: 2.0),
+                                          ),
+                                        ),
+                                      );
+                                    }
                                     final listaProdutoItem =
                                         listaProduto[listaProdutoIndex];
                                     return Padding(

@@ -192,7 +192,22 @@
 - **Digitação e Itens do Pedido (`PedidoItensListaWidget`)**: Lê as colunas canônicas `ped10_digpco` / `dig01_digpco`, sincroniza automaticamente itens com as faixas comerciais oficiais e exibe no diálogo de edição rápida de preço o Preço Mínimo e Preço Máximo oficiais do produto.
 - **Bloqueio de Itens com Preço Zerado**: Impede a inserção de produtos com preço zero no carrinho para vendas normais, preservando a permissão para bonificações (`bontyp = 1`).
 
+### 4. Resolução Tripla de Estoque (Atual, Pendente e Disponível)
+- **Definição dos Três Saldos Oficiais**:
+  - **Estoque Físico Atual (`pro00_qtdest`)**: Quantidade física real existente na filial em `estpro00`.
+  - **Estoque Pendente (`pro00_qtdped`)**: Quantidade retida ou comprometida em pedidos/reservas em `estpro00`.
+  - **Saldo Disponível (`saldo_estoque`)**: Saldo líquido para comercialização imediata: $\text{saldo} = \max(0, \text{Atual} - \text{Pendente})$.
+- **Resiliência de Pareamento e Coerção de Tipagem (SQLite)**: Em bases reais migradas do ERP, `pro00_codpro` (na tabela `estpro00`) e `pro00_codigo` (em `cadpro00`) podem divergir de tipo (`TEXT` com zeros à esquerda vs `INTEGER`). O pareamento realiza coerção explícita:
+  `ON (est.pro00_codpro = sel.pro00_codigo OR CAST(est.pro00_codpro AS TEXT) = CAST(sel.pro00_codigo AS TEXT) OR CAST(est.pro00_codpro AS INTEGER) = CAST(sel.pro00_codigo AS INTEGER))`.
+- **Hierarquia de Resolução por Filial e Fallback**:
+  1. Busca saldo específico para a filial ativa selecionada (`estpro00.pro00_codfil = :filialAtiva`).
+  2. Recuo para filial global ou principal (`pro00_codfil = 0` ou `pro00_codfil = 1`).
+  3. Fallback canônico final para `cadpro00.pro00_qtdest` caso não exista particionamento cadastrado em `estpro00`.
+- **Propagação Unificada via DTO (`ProdutoDetalheDto`)**:
+  O repositório e as actions de carregamento de produto (`CarregarProdutoDetalhe`, `BuscaProduto`) mapeiam e transmitem integralmente `estoqueAtual`, `estoquePendente` e `saldoEstoque` para a estrutura de dados `ProdutoResultStruct`, garantindo que tanto a lista do catálogo quanto o modal de detalhes exibam os três saldos de forma idêntica e sem falsos zeros.
 
-
-
-
+### 5. Gestão de Ciclo de Vida do Banco de Vendas (`LocalSalesDatabaseService`)
+- **Singleton com Reutilização de Conexão Ativa (`_activeDb`)**: Evita criação concorrente de instâncias do SQLite e descritores órfãos de arquivo, reusando a mesma referência aberta durante toda a sessão.
+- **Execução Única de Migrações e Índices**: As rotinas de criação condicional de índices (`idx_cadpro00_codpro`, `idx_estpro00_fil_pro`, `idx_cadcli00_pesquisa`, etc.) rodam apenas uma vez por inicialização da aplicação, eliminando custos repetidos de I/O em consultas de catálogo e clientes.
+- **Busca Multi-Token e Sanitização de Documentos (`pesquisa_cliente.dart`)**:
+  Suporta pesquisas simultâneas por múltiplos tokens (ex: "Silva João" ou números de documento), sanitizando pontuações de CPF/CNPJ e eliminando inconsistências de cache estático que geravam erros de coluna não encontrada (`no such column`).
