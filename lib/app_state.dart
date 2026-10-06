@@ -126,6 +126,12 @@ class AppState extends ChangeNotifier {
     _safeInit(() {
       _nomeArquivoDb = prefs.getString(_nomeArquivoDbKey) ?? _nomeArquivoDb;
     });
+    _safeInit(() {
+      _pastaDownload0 = prefs.getString(_pastaDownloadKey) ?? _pastaDownload0;
+    });
+    _safeInit(() {
+      _pastaUpload0 = prefs.getString(_pastaUploadKey) ?? _pastaUpload0;
+    });
   }
 
   void update(VoidCallback callback) {
@@ -406,6 +412,21 @@ class AppState extends ChangeNotifier {
 
   String get pasta_download => pastaDownload0;
   set pasta_download(String value) => pastaDownload0 = value;
+
+  /// Retorna a pasta raiz real da empresa no FTP (ex: 'diniz'),
+  /// extraída de pastaUpload0 ou pastaDownload0 do acesso.json,
+  /// garantindo que o código de acesso (ex: 'DZ1000SW') nunca seja usado como pasta.
+  String get pastaEmpresaRaiz {
+    if (_pastaUpload0.isNotEmpty && _pastaUpload0.trim().startsWith('/')) {
+      final segs = _pastaUpload0.split('/').where((s) => s.trim().isNotEmpty).toList();
+      if (segs.isNotEmpty) return segs.first.trim().toLowerCase();
+    }
+    if (_pastaDownload0.isNotEmpty && _pastaDownload0.trim().startsWith('/')) {
+      final segs = _pastaDownload0.split('/').where((s) => s.trim().isNotEmpty).toList();
+      if (segs.isNotEmpty) return segs.first.trim().toLowerCase();
+    }
+    return 'diniz';
+  }
 
   /// Salva as configurações obtidas do `acesso.json` no AppState e SharedPreferences.
   Future<void> salvarConfigAcesso(

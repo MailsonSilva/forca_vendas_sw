@@ -10,6 +10,7 @@ import '/action_code/enviar_arquivos_pendentes_ftp.dart';
 import '/pages/home_page/home_page_widget.dart';
 import '/services/ftp_upload_service.dart';
 import '/services/nav_bar_service.dart';
+import '/action_code/baixar_retorno_ftp.dart';
 
 class GerarPacotePageWidget extends StatefulWidget {
   const GerarPacotePageWidget({super.key});
@@ -338,6 +339,7 @@ class _GerarPacotePageWidgetState extends State<GerarPacotePageWidget> {
         codigoEquipe: codigoEquipe,
         codRep: codRep,
         ipac: seqPac > 0 ? seqPac : 1000,
+        pastaUploadTemplate: AppState().pastaUpload0,
         intervalo: const Duration(seconds: 5),
         timeout: const Duration(seconds: 60),
         onPoll: (tentativa, msg) {
@@ -353,6 +355,16 @@ class _GerarPacotePageWidgetState extends State<GerarPacotePageWidget> {
 
       // Passo 4: Finalização
       if (pollingResult.isConfirmado) {
+        if (!mounted) return;
+
+        // Processa retornos pendentes de lotes anteriores
+        try {
+          await baixarRetornoFtp(
+            empresaCodigo: empresa,
+            vendedorCodigo: codRep.toString(),
+          );
+        } catch (_) {}
+
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -419,6 +431,53 @@ class _GerarPacotePageWidgetState extends State<GerarPacotePageWidget> {
           _aguardandoRetorno = false;
         });
       }
+    }
+  }
+
+  // ── Ação: Sincronizar Retornos Manuais (.ret) ──────────────────────────────
+
+  Future<void> _buscarRetornosManuais() async {
+    if (_enviando || _aguardandoRetorno) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Verificando arquivos de retorno (.ret) no servidor FTP...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    try {
+      final String empresa = AppState().empresa_codigo.trim().isEmpty
+          ? 'diniz'
+          : AppState().empresa_codigo.trim();
+      final int codRep = AppState().vendedor_codigo > 0 ? AppState().vendedor_codigo : 71;
+
+      final result = await baixarRetornoFtp(
+        empresaCodigo: empresa,
+        vendedorCodigo: codRep.toString(),
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.message ?? 'Verificação concluída.'),
+          backgroundColor: (result.success ?? false)
+              ? const Color(0xFF2E7D32)
+              : Colors.orange,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+
+      await _carregar();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao buscar retornos: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -521,6 +580,11 @@ class _GerarPacotePageWidgetState extends State<GerarPacotePageWidget> {
         centerTitle: false,
         elevation: 2.0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.cloud_download_rounded, color: Colors.white),
+            onPressed: _buscarRetornosManuais,
+            tooltip: 'Sincronizar Retornos do ERP (.ret)',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Colors.white),
             onPressed: _carregar,

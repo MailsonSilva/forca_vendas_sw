@@ -6,6 +6,7 @@ import '/pages/home_page/home_page_widget.dart';
 import '/services/ftp_upload_service.dart';
 import '/services/nav_bar_service.dart';
 import '/action_code/enviar_arquivos_pendentes_ftp.dart';
+import '/action_code/baixar_retorno_ftp.dart';
 
 /// Tela de Envio de Cargas e Comunicação FTP (ffrmcom00 / EnvioPage)
 ///
@@ -118,6 +119,7 @@ class _EnvioPageWidgetState extends State<EnvioPageWidget> {
         codigoEquipe: codigoEquipe,
         codRep: codRep,
         ipac: seqPac > 0 ? seqPac : 1000,
+        pastaUploadTemplate: AppState().pastaUpload0,
         intervalo: const Duration(seconds: 5),
         timeout: const Duration(seconds: 60),
         onPoll: (tentativa, msg) {
@@ -133,6 +135,16 @@ class _EnvioPageWidgetState extends State<EnvioPageWidget> {
 
       // Passo 4: Finalização e navegação segura
       if (pollingResult.isConfirmado) {
+        if (!mounted) return;
+
+        // Processa eventuais retornos pendentes de lotes anteriores
+        try {
+          await baixarRetornoFtp(
+            empresaCodigo: empresa,
+            vendedorCodigo: codRep.toString(),
+          );
+        } catch (_) {}
+
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

@@ -266,6 +266,12 @@ class SalesDatabaseRepository {
     if (config.nomeEmpresa.isNotEmpty) {
       AppState().empresaNome = config.nomeEmpresa;
     }
+    if (config.downloadPath.isNotEmpty) {
+      AppState().pastaDownload0 = config.downloadPath;
+    }
+    if (config.uploadPath.isNotEmpty) {
+      AppState().pastaUpload0 = config.uploadPath;
+    }
     return config;
   }
 

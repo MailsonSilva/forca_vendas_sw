@@ -21,9 +21,40 @@
 //   Cliente → c71-36109
 // ─────────────────────────────────────────────────────────────────────────────
 
+import '../app_state.dart';
+
 enum TipoCarga { cliente, pedido, uploadGeral }
 
 class FtpPathBuilder {
+  /// Extrai a pasta raiz real da empresa no FTP (ex: 'diniz'), evitando
+  /// usar a chave do código de acesso (ex: 'DZ1000SW') como nome de diretório.
+  static String extrairPastaEmpresa([String? empresaOuTemplate]) {
+    final raw = (empresaOuTemplate ?? '').trim();
+    if (raw.startsWith('/')) {
+      final segs = raw.split('/').where((s) => s.trim().isNotEmpty).toList();
+      if (segs.isNotEmpty) return segs.first.trim().toLowerCase();
+    }
+
+    try {
+      final upload = AppState().pastaUpload0.trim();
+      if (upload.startsWith('/')) {
+        final segs = upload.split('/').where((s) => s.trim().isNotEmpty).toList();
+        if (segs.isNotEmpty) return segs.first.trim().toLowerCase();
+      }
+      final download = AppState().pastaDownload0.trim();
+      if (download.startsWith('/')) {
+        final segs = download.split('/').where((s) => s.trim().isNotEmpty).toList();
+        if (segs.isNotEmpty) return segs.first.trim().toLowerCase();
+      }
+    } catch (_) {}
+
+    if (raw.isNotEmpty && !raw.toUpperCase().endsWith('SW') && raw.length <= 15 && !raw.contains(RegExp(r'[0-9]{3,}'))) {
+      return raw.toLowerCase();
+    }
+
+    return 'diniz';
+  }
+
   /// Formata o código da equipe/vendedor com 2 dígitos (ex: 7 → '07', 71 → '71').
   /// Origem: AppState().vendedor_codigo (persistido em SharedPreferences).
   static String formatEquipe(int codReg) {
@@ -32,8 +63,8 @@ class FtpPathBuilder {
 
   /// Retorna o diretório remoto do FTP no formato /{empresa}/{equipe}/{tipo}/.
   ///
-  /// - [empresa]: AppState().empresa_codigo.trim().toLowerCase()
-  ///   (fallback 'diniz' quando vazio — aplicado ANTES de chamar este método).
+  /// - [empresa]: pasta base da empresa (ex: 'diniz'). Se for passado código de
+  ///   acesso (ex: 'DZ1000SW'), extrai dinamicamente a pasta real configurada.
   /// - [codReg]: AppState().vendedor_codigo (código da equipe, ex: 71).
   /// - [tipo]: pedido → Externo/, cliente → Customer/, geral → Upload/.
   static String getRemotePath({
@@ -42,7 +73,7 @@ class FtpPathBuilder {
     required TipoCarga tipo,
   }) {
     final equipe = formatEquipe(codReg);
-    final pastaEmpresa = empresa.toLowerCase().trim();
+    final pastaEmpresa = extrairPastaEmpresa(empresa);
 
     switch (tipo) {
       case TipoCarga.cliente:
@@ -65,9 +96,11 @@ class FtpPathBuilder {
     final eqpStr = codigoEquipe?.toString().trim() ?? '';
     final raw = (eqpStr.isEmpty || eqpStr == '0') ? fallback : eqpStr;
     final equipeFormatada = raw.padLeft(2, '0');
-    return template
+    final resolvido = template
         .replaceAll('{codigo_da_equipe}', equipeFormatada)
-        .replaceAll('{codigoEquipe}', equipeFormatada);
+        .replaceAll('{codigoEquipe}', equipeFormatada)
+        .trim();
+    return resolvido.endsWith('/') ? resolvido : '$resolvido/';
   }
 
   /// Monta o caminho remoto de upload base concatenado ou interpolado com a equipe do vendedor.

@@ -6,6 +6,8 @@ import '../backend/ftp/ftp_client.dart';
 import '../backend/ftp/ftp_transport.dart';
 import '../backend/schema/structs/index.dart';
 import '../data/repositories/cliente_repository.dart';
+import '../data/services/crg_codec.dart';
+import '../data/services/pacote_retorno_service.dart';
 import 'cliente_ftp_sync_service.dart';
 import 'carga_registry_service.dart';
 import 'ftp_path_builder.dart';
@@ -37,16 +39,23 @@ class FtpUploadService {
     Future<Directory> Function()? getTemporaryDirectoryFn,
     StatusEnvioDb? statusDb,
     CargaRegistryService? registry,
+    PacoteRetornoService? pacoteRetornoService,
+    CrgCodec? crgCodec,
   })  : _connectFtp = connectFtp ?? (() => FtpClient.connect()),
         _getTemporaryDirectoryFn =
             getTemporaryDirectoryFn ?? getTemporaryDirectory,
         _statusDb = statusDb ?? StatusEnvioDb(),
-        _registry = registry ?? CargaRegistryService();
+        _registry = registry ?? CargaRegistryService(),
+        _pacoteRetornoService =
+            pacoteRetornoService ?? PacoteRetornoService(),
+        _crgCodec = crgCodec ?? CrgCodec();
 
   final Future<FtpTransport> Function() _connectFtp;
   final Future<Directory> Function() _getTemporaryDirectoryFn;
   final StatusEnvioDb _statusDb;
   final CargaRegistryService _registry;
+  final PacoteRetornoService _pacoteRetornoService;
+  final CrgCodec _crgCodec;
 
   /// Classifica o arquivo pelo nome conforme a nomenclatura do protocolo:
   ///   - `cli_...` ou `c...`  → [TipoCarga.cliente]  (Customer/)
@@ -153,6 +162,9 @@ class FtpUploadService {
               template: template,
               codigoEquipe: eqpSegura,
             );
+          } else if (template != null && template.trim().startsWith('/')) {
+            final t = template.trim();
+            targetFolder = t.endsWith('/') ? t : '$t/';
           } else {
             targetFolder = FtpPathBuilder.getRemotePath(
               empresa: emp,
@@ -316,18 +328,20 @@ class FtpUploadService {
         : (AppState().pastaUpload0.isNotEmpty ? AppState().pastaUpload0.trim() : null);
 
     final String targetFolder = (dirPac != null && dirPac.trim().isNotEmpty)
-        ? dirPac.trim()
+        ? (dirPac.trim().endsWith('/') ? dirPac.trim() : '${dirPac.trim()}/')
         : (template != null &&
-                (template.contains('{codigo_da_equipe}') || template.contains('{codigoEquipe}'))
+                (template.contains('{codigo_da_equipe}') || template.contains('{codigoEquipe}')))
             ? FtpPathBuilder.resolvePathFromTemplate(
                 template: template,
                 codigoEquipe: eqpSegura,
               )
-            : FtpPathBuilder.getRemotePath(
-                empresa: emp,
-                codReg: eqpSegura,
-                tipo: TipoCarga.pedido,
-              ));
+            : (template != null && template.trim().startsWith('/'))
+                ? (template.trim().endsWith('/') ? template.trim() : '${template.trim()}/')
+                : FtpPathBuilder.getRemotePath(
+                    empresa: emp,
+                    codReg: eqpSegura,
+                    tipo: TipoCarga.pedido,
+                  );
 
     final DateTime start = DateTime.now();
     int tentativa = 0;
@@ -357,11 +371,26 @@ class FtpUploadService {
               );
 
           if (retMatch != null) {
-            // Confirmado via arquivo de retorno!
+            // Confirmado via arquivo de retorno: faz download, importa no SQLite e deleta no FTP (fcfRETPED = 11)
+            try {
+              final rawBytes = await ftp.retr(retMatch);
+              final String conteudo = _crgCodec.decompressRetornoText(rawBytes);
+              await _pacoteRetornoService.importarRetornoXml(
+                xml: conteudo,
+                pacOriginal: nomePacoteOriginal,
+                codRep: codRep,
+              );
+              try {
+                await ftp.dele(retMatch);
+              } catch (_) {}
+            } catch (e) {
+              // Continua para marcar o pacote mesmo se houver oscilação no parse
+            }
+
             await _statusDb.marcarPacoteRecebido(nomePacoteOriginal);
             return PollingRetornoResult(
               status: PollingRetornoStatus.confirmado,
-              mensagem: 'Processamento confirmado pela retaguarda. Arquivo de retorno detectado.',
+              mensagem: 'Processamento confirmado pela retaguarda. Arquivo de retorno importado.',
               arquivoRetorno: retMatch,
             );
           }
@@ -437,18 +466,20 @@ class FtpUploadService {
         : (AppState().pastaUpload0.isNotEmpty ? AppState().pastaUpload0.trim() : null);
 
     final String targetFolder = (dirCAD != null && dirCAD.trim().isNotEmpty)
-        ? dirCAD.trim()
+        ? (dirCAD.trim().endsWith('/') ? dirCAD.trim() : '${dirCAD.trim()}/')
         : (template != null &&
-                (template.contains('{codigo_da_equipe}') || template.contains('{codigoEquipe}'))
+                (template.contains('{codigo_da_equipe}') || template.contains('{codigoEquipe}')))
             ? FtpPathBuilder.resolvePathFromTemplate(
                 template: template,
                 codigoEquipe: eqp,
               )
-            : FtpPathBuilder.getRemotePath(
-                empresa: emp,
-                codReg: eqp,
-                tipo: TipoCarga.cliente,
-              ));
+            : (template != null && template.trim().startsWith('/'))
+                ? (template.trim().endsWith('/') ? template.trim() : '${template.trim()}/')
+                : FtpPathBuilder.getRemotePath(
+                    empresa: emp,
+                    codReg: eqp,
+                    tipo: TipoCarga.cliente,
+                  );
 
     FtpTransport? ftp;
     try {

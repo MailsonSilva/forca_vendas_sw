@@ -133,17 +133,33 @@ class PacoteRetornoService {
 
       final FtpTransport ftp = await _connectFtp();
       try {
-        final List<String> candidateFolders = [
-          FtpPathBuilder.getRemotePath(empresa: emp, codReg: reg, tipo: TipoCarga.pedido),
-          '/$emp/${reg.toString().padLeft(2, '0')}/Externo/',
-          '/$emp/${reg.toString().padLeft(2, '0')}/PAC/',
-          '/$emp/${reg.toString().padLeft(2, '0')}/Upload/',
-          '/$emp/${reg.toString().padLeft(2, '0')}/',
-          '/$emp/Externo/',
-          '/$emp/PAC/',
+        final String pastaEmpresa = FtpPathBuilder.extrairPastaEmpresa(emp);
+        final String eqpStr = reg.toString().padLeft(2, '0');
+        final List<String> candidateFolders = [];
+
+        // 1. Se houver template de upload configurado no acesso.json, ele tem prioridade máxima
+        if (AppState().pastaUpload0.isNotEmpty) {
+          final resolvido = FtpPathBuilder.resolvePathFromTemplate(
+            template: AppState().pastaUpload0,
+            codigoEquipe: reg,
+          );
+          if (resolvido.isNotEmpty) {
+            candidateFolders.add(resolvido);
+          }
+        }
+
+        // 2. Pastas canônicas resolvidas com a pasta raiz da empresa
+        candidateFolders.addAll([
+          FtpPathBuilder.getRemotePath(empresa: pastaEmpresa, codReg: reg, tipo: TipoCarga.pedido),
+          '/$pastaEmpresa/$eqpStr/Externo/',
+          '/$pastaEmpresa/$eqpStr/PAC/',
+          '/$pastaEmpresa/$eqpStr/Upload/',
+          '/$pastaEmpresa/$eqpStr/',
+          '/$pastaEmpresa/Externo/',
+          '/$pastaEmpresa/PAC/',
           '/Externo/',
           '/PAC/',
-        ];
+        ]);
 
         final prefixoRetorno = 'r$rep-'.toLowerCase();
         const prefixoGenerico = 'r';
