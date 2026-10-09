@@ -1,5 +1,5 @@
 ---
-name: mobile-ux-stitch
+name: mobile-ux
 description: Diretrizes de UX/UI mobile, extração de Design DNA com Google Stitch MCP a partir de prints e geração de tokens visuais.
 ---
 
@@ -26,7 +26,7 @@ Quando existirem capturas ou imagens em `_references/screens/`:
      ```
 
 ## 2. Princípios Inegociáveis de Ergonomia Mobile (Touch & Layout)
-- **Área Mínima de Toque (Touch Target)**: Todo botão, ícone ou linha clicável deve ter no mínimo $48 \times 48\text{ dp}$. Se o ícone for menor (ex: $24\text{ dp}$), adicione padding transparente de padding/hit-test.
+- **Área Mínima de Toque (Touch Target)**: Todo botão, ícone ou linha clicável deve ter no mínimo 48x48 dp. Se o ícone for menor (ex: 24 dp), adicione padding transparente de padding/hit-test.
 - **Zona de Alcance do Polegar (Thumb Zone)**: Ações primárias e botões de avanço/salvamento devem estar posicionados no terço inferior da tela. Evite botões críticos nos cantos superiores.
 - **Feedback Háptico e Visual de Toque**: Todo elemento interativo deve ter indicação visual imediata de clique (ripple ou feedback de opacidade).
 

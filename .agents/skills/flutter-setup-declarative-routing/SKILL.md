@@ -1,255 +1,55 @@
 ---
 name: flutter-setup-declarative-routing
-description: Configure `MaterialApp.router` using a package like `go_router` for advanced URL-based navigation. Use when developing web applications or mobile apps that require specific deep linking and browser history support.
-metadata:
-  model: models/gemini-3.1-pro-preview
-  last_modified: Tue, 21 Apr 2026 21:08:03 GMT
+description: Roteamento declarativo com go_router (rotas, deep links Android/iOS, nested navigation). Use ao configurar navegação, receber links externos (push, e-mail) ou tabs com estado preservado.
 ---
-# Implementing Routing and Deep Linking
 
-## Contents
-- [Core Concepts](#core-concepts)
-- [Workflow: Initializing the Application and Router](#workflow-initializing-the-application-and-router)
-- [Workflow: Configuring Platform Deep Linking](#workflow-configuring-platform-deep-linking)
-- [Workflow: Implementing Nested Navigation](#workflow-implementing-nested-navigation)
-- [Examples](#examples)
+# Skill: Roteamento Declarativo (go_router + Deep Links)
 
-## Core Concepts
+> Adaptado de `flutter/agent-plugins` (time oficial do Flutter, licença BSD-3-Clause).
 
-Use the `go_router` package for declarative routing in Flutter. It provides a robust API for complex routing scenarios, deep linking, and nested navigation. 
+## 1. Conceitos
+- `GoRouter`: árvore de rotas; `GoRoute`: path → tela; `redirect`: guardas (ex.: sem sessão → `/login`).
+- `StatefulShellRoute`: shell persistente (ex.: `NavigationBar`) com estado por aba.
+- Navegação: `context.go` (substitui), `context.push` (empilha), `goNamed` + `pathParameters`, `pop`.
 
-- **GoRouter**: The central configuration object defining the application's route tree.
-- **GoRoute**: A standard route mapping a URL path to a Flutter screen.
-- **ShellRoute / StatefulShellRoute**: Wraps child routes in a persistent UI shell (e.g., a `BottomNavigationBar`). `StatefulShellRoute` maintains the state of parallel navigation branches.
-- **Path URL Strategy**: Removes the default `#` fragment from web URLs, essential for clean deep linking across platforms.
-
-## Workflow: Initializing the Application and Router
-
-Follow this workflow to bootstrap a new Flutter application with `go_router` and configure the root routing mechanism.
-
-### Task Progress
-- [ ] Create the Flutter application.
-- [ ] Add the `go_router` dependency.
-- [ ] Configure the URL strategy for web/deep linking.
-- [ ] Implement the `GoRouter` configuration.
-- [ ] Bind the router to `MaterialApp.router`.
-
-### 1. Scaffold the Application
-Run the following commands to create the app and add the required routing package:
+## 2. Setup
 ```bash
-flutter create <app-name>
-cd <app-name>
 flutter pub add go_router
 ```
+- App usa `MaterialApp.router(routerConfig: _router)`.
+- Roteador vive em `lib/core/router/` (arquivo único por app, rotas por feature importadas).
 
-### 2. Configure the Router
-Define a top-level `GoRouter` instance. Handle authentication or state-based routing using the `redirect` parameter.
+## 3. Deep Links (Android + iOS)
+- **Android** (`AndroidManifest.xml`): `intent-filter` com `autoVerify` + scheme/host; hospedar `assetlinks.json` em `/.well-known/`.
+- **iOS** (`Info.plist` + `Runner.entitlements`): `FlutterDeepLinkingEnabled` + `applinks:dominio`; hospedar `apple-app-site-association` em `/.well-known/`.
+- Validação: `adb shell am start -a VIEW -d "<url>" <package>`; `xcrun simctl openurl booted <url>`.
+- Links de e-mail (ex.: recuperação de senha da T01): rota `/reset?token=...` que valida o token antes de renderizar.
 
-```dart
-import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:flutter_web_plugins/url_strategy.dart';
+## 4. Workflow (checklist)
+- [ ] `go_router` + `MaterialApp.router`.
+- [ ] Rotas por feature + `redirect` de auth + `errorBuilder` (tela 404 amigável pt-BR).
+- [ ] Tabs com `StatefulShellRoute` quando houver bottom nav.
+- [ ] Deep links nativos configurados e validados via adb/simctl.
+- [ ] Teste de widget navegando (pump + `go` + `pumpAndSettle` + `expect` da tela destino).
 
-void main() {
-  // Use path URL strategy to remove the '#' from web URLs
-  usePathUrlStrategy();
-  runApp(const MyApp());
-}
-
-final GoRouter _router = GoRouter(
-  initialLocation: '/',
-  routes: [
-    GoRoute(
-      path: '/',
-      builder: (context, state) => const HomeScreen(),
-      routes: [
-        GoRoute(
-          path: 'details/:id',
-          builder: (context, state) => DetailsScreen(id: state.pathParameters['id']!),
-        ),
-      ],
-    ),
-  ],
-  errorBuilder: (context, state) => ErrorScreen(error: state.error),
-);
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp.router(
-      routerConfig: _router,
-      title: 'Routing App',
-    );
-  }
-}
-```
-
-## Workflow: Configuring Platform Deep Linking
-
-Configure the native platforms to intercept specific URLs and route them into the Flutter application.
-
-### Task Progress
-- [ ] Determine target platforms (iOS, Android, or both).
-- [ ] Apply conditional configuration for Android (Manifest + Asset Links).
-- [ ] Apply conditional configuration for iOS (Plist + Entitlements + AASA).
-- [ ] Run validator -> review errors -> fix.
-
-### If configuring for Android:
-1. **Modify `AndroidManifest.xml`**: Add the intent filter inside the `<activity>` tag for `.MainActivity`.
-```xml
-<intent-filter android:autoVerify="true">
-    <action android:name="android.intent.action.VIEW" />
-    <category android:name="android.intent.category.DEFAULT" />
-    <category android:name="android.intent.category.BROWSABLE" />
-    <data android:scheme="http" android:host="yourdomain.com" />
-    <data android:scheme="https" />
-</intent-filter>
-```
-2. **Host `assetlinks.json`**: Serve the following JSON at `https://yourdomain.com/.well-known/assetlinks.json`.
-```json
-[{
-  "relation": ["delegate_permission/common.handle_all_urls"],
-  "target": {
-    "namespace": "android_app",
-    "package_name": "com.yourcompany.yourapp",
-    "sha256_cert_fingerprints": ["YOUR_SHA256_FINGERPRINT"]
-  }
-}]
-```
-
-### If configuring for iOS:
-1. **Modify `Info.plist`**: Opt-in to Flutter's default deep link handler. 
-*Note: If using a third-party deep linking plugin (e.g., `app_links`), set this to `NO` to prevent conflicts.*
-```xml
-<key>FlutterDeepLinkingEnabled</key>
-<true/>
-```
-2. **Modify `Runner.entitlements`**: Add the associated domain.
-```xml
-<key>com.apple.developer.associated-domains</key>
-<array>
-  <string>applinks:yourdomain.com</string>
-</array>
-```
-3. **Host `apple-app-site-association`**: Serve the following JSON (without a `.json` extension) at `https://yourdomain.com/.well-known/apple-app-site-association`.
-```json
-{
-  "applinks": {
-    "apps": [],
-    "details": [{
-      "appIDs": ["TEAM_ID.com.yourcompany.yourapp"],
-      "paths": ["*"],
-      "components": [{"/": "/*"}]
-    }]
-  }
-}
-```
-
-### Validation Loop
-Run validator -> review errors -> fix.
-- **Android**: Test using ADB.
-  ```bash
-  adb shell 'am start -a android.intent.action.VIEW -c android.intent.category.BROWSABLE -d "https://yourdomain.com/details/123"' com.yourcompany.yourapp
-  ```
-- **iOS**: Test using `xcrun` on a booted simulator.
-  ```bash
-  xcrun simctl openurl booted https://yourdomain.com/details/123
-  ```
-
-## Workflow: Implementing Nested Navigation
-
-Use `StatefulShellRoute` to implement persistent UI shells (like a bottom navigation bar) that maintain the state of their child routes.
-
-### Task Progress
-- [ ] Define `StatefulShellRoute.indexedStack` in the `GoRouter` configuration.
-- [ ] Create `StatefulShellBranch` instances for each navigation tab.
-- [ ] Implement the shell widget using `StatefulNavigationShell`.
+## 5. Exemplo Mínimo (guarda de auth + deep link)
 
 ```dart
-final GoRouter _router = GoRouter(
+final router = GoRouter(
   initialLocation: '/home',
+  redirect: (context, state) {
+    final logged = container.read(sessionProvider).isLogged;
+    if (!logged && state.matchedLocation != '/login') return '/login';
+    return null;
+  },
   routes: [
-    StatefulShellRoute.indexedStack(
-      builder: (context, state, navigationShell) {
-        return ScaffoldWithNavBar(navigationShell: navigationShell);
-      },
-      branches: [
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: '/home',
-              builder: (context, state) => const HomeScreen(),
-            ),
-          ],
-        ),
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: '/settings',
-              builder: (context, state) => const SettingsScreen(),
-            ),
-          ],
-        ),
-      ],
+    GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
+    GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
+    GoRoute(
+      path: '/reset',
+      builder: (_, s) => ResetScreen(token: s.uri.queryParameters['token']),
     ),
   ],
+  errorBuilder: (_, _) => const NotFoundScreen(),
 );
-```
-
-## Examples
-
-### High-Fidelity Shell Widget Implementation
-Implement the UI shell that consumes the `StatefulNavigationShell` to handle branch switching.
-
-```dart
-class ScaffoldWithNavBar extends StatelessWidget {
-  const ScaffoldWithNavBar({
-    required this.navigationShell,
-    super.key,
-  });
-
-  final StatefulNavigationShell navigationShell;
-
-  void _goBranch(int index) {
-    navigationShell.goBranch(
-      index,
-      // Support navigating to the initial location when tapping the active tab.
-      initialLocation: index == navigationShell.currentIndex,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: navigationShell,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: _goBranch,
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
-        ],
-      ),
-    );
-  }
-}
-```
-
-### Programmatic Navigation
-Use the `context.go()` and `context.push()` extension methods provided by `go_router`.
-
-```dart
-// Replaces the current route stack with the target route (Declarative)
-context.go('/details/123');
-
-// Pushes the target route onto the existing stack (Imperative)
-context.push('/details/123');
-
-// Navigates using a named route and path parameters
-context.goNamed('details', pathParameters: {'id': '123'});
-
-// Pops the current route
-context.pop();
 ```

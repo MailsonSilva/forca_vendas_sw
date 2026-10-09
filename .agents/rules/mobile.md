@@ -1,6 +1,6 @@
 # Diretrizes Técnicas para Desenvolvimento Mobile (Flutter)
 
-Este guia estabelece os padrões arquiteturais, convenções de código, gestão de estado, persistência de dados e ergonomia de interface para a aplicação Flutter neste workspace (`./`).
+Este guia estabelece os padrões arquiteturais, convenções de código, gestão de estado, persistência de dados e ergonomia de interface para as aplicações em `apps/mobile/`.
 
 ---
 
@@ -8,7 +8,7 @@ Este guia estabelece os padrões arquiteturais, convenções de código, gestão
 Adotamos uma abordagem modular e desacoplada inspirada em **Clean Architecture**:
 
 ```text
-lib/
+apps/mobile/lib/
 ├── core/                  # Serviços globais, tema, utilitários e clientes (HTTP/DB)
 │   ├── database/          # SQLite (migrations, helpers, DAOs)
 │   ├── network/           # Clientes HTTP / Supabase SDK
@@ -48,7 +48,7 @@ Toda tela que consulta, carrega ou submete informações DEVE implementar explic
 ## 3. Diretrizes de UI, Widgets e Performance
 1. **Construtores `const`**: Sempre declare construtores `const` em Widgets sem estado mutável para evitar reconstruções desnecessárias na árvore de renderização.
 2. **Tamanho Mínimo de Alvo de Toque (Touch Target)**:
-   - Todo botão, ícone interativo ou elemento clicável deve ter uma área de toque de no mínimo **$48 \times 48\text{ dp}$**, prevenindo toques acidentais ou frustração de uso.
+    - Todo botão, ícone interativo ou elemento clicável deve ter uma área de toque de no mínimo **48x48 dp**, prevenindo toques acidentais ou frustração de uso.
 3. **Alinhamento com Tokens Visuais**:
    - Cores, raios de borda, espaçamentos e fontes devem ser consumidos centralmente a partir de `core/theme/` (gerado a partir de `_specs/design-tokens.json`).
    - É proibido usar cores "mágicas" (`Color(0xFF123456)`) diretamente no corpo dos widgets.
@@ -75,3 +75,16 @@ Quando o projeto utilizar persistência local em SQLite:
 - O código deve compilar sem nenhum aviso de linter (`flutter analyze` deve retornar código de saída `0`).
 - Use o formatador padrão do Dart (`dart format .`) antes de qualquer submissão de código.
 - Nomes de classes em `UpperCamelCase`, nomes de variáveis e métodos em `lowerCamelCase`, e nomes de arquivos em `snake_case`.
+
+---
+
+## 6. Versionamento, Flavors e Assinatura de Release
+1. **Versionamento Único**:
+   - A versão do app vive no `pubspec.yaml` (`version: x.y.z+build`). Todo release incrementa o build number; toda entrega visível incrementa `x.y.z` seguindo semver.
+2. **Flavors Obrigatórios (`dev` / `stg` / `prod`)**:
+   - Nenhum build de produção pode apontar para backend de desenvolvimento. Use `--flavor` com entrypoints e bundle IDs/applicationIds distintos por ambiente.
+3. **Assinatura**:
+   - Android: App Bundle (`.aab`) assinado com upload key versionada fora do repo (nunca commitar keystore ou `key.properties`).
+   - iOS: distribuição via certificado + provisioning profile gerenciados por `fastlane match`; segredos apenas em variáveis de ambiente do CI.
+4. **Gate de Release**:
+   - Nenhum build sobe para loja sem `flutter test` + `dart analyze` verdes na mesma revisão.

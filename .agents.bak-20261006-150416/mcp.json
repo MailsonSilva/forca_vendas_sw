@@ -1,0 +1,34 @@
+{
+  "mcpServers": {
+    "google-stitch": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@google/stitch-mcp-server"
+      ],
+      "env": {
+        "STITCH_REFERENCES_DIR": "./_references/screens",
+        "STITCH_OUTPUT_DIR": "./_specs"
+      },
+      "description": "Servidor MCP do Google Stitch para extrair o Design DNA de referências em _references/screens/ e gerar protótipos visuais de telas."
+    },
+    "graft-ast": {
+      "command": "graft",
+      "args": [
+        "mcp",
+        "--watch"
+      ],
+      "description": "Grafo estático do código com Tree-sitter para consulta determinística de símbolos, funções e contratos sem consumir tokens desnecessários."
+    },
+    "ai-memory": {
+      "command": "ai-memory",
+      "args": [
+        "server"
+      ],
+      "env": {
+        "AI_MEMORY_DB_PATH": "./.agents/memory/context.db"
+      },
+      "description": "Servidor de memória local para persistência de tickets de handoff entre subagentes e histórico de aprendizados do ciclo TDD."
+    }
+  }
+}

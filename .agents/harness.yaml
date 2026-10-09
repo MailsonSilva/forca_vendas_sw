@@ -1,25 +1,28 @@
 version: "1.0"
-name: "unified-developer-harness"
-description: "Harness unificado multi-alvo com alocação dinâmica de modelos de IA, TDD, Stitch MCP, Graft e ai-memory."
+name: "mobile-developer-harness"
+description: "Harness mobile-first (Flutter) com TDD, Stitch MCP, Graft e ai-memory."
 
 # -------------------------------------------------------------
-# 1. Alocação Dinâmica de Modelos (Configurável por Variáveis/Perfil)
+# 1. Seleção de Modelos por Tarefa (sem nenhum modelo fixado)
 # -------------------------------------------------------------
-# Permite definir ou trocar os modelos de cada tarefa sem alterar os subagentes.
-# Você pode sobrescrever via variável de ambiente (ex: MODEL_REASONING="gemini-3.8-pro")
-# ou alterar diretamente neste bloco conforme as versões que preferir usar.
+# O harness NÃO define modelo padrão. Você escolhe o modelo na hora de
+# executar, via variáveis de ambiente — pode trocar por tarefa sem editar
+# este arquivo. Exemplos (PowerShell / Bash):
+#   $env:MODEL_REASONING="seu-modelo-forte"; $env:MODEL_CODING="seu-modelo-rapido"
+#   export MODEL_REASONING="seu-modelo-forte" MODEL_CODING="seu-modelo-rapido"
+# Papéis sugeridos:
+#   reasoning         -> PRD, arquitetura, decisões (modelo forte de raciocínio)
+#   coding            -> TDD, builders, refatoração (modelo rápido de código)
+#   multimodal_design -> Stitch, tokens visuais (modelo com visão)
+#   fast_ops          -> git commits, comandos (modelo leve e barato)
 models:
-  # Raciocínio profundo, arquitetura, design de PRD e modelagem
-  reasoning: "${MODEL_REASONING:-gemini-3.8-pro}"
-  
-  # Codificação rápida, TDD, builders de componentes e refatoração
-  coding: "${MODEL_CODING:-gemini-3.8-flash}"
-  
-  # Tarefas multimodais, inspeção de imagens no Stitch e tokens visuais
-  multimodal_design: "${MODEL_DESIGN:-gemini-3.8-flash}"
-  
-  # Execução rápida de comandos bash, git commits e parsing de testes
-  fast_ops: "${MODEL_OPS:-gemini-3.8-flash}"
+  reasoning: "${MODEL_REASONING}"
+
+  coding: "${MODEL_CODING}"
+
+  multimodal_design: "${MODEL_DESIGN}"
+
+  fast_ops: "${MODEL_OPS}"
 
 # -------------------------------------------------------------
 # 2. Configurações Gerais
@@ -29,7 +32,7 @@ settings:
   language: "pt-BR"
   enforce_tdd: true
   max_repair_cycles: 3
-  active_profile: "dynamic" # Lê targets diretamente de _specs/prd.md
+  active_profile: "mobile" # Harness mobile-only: sem alternância de targets
 
 # -------------------------------------------------------------
 # 3. Workspaces e Comandos de Validação por Target
@@ -41,10 +44,9 @@ workspaces:
       - "_references/"
       - ".agents/"
   mobile:
-    path: "./"
-    active_when: "targets.mobile == true"
-    test_command: "flutter test"
-    lint_command: "dart analyze"
+    path: "apps/mobile/"
+    test_command: "cd apps/mobile && flutter test"
+    lint_command: "cd apps/mobile && dart analyze"
 
 # -------------------------------------------------------------
 # 4. Ferramentas Externas e MCPs Conectados
@@ -69,7 +71,7 @@ tools:
 subagents:
   # Agente 1: Descoberta e PRD
   product_architect:
-    model: "${models.reasoning}"
+    model: "${MODEL_REASONING}"
     role: "Entrevista o desenvolvedor, define requisitos de negócio e gera o PRD agnóstico em _specs/ com diagramas Archify."
     rules:
       - ".agents/rules/global.md"
@@ -79,64 +81,81 @@ subagents:
 
   # Agente 2: UX/UI e Prototipagem Visual
   ui_ux_designer:
-    model: "${models.multimodal_design}"
+    model: "${MODEL_DESIGN}"
     role: "Inspeciona capturas em _references/screens/ usando Google Stitch MCP e gera os tokens de design em _specs/design-tokens.json."
     rules:
       - ".agents/rules/global.md"
     skills:
-      - ".agents/skills/mobile-ux-stitch/SKILL.md"
+      - ".agents/skills/mobile-ux/SKILL.md"
+      - ".agents/skills/flutter-build-responsive-layout/SKILL.md"
+      - ".agents/skills/flutter-setup-localization/SKILL.md"
     tools: ["google_stitch_mcp", "file_read", "file_write", "ai_memory"]
 
   # Agente 3: TDD Tester (Fase Vermelha - RED)
   tdd_tester:
-    model: "${models.coding}"
+    model: "${MODEL_CODING}"
     role: "Lê a spec da feature e cria testes unitários/widgets/componentes que obrigatoriamente falham antes do código."
     rules:
       - ".agents/rules/global.md"
     skills:
-      - ".agents/skills/clean-architecture-tdd/SKILL.md"
+      - ".agents/skills/clean-architecture/SKILL.md"
+      - ".agents/skills/flutter-add-widget-test/SKILL.md"
+      - ".agents/skills/flutter-add-integration-test/SKILL.md"
     tools: ["file_read", "file_write", "bash", "graft", "ai_memory"]
 
   # Agente 4: Desenvolvedor Mobile (Fase Verde - GREEN)
   mobile_builder:
-    model: "${models.coding}"
+    model: "${MODEL_CODING}"
     role: "Escreve código Flutter estritamente tipado, modular e aderente à Clean Architecture para passar nos testes."
-    active_when: "targets.mobile == true"
     rules:
       - ".agents/rules/global.md"
       - ".agents/rules/mobile.md"
     skills:
-      - ".agents/skills/mobile-ux-stitch/SKILL.md"
-      - ".agents/skills/clean-architecture-tdd/SKILL.md"
+      - ".agents/skills/mobile-ux/SKILL.md"
+      - ".agents/skills/clean-architecture/SKILL.md"
+      - ".agents/skills/flutter-apply-architecture-best-practices/SKILL.md"
+      - ".agents/skills/flutter-state-riverpod/SKILL.md"
+      - ".agents/skills/flutter-setup-declarative-routing/SKILL.md"
+      - ".agents/skills/flutter-setup-localization/SKILL.md"
+      - ".agents/skills/flutter-build-responsive-layout/SKILL.md"
+      - ".agents/skills/flutter-use-http-package/SKILL.md"
+      - ".agents/skills/dart-use-pattern-matching/SKILL.md"
+      - ".agents/skills/supabase-flutter/SKILL.md"
+      - ".agents/skills/local-first-data/SKILL.md"
     tools: ["file_read", "file_write", "graft", "ai_memory"]
 
-  # Agente 5: Desenvolvedor Web e Landing Pages (Fase Verde - GREEN)
-  web_builder:
-    model: "${models.coding}"
-    role: "Escreve componentes Next.js/React com Server Components e boas práticas de Core Web Vitals (Addy Osmani)."
-    active_when: "targets.web == true || targets.landing_page == true"
-    rules:
-      - ".agents/rules/global.md"
-      - ".agents/rules/web.md"
-    skills:
-      - ".agents/skills/web-performance-seo/SKILL.md"
-    tools: ["file_read", "file_write", "graft", "ai_memory"]
-
-  # Agente 6: Auditor de Qualidade e Autorreparo (Fase REFACTOR)
+  # Agente 5: Auditor de Qualidade e Autorreparo (Fase REFACTOR)
   qa_validator:
-    model: "${models.coding}"
-    role: "Executa testes e linters do target ativo, orquestrando até 3 ciclos de autorreparo automático caso algo quebre."
+    model: "${MODEL_CODING}"
+    role: "Executa testes e linters do app mobile, orquestrando até 3 ciclos de autorreparo automático caso algo quebre."
     rules:
       - ".agents/rules/global.md"
+    skills:
+      - ".agents/skills/code-quality-tests/SKILL.md"
+      - ".agents/skills/dart-collect-coverage/SKILL.md"
+      - ".agents/skills/dart-use-pattern-matching/SKILL.md"
     tools: ["bash", "file_read", "file_write", "ai_memory"]
 
-  # Agente 7: Versionador Semântico
+  # Agente 6: Versionador Semântico
   git_committer:
-    model: "${models.fast_ops}"
+    model: "${MODEL_OPS}"
     role: "Inspeciona o diff staged, extrai o contexto do ticket no ai-memory e cria o commit semântico atômico."
     rules:
       - ".agents/rules/global.md"
     tools: ["git", "ai_memory", "bash"]
+
+  # Agente 7: Gerente de Release (Play Store + App Store)
+  release_manager:
+    model: "${MODEL_CODING}"
+    role: "Executa o pipeline de release Flutter (gates, versionamento, build, entrega) e publica nas lojas com rollout controlado."
+    rules:
+      - ".agents/rules/global.md"
+      - ".agents/rules/mobile.md"
+    skills:
+      - ".agents/skills/flutter-release/SKILL.md"
+      - ".agents/skills/mobile-cicd/SKILL.md"
+      - ".agents/skills/store-publishing/SKILL.md"
+    tools: ["bash", "file_read", "file_write", "ai_memory"]
 
 # -------------------------------------------------------------
 # 6. Workflows

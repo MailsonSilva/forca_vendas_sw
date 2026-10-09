@@ -4,11 +4,10 @@ version: "0.1.0"
 date: "2026-10-01"
 status: "draft" # draft | approved | in_progress | completed
 
-# Alvos da aplicação (ativados na fase de descoberta)
-targets:
-  mobile: true        # apps/mobile
-  web: false          # apps/web
-  landing_page: true  # apps/landing
+# Plataformas do aplicativo (ativadas na fase de descoberta)
+platforms:
+  android: true
+  ios: true
 
 # Definição tecnológica aberta decidida na descoberta
 technology_choices:
@@ -18,10 +17,9 @@ technology_choices:
   primary_database: "to_be_decided" # ex: sqlite, postgres, mysql, supabase, firebase, local_json, nenhum
   backend_strategy: "to_be_decided" # ex: direct_db, custom_api, edge_functions, baas, offline_only
 
-  # Frameworks decididos por alvo
+  # Framework do app
   mobile_framework: "flutter" # ou react_native_expo, nativo, etc.
-  web_framework: "nextjs"     # ou react_vite, astro, etc.
-  styling_approach: "tokens"  # tailwind, design_tokens, material3
+  styling_approach: "tokens"  # design_tokens, material3
 ---
 
 # PRD: {{project_name}}
@@ -45,22 +43,12 @@ technology_choices:
 
 ---
 
-## 3. Escopo dos Alvos (Targets)
+## 3. Escopo do Aplicativo Mobile (`apps/mobile`)
 
-### 3.1. Aplicativo Mobile (`apps/mobile`)
-> *Status: [Ativo / Inativo]*
-- **Papel no Produto**: 
+- **Papel no Produto**:
 - **Capacidades Críticas**: [Offline-first, notificações, acesso à câmera, biometria, etc.]
-
-### 3.2. Painel Web / Dashboard (`apps/web`)
-> *Status: [Ativo / Inativo]*
-- **Papel no Produto**: 
-- **Capacidades Críticas**: [Relatórios, dashboards gerenciais, operações em massa, desktop-friendly]
-
-### 3.3. Landing Page / Site Institucional (`apps/landing`)
-> *Status: [Ativo / Inativo]*
-- **Papel no Produto**: 
-- **Capacidades Críticas**: [Alta conversão, SEO semântico, carregamento instantâneo, captura de leads]
+- **Plataformas**: [Android e/ou iOS, versão mínima do SO por plataforma]
+- **Matriz de Devices**: [modelos e tamanhos de tela prioritários para teste]
 
 ---
 
@@ -78,7 +66,7 @@ technology_choices:
 
 ### Épico 1: [Nome do Fluxo Principal]
 - **Como** [perfil de usuário],
-- **Quero** [realizar uma ação no app/web],
+- **Quero** [realizar uma ação no app],
 - **Para** [atingir determinado benefício].
 
 **Critérios de Aceitação Obrigatórios**:

@@ -1,5 +1,5 @@
 ---
-name: clean-architecture-tdd
+name: clean-architecture
 description: Práticas de Test-Driven Development (Red-Green-Refactor), desacoplamento de domínio e criação de suítes de teste de alta velocidade.
 ---
 
